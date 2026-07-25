@@ -110,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     print(resultado.provenance.describe())
 
     if resultado.warnings:
-        print("\n[!] Avisos de calidad — leelos antes de creerte un backtest:")
+        # Solo ASCII: en la consola de Windows (cp1252) un guion largo sale como un rombo negro.
+        print("\n[!] Avisos de calidad - leelos antes de creerte un backtest:")
         for aviso in resultado.warnings:
             print(f"    - {aviso.message}")
 

@@ -149,3 +149,57 @@ def test_el_instante_de_descarga_queda_registrado(tmp_path: Path) -> None:
         sleep=sin_espera,
     )
     assert resultado.provenance.downloaded_at == momento
+
+
+def test_pedir_desde_un_festivo_no_avisa_de_cobertura_parcial(tmp_path: Path) -> None:
+    """Regresion encontrada al descargar AAPL de verdad.
+
+    Pedir desde el 1 de enero y recibir desde el 2 no es cobertura parcial: el 1 de enero no hubo
+    sesion. El aviso saltaba en cada descarga de bolsa, y un aviso que salta siempre es ruido que
+    acaba tapando los avisos que si importan.
+    """
+    from datetime import UTC, datetime
+
+    from invest_ll.fetch.provenance import WarningKind
+
+    # 2026-01-01 es festivo; el mercado abre el 2.
+    peticion_bolsa = FetchRequest(
+        symbol="AAPL",
+        interval=Interval.DAY_1,
+        start=datetime(2026, 1, 1, tzinfo=UTC),
+        end=datetime(2026, 1, 10, tzinfo=UTC),
+        market=Market.EQUITY,
+    )
+    # Ocho velas desde el 2 cubren hasta el 10: no falta nada al final, solo el festivo inicial.
+    velas_desde_el_2 = velas(8, start=datetime(2026, 1, 2, tzinfo=UTC))
+    resultado = fetch_history(
+        peticion_bolsa,
+        RecordedProvider(velas_desde_el_2),
+        HistoryStore(tmp_path),
+        now=datetime(2026, 3, 1, tzinfo=UTC),
+        sleep=sin_espera,
+    )
+    assert not any(a.kind is WarningKind.PARTIAL_RANGE for a in resultado.warnings)
+
+
+def test_una_cobertura_realmente_parcial_sigue_avisando(tmp_path: Path) -> None:
+    """La tolerancia al festivo no puede silenciar el aviso de verdad."""
+    from datetime import UTC, datetime
+
+    from invest_ll.fetch.provenance import WarningKind
+
+    peticion_bolsa = FetchRequest(
+        symbol="AAPL",
+        interval=Interval.DAY_1,
+        start=datetime(2026, 1, 1, tzinfo=UTC),
+        end=datetime(2026, 6, 1, tzinfo=UTC),  # cinco meses
+        market=Market.EQUITY,
+    )
+    resultado = fetch_history(
+        peticion_bolsa,
+        RecordedProvider(velas(6, start=datetime(2026, 1, 2, tzinfo=UTC))),  # solo una semana
+        HistoryStore(tmp_path),
+        now=datetime(2026, 8, 1, tzinfo=UTC),
+        sleep=sin_espera,
+    )
+    assert any(a.kind is WarningKind.PARTIAL_RANGE for a in resultado.warnings)

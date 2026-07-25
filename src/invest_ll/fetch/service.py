@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -31,6 +31,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.data.bar import Bar
     from invest_ll.fetch.protocol import MarketDataProvider
     from invest_ll.fetch.request import FetchRequest
+
+
+# A partir de un dia, la pregunta al calendario es si hubo sesion, no si estaba abierto.
+_UN_DIA = timedelta(days=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,14 +187,42 @@ def _gap_warnings(series: PriceSeries) -> list[QualityWarning]:
     ]
 
 
+def _hay_sesion_entre(series: PriceSeries, desde: datetime, hasta: datetime) -> bool:
+    """¿Hubo algún periodo negociable en este tramo?
+
+    Si no lo hubo, que el proveedor no traiga datos ahí no es un fallo suyo: es que el mercado
+    estaba cerrado.
+    """
+    if desde >= hasta:
+        return False
+
+    paso = series.interval.duration
+    negociable = series.calendar.is_session if paso >= _UN_DIA else series.calendar.is_open
+
+    momento = desde
+    while momento < hasta:
+        if negociable(momento):
+            return True
+        momento += paso
+    return False
+
+
 def _partial_range_warning(series: PriceSeries, request: FetchRequest) -> list[QualityWarning]:
     """Avisa cuando el proveedor cubre menos de lo pedido.
 
     Sin este aviso, el operador creería estar evaluando un periodo que en realidad no tiene.
+
+    **Pero solo si falta algo de verdad.** Pedir desde el 1 de enero y recibir desde el 2 no es
+    cobertura parcial: el 1 de enero no hubo sesión. Un aviso que salta en cada descarga es ruido,
+    y el ruido hace que se ignoren los avisos que sí importan.
     """
     cubre_desde = series.bars[0].timestamp
     cubre_hasta = series.bars[-1].timestamp + request.interval.duration
-    if cubre_desde <= request.start and cubre_hasta >= request.end:
+
+    falta_al_principio = _hay_sesion_entre(series, request.start, cubre_desde)
+    falta_al_final = _hay_sesion_entre(series, cubre_hasta, request.end)
+
+    if not falta_al_principio and not falta_al_final:
         return []
 
     return [
