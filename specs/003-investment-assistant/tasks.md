@@ -201,6 +201,6 @@ justo lo que pide el test-first.
 elige mejor que una regla fija?* Si la respuesta es que no —y los 40 barridos de estrategias
 apuntan a que puede serlo— eso cambia qué merece la pena construir después.
 
-Completadas: **83 de 83**.
+Completadas: **83 de 83** — verificado fichero a fichero, no por rango de números.
 
 Total: **83 tareas** · US2 · 12 · US1 · 8 · US3 · 8 · US4 · 8 · US5 · 20
