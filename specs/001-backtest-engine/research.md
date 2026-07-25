@@ -158,22 +158,25 @@ verificada antes de darlo por activo.
 
 ## R8. Versión de Python y gestión de dependencias
 
-**Decisión**: Python **3.13**, gestionado con `uv` (ya presente, v0.11.16). Dependencias fijadas en
-`pyproject.toml` con `uv.lock` commiteado.
+**Decisión**: Python **3.14** con `requires-python = ">=3.13"`, gestionado con `uv` (v0.11.16).
+Dependencias fijadas en `pyproject.toml` con `uv.lock` commiteado.
 
-**Rationale**: la máquina tiene 3.11.9 y 3.14.0 instalados; `uv` descarga 3.13 de forma
-transparente. 3.13 es el punto dulce actual: mejoras de tipado sobre 3.11 y ecosistema científico
-(numpy, pandas, exchange_calendars) plenamente empaquetado, cosa que en 3.14 aún puede faltar en
-alguna dependencia transitiva. El lock commiteado sostiene la reproducibilidad de FR-005 más allá
-del código.
+**Rationale**: la decisión original de este documento era 3.13, por el riesgo de que alguna
+dependencia transitiva no tuviera wheels para 3.14. **Ese riesgo se comprobó y no existe**: `uv
+sync` resolvió al 3.14.0 ya presente en la máquina y las tres dependencias importan y funcionan
+(numpy 2.5.1, pandas 3.0.5, exchange_calendars 4.13.2, con `XNYS` respondiendo correctamente). Se
+actualiza la decisión en lugar de forzar 3.13 en contra de la evidencia.
+
+El suelo se mantiene en `>=3.13` para no atarse al intérprete concreto de esta máquina; el
+`uv.lock` commiteado sostiene la reproducibilidad de FR-005 más allá del código.
 
 **Alternativas consideradas**:
-- *3.11 (ya instalado)*: cero fricción de instalación, pero renuncia a tres versiones de mejoras.
-- *3.14 (ya instalado)*: lo más reciente; riesgo real de wheels ausentes en dependencias
-  transitivas y de ser el primero en encontrar los fallos.
+- *3.13 (decisión original)*: habría exigido descargar un intérprete extra sin ninguna ventaja
+  demostrada sobre el 3.14 ya instalado y verificado.
+- *3.11 (ya instalado)*: cero fricción, pero renuncia a tres versiones de mejoras de tipado.
 
-**A verificar en implementación**: que las tres dependencias resuelvan e instalen en 3.13 con una
-ejecución real. Instalado no significa funcional.
+**Verificado con ejecución real** (2026-07-25): `uv run python -c "import numpy, pandas,
+exchange_calendars"` en 3.14.0. Instalado no significa funcional — por eso se comprobó ejecutando.
 
 ---
 

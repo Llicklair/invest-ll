@@ -33,13 +33,13 @@ Librería única: `src/invest_ll/`, tests en `tests/` en la raíz del repositori
 **Purpose**: dejar el proyecto instalable y las gates ejecutables. Hasta aquí no hay lógica de
 negocio.
 
-- [ ] T001 Crear `pyproject.toml` con `requires-python = ">=3.13"`, dependencias (`numpy`, `pandas`, `exchange_calendars`) y grupo dev (`pytest`, `hypothesis`, `ruff`, `pyright`)
-- [ ] T002 Ejecutar `uv sync` y verificar con una ejecución real que `numpy`, `pandas` y `exchange_calendars` importan en Python 3.13; commitear `uv.lock`
-- [ ] T003 [P] Configurar `ruff` (lint + format) en `pyproject.toml`
-- [ ] T004 [P] Configurar `pyright` en modo estricto sobre `src/` en `pyproject.toml`
-- [ ] T005 [P] Configurar `pytest` en `pyproject.toml`: rutas de test, marcadores `perf` y `property`
-- [ ] T006 Crear el esqueleto de paquetes `src/invest_ll/{data,engine,strategy,report}/__init__.py` y `tests/{unit,integration,property,perf,fixtures}/`
-- [ ] T007 Verificar que las cuatro gates corren en verde sobre el proyecto vacío: `ruff check .`, `ruff format --check .`, `pyright`, `pytest`
+- [X] T001 Crear `pyproject.toml` con `requires-python = ">=3.13"`, dependencias (`numpy`, `pandas`, `exchange_calendars`) y grupo dev (`pytest`, `hypothesis`, `ruff`, `pyright`)
+- [X] T002 Ejecutar `uv sync` y verificar con una ejecución real que `numpy`, `pandas` y `exchange_calendars` importan en Python 3.13; commitear `uv.lock`
+- [X] T003 [P] Configurar `ruff` (lint + format) en `pyproject.toml`
+- [X] T004 [P] Configurar `pyright` en modo estricto sobre `src/` en `pyproject.toml`
+- [X] T005 [P] Configurar `pytest` en `pyproject.toml`: rutas de test, marcadores `perf` y `property`
+- [X] T006 Crear el esqueleto de paquetes `src/invest_ll/{data,engine,strategy,report}/__init__.py` y `tests/{unit,integration,property,perf,fixtures}/`
+- [X] T007 Verificar que las cuatro gates corren en verde sobre el proyecto vacío: `ruff check .`, `ruff format --check .`, `pyright`, `pytest`
 
 **Checkpoint**: gates ejecutables. Cualquier fallo posterior es del código, no del entorno.
 
@@ -57,21 +57,21 @@ adversarial* de esta barrera, no su construcción.
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T008 [P] Test de `Bar`: validación OHLC (`low ≤ open,close ≤ high`, precios > 0, sin NaN) en `tests/unit/test_bar.py`
-- [ ] T009 [P] Test de `PriceSeries`: orden cronológico estricto, sin duplicados, alineación al intervalo declarado en `tests/unit/test_series.py`
-- [ ] T010 [P] Test de `MarketView`: `history(n)` nunca devuelve datos posteriores al cursor; pedir un índice futuro lanza `LookAheadError`; `history(n)` con menos de `n` periodos devuelve los disponibles sin rellenar, en `tests/unit/test_view.py`
-- [ ] T011 [P] Test de calendarios: `Continuous24x7` siempre abierto; adaptador bursátil cerrado en festivo y fuera de sesión, en `tests/unit/test_calendars.py`
-- [ ] T012 [P] Test del loader: CSV válido carga; cierre legítimo no genera aviso, vela ausente dentro de sesión sí; serie inválida lanza `InvalidSeriesError`, en `tests/unit/test_loader.py`
+- [X] T008 [P] Test de `Bar`: validación OHLC (`low ≤ open,close ≤ high`, precios > 0, sin NaN) en `tests/unit/test_bar.py`
+- [X] T009 [P] Test de `PriceSeries`: orden cronológico estricto, sin duplicados, alineación al intervalo declarado en `tests/unit/test_series.py`
+- [X] T010 [P] Test de `MarketView`: `history(n)` nunca devuelve datos posteriores al cursor; pedir un índice futuro lanza `LookAheadError`; `history(n)` con menos de `n` periodos devuelve los disponibles sin rellenar, en `tests/unit/test_view.py`
+- [X] T011 [P] Test de calendarios: `Continuous24x7` siempre abierto; adaptador bursátil cerrado en festivo y fuera de sesión, en `tests/unit/test_calendars.py`
+- [X] T012 [P] Test del loader: CSV válido carga; cierre legítimo no genera aviso, vela ausente dentro de sesión sí; serie inválida lanza `InvalidSeriesError`, en `tests/unit/test_loader.py`
 
 ### Implementación
 
-- [ ] T013 [P] Definir `LookAheadError`, `InvalidSeriesError` e `InsufficientCapitalError` en `src/invest_ll/errors.py`
-- [ ] T014 [P] Implementar `Bar` (frozen) e `Interval` con validación OHLC en `src/invest_ll/data/bar.py`
-- [ ] T015 [P] Implementar el protocolo `MarketCalendar`, `Continuous24x7` y `ExchangeCalendarAdapter` en `src/invest_ll/data/calendars.py`
-- [ ] T016 Implementar `PriceSeries` con validación completa (FR-015, FR-034) en `src/invest_ll/data/series.py` (depende de T014, T015)
-- [ ] T017 Implementar `MarketView` en `src/invest_ll/engine/view.py`: cursor, interfaz pública de solo-pasado, `LookAheadError` en acceso futuro (FR-002..FR-004) (depende de T016)
-- [ ] T018 Implementar `load_series` para CSV y Parquet, devolviendo `(PriceSeries, DataWarning[])` y clasificando huecos contra el calendario (FR-016, FR-021) en `src/invest_ll/data/loader.py` (depende de T016)
-- [ ] T019 [P] Crear fixtures de series sintéticas con resultado calculado a mano (cripto 24/7 y bolsa con sesión) en `tests/fixtures/`
+- [X] T013 [P] Definir `LookAheadError`, `InvalidSeriesError` e `InsufficientCapitalError` en `src/invest_ll/errors.py`
+- [X] T014 [P] Implementar `Bar` (frozen) e `Interval` con validación OHLC en `src/invest_ll/data/bar.py`
+- [X] T015 [P] Implementar el protocolo `MarketCalendar`, `Continuous24x7` y `ExchangeCalendarAdapter` en `src/invest_ll/data/calendars.py`
+- [X] T016 Implementar `PriceSeries` con validación completa (FR-015, FR-034) en `src/invest_ll/data/series.py` (depende de T014, T015)
+- [X] T017 Implementar `MarketView` en `src/invest_ll/engine/view.py`: cursor, interfaz pública de solo-pasado, `LookAheadError` en acceso futuro (FR-002..FR-004) (depende de T016)
+- [X] T018 Implementar `load_series` para CSV y Parquet, devolviendo `(PriceSeries, DataWarning[])` y clasificando huecos contra el calendario (FR-016, FR-021) en `src/invest_ll/data/loader.py` (depende de T016)
+- [X] T019 [P] Crear fixtures de series sintéticas con resultado calculado a mano (cripto 24/7 y bolsa con sesión) en `tests/fixtures/`
 
 **Checkpoint**: la barrera del Principio II existe y está probada. Puede empezar el motor.
 

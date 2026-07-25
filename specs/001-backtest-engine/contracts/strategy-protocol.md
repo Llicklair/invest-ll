@@ -61,7 +61,8 @@ de la estrategia tramposa (SC-003).
 ```python
 class SignalKind(Enum):
     ENTER_LONG = "enter_long"
-    EXIT       = "exit"
+    EXIT = "exit"
+
 
 @dataclass(frozen=True)
 class Signal:

@@ -23,7 +23,8 @@ Decisiones y alternativas descartadas: [research.md](./research.md).
 
 ## Technical Context
 
-**Language/Version**: Python 3.13 (gestionado con `uv`; la máquina tiene 3.11.9 y 3.14.0 — ver R8)
+**Language/Version**: Python 3.14, suelo `>=3.13` (gestionado con `uv`). La decisión inicial era
+3.13 por riesgo de wheels; comprobado con ejecución real que 3.14 funciona — ver R8 actualizado
 
 **Primary Dependencies**: `numpy` (núcleo del bucle), `pandas` (carga y validación, solo en la
 frontera), `exchange_calendars` (festivos bursátiles, tras adaptador propio)
