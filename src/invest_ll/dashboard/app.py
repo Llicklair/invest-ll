@@ -18,10 +18,13 @@ es donde un error de tipos costaría dinero, siguen en modo estricto.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import streamlit as st
 
+from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
+from invest_ll.alerts.models import Nivel, Umbrales
 from invest_ll.dashboard.data import (
     VENTANAS,
     AvailableAsset,
@@ -367,6 +370,65 @@ def pestana_seguimiento() -> None:
         )
 
 
+def pestana_alertas(activos: list[AvailableAsset]) -> None:
+    """Lo que esta pasando con tus activos. Se mira; no persigue.
+
+    Esta pestana **no notifica**: existe aqui, y aparece cuando la abres. Es deliberado. La FCA
+    midio sobre mas de 9.000 personas que las notificaciones aumentan un 11% las operaciones y un
+    8% las inversiones arriesgadas, con mas efecto en quien menos sabe de inversion.
+
+    Tampoco hay alertas de subidas. Una que dijera "GLD subio un 20%" no informa de nada que
+    necesites: existe para que abras la aplicacion.
+    """
+    st.header("Alertas")
+    st.caption(
+        "Solo saltan por riesgo, nunca porque algo haya subido. Informan de un estado; "
+        "ninguna dice que hacer."
+    )
+
+    dias = int(
+        st.number_input(
+            "Avisar si un historico lleva sin actualizarse mas de (dias)",
+            min_value=1,
+            max_value=365,
+            value=Umbrales().dias_sin_datos,
+        )
+    )
+    caida = st.slider("Avisar si un activo cae desde su maximo mas de (%)", 5, 60, 15, step=5) / 100
+
+    series = []
+    for activo in activos:
+        try:
+            series.append(activo.load())
+        except (InvestLLError, ValueError):  # pragma: no cover - fichero corrupto
+            continue
+
+    alertas = evaluate(
+        series,
+        ahora=datetime.now(UTC),
+        umbrales=Umbrales(dias_sin_datos=dias, caida_desde_maximo=Decimal(str(caida))),
+    )
+
+    if not alertas:
+        # Ni "todo correcto" ni globos: solo lo que se ha mirado y lo que no.
+        st.info(NADA_QUE_CONTAR)
+        return
+
+    for alerta in alertas:
+        texto = f"**{alerta.symbol}** — {alerta.message}" if alerta.symbol else alerta.message
+        if alerta.level is Nivel.REVISAR:
+            st.warning(texto)
+        else:
+            st.info(texto)
+
+    st.caption(
+        "Para las alertas que dependen de lo que tengas de verdad (perdida desde tu entrada, "
+        "desviacion del plan) hace falta declarar posiciones:\n\n"
+        "```\nuv run invest-ll-alerts data/market/yfinance/GLD/DAY_1.csv "
+        "--holding GLD:10:180\n```"
+    )
+
+
 def pestana_en_vivo(activos: list[AvailableAsset]) -> None:
     st.header("Estado actual")
     st.caption(
@@ -433,8 +495,8 @@ def main() -> None:
         "optimista."
     )
 
-    panorama, backtest, cartera, seguimiento, vivo = st.tabs(
-        ["Panorama", "Un activo", "Una cartera", "Estimado vs real", "Estado actual"]
+    panorama, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
+        ["Panorama", "Un activo", "Una cartera", "Estimado vs real", "Alertas", "Estado actual"]
     )
     with panorama:
         pestana_panorama(activos)
@@ -444,6 +506,8 @@ def main() -> None:
         pestana_cartera(activos, friction)
     with seguimiento:
         pestana_seguimiento()
+    with alertas:
+        pestana_alertas(activos)
     with vivo:
         pestana_en_vivo(activos)
 

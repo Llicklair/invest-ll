@@ -152,14 +152,29 @@ class Salida:
         return self.cerrar(codigo)
 
     def cerrar(self, codigo: int) -> int:
-        """Emite el JSON si toca y devuelve el mismo código que le pasaron."""
+        """Emite el JSON si toca y devuelve el mismo código que le pasaron.
+
+        **`ok` significa "el comando funcionó", no "el resultado te gusta".** La primera versión
+        lo ataba a `exit_code == 0` y se cayó en cuanto `invest-ll-alerts` encontró tres alertas:
+        salía `ok: false` cuando el comando había hecho exactamente su trabajo. Eran dos preguntas
+        distintas metidas en un campo.
+
+        Ahora se separan:
+
+        - `ok`      -> ¿se pudo calcular? Falso solo si hubo un error.
+        - `exit_code` -> ¿hay algo que mirar? 0 limpio; 3 no concluyente; 6 alertas que revisar.
+
+        Un agente que quiera "corrió sin romperse" mira `ok`; uno que quiera "y ademas no hay nada
+        que revisar" mira `exit_code == 0`. Y un resultado no concluyente sigue llevando su aviso
+        en `warnings`, que es lo que impide leer la cifra sin la coletilla.
+        """
         if not self.json_mode:
             return codigo
 
         sobre: dict[str, object] = {
             "format_version": VERSION_FORMATO,
             "command": self.command,
-            "ok": self._error is None and codigo == 0,
+            "ok": self._error is None,
             "exit_code": codigo,
             "data": _plano(self.datos),
             "warnings": [{"code": a.code, "message": a.message} for a in self.avisos],

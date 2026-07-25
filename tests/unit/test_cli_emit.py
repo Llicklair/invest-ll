@@ -61,10 +61,24 @@ class TestElSobre:
         assert sobre["exit_code"] == 0
         assert sobre["ok"] is True
 
-    def test_un_codigo_distinto_de_cero_no_es_ok(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Un agente decide por `ok`; si mintiera, seguiria adelante tras un fallo."""
+    def test_un_resultado_incomodo_no_es_un_fallo(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """`ok` responde "funciono?", no "te gusta el resultado?".
+
+        Este test decia lo contrario hasta que `invest-ll-alerts` encontro tres alertas y emitio
+        `ok: false` habiendo hecho exactamente su trabajo. Eran dos preguntas en un campo:
+        `exit_code` lleva el matiz (3 no concluyente, 6 hay que revisar) y `ok` solo dice si se
+        pudo calcular.
+        """
+        s = Salida(command="alerts", json_mode=True)
+        assert s.cerrar(6) == 6
+
+        sobre = leer(capsys)
+        assert sobre["ok"] is True, "encontrar alertas no es fallar"
+        assert sobre["exit_code"] == 6, "pero el codigo si distingue que hay algo que mirar"
+
+    def test_un_error_si_es_un_fallo(self, capsys: pytest.CaptureFixture[str]) -> None:
         s = Salida(command="compare", json_mode=True)
-        assert s.cerrar(3) == 3
+        s.error("no existe el fichero", 2)
         assert leer(capsys)["ok"] is False
 
     def test_cerrar_devuelve_el_codigo_que_le_dan(self) -> None:
