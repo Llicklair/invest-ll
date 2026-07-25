@@ -16,6 +16,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from invest_ll.errors import InvalidSeriesError
+
 if TYPE_CHECKING:  # pragma: no cover
     import exchange_calendars as xcals
 
@@ -95,11 +97,20 @@ class ExchangeCalendarAdapter:
 
     def is_open(self, moment: datetime) -> bool:
         import pandas as pd
+        from exchange_calendars.errors import MinuteOutOfBounds
 
         ts = pd.Timestamp(moment)
         if ts.tz is None:  # pragma: no cover - las Bar validadas siempre traen zona
             ts = ts.tz_localize("UTC")
-        return bool(self._calendar.is_open_on_minute(ts.tz_convert("UTC")))
+        try:
+            return bool(self._calendar.is_open_on_minute(ts.tz_convert("UTC")))
+        except MinuteOutOfBounds as error:
+            raise InvalidSeriesError(
+                f"{moment} cae fuera del rango que conoce el calendario '{self._name}' "
+                f"(sesiones entre {self._calendar.first_session} y {self._calendar.last_session}). "
+                "No se puede saber si el mercado estaba abierto en ese instante: revisa las "
+                "fechas del CSV, o reconstruye el calendario con un rango que las cubra."
+            ) from error
 
     def is_session(self, moment: datetime) -> bool:
         """¿Hubo negociación el día al que pertenece este instante?
@@ -108,12 +119,21 @@ class ExchangeCalendarAdapter:
         día aunque a esa hora concreta el mercado estuviera cerrado.
         """
         import pandas as pd
+        from exchange_calendars.errors import DateOutOfBounds
 
         ts = pd.Timestamp(moment)
         if ts.tz is None:  # pragma: no cover - las Bar validadas siempre traen zona
             ts = ts.tz_localize("UTC")
         fecha = ts.tz_convert("UTC").normalize().tz_localize(None)
-        return bool(self._calendar.is_session(fecha))
+        try:
+            return bool(self._calendar.is_session(fecha))
+        except DateOutOfBounds as error:
+            raise InvalidSeriesError(
+                f"{moment} cae fuera del rango que conoce el calendario '{self._name}' "
+                f"(sesiones entre {self._calendar.first_session} y {self._calendar.last_session}). "
+                "No se puede saber si ese dia fue sesion de mercado: revisa las fechas del CSV, o "
+                "reconstruye el calendario con un rango que las cubra."
+            ) from error
 
     def next_open(self, moment: datetime) -> datetime | None:
         import pandas as pd

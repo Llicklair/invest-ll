@@ -83,10 +83,19 @@ def common_range(
 def _explicar_sin_solape(series: Sequence[PriceSeries]) -> str:
     """Mensaje que dice qué activos chocan y qué hacer al respecto.
 
-    Listar los rangos de todos obliga a compararlos a ojo. Nombrar a los dos culpables y proponer
-    una salida convierte el error en algo accionable.
+    Hay dos causas muy distintas para "ningún timestamp en comun", y confundirlas da un consejo
+    inutil:
+
+    1. Los rangos de fechas no se solapan (falta historico real): la salida es descargar mas o
+       quitar el activo.
+    2. Los rangos de fechas SI se solapan, pero las marcas no caen en la misma hora del dia (p.ej.
+       cripto a medianoche UTC contra bolsa intradia): no falta ningun dato, y "amplia su
+       descarga" no arregla nada. Aqui hay que decirlo tal cual y mostrar las horas.
     """
     inicio, fin, quien_empieza, quien_acaba = common_range(series)
+
+    if inicio <= fin:
+        return _explicar_desalineado_en_hora(series, inicio, fin)
 
     detalle = "\n".join(
         f"    {s.symbol}: {s.timestamps[0].date()} a {s.timestamps[-1].date()}" for s in series
@@ -98,6 +107,31 @@ def _explicar_sin_solape(series: Sequence[PriceSeries]) -> str:
         f"  Rangos disponibles:\n{detalle}\n"
         f"  Salidas: quita {quien_empieza} o {quien_acaba} de la seleccion, o amplia su descarga "
         f"con invest-ll-fetch para que se solapen."
+    )
+
+
+def _explicar_desalineado_en_hora(
+    series: Sequence[PriceSeries], inicio: datetime, fin: datetime
+) -> str:
+    """Mensaje para cuando los rangos de fechas se solapan pero ningun timestamp coincide.
+
+    El fallo no es de historico (los rangos se solapan de sobra) sino de hora del dia: cada activo
+    marca sus velas a una hora distinta. Mostrar las horas concretas de cada uno hace visible la
+    causa real en vez de mandar a "ampliar la descarga", que no cambiaria nada.
+    """
+    detalle = "\n".join(
+        f"    {s.symbol}: horas de marca {sorted({t.time() for t in s.timestamps})[:5]}"
+        for s in series
+    )
+    return (
+        f"los activos no comparten ningun timestamp exacto, aunque sus rangos de fechas si se "
+        f"solapan (del {inicio.date()} al {fin.date()}): no falta historico, es que las marcas no "
+        f"caen en la misma hora del dia (p.ej. una cripto a medianoche UTC y una accion en horario "
+        f"intradia).\n"
+        f"  Horas de marca por activo:\n{detalle}\n"
+        f"  Salidas: normaliza los timestamps a una hora comun antes de construir el universo, o "
+        f"usa velas diarias (ya normalizadas a medianoche) en vez de intradia para estos activos. "
+        f"Ampliar la descarga no lo arregla: el problema no es de rango, es de hora."
     )
 
 

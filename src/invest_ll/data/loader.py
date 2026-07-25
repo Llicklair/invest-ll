@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -73,6 +73,8 @@ def load_series(
     if len(frame) == 0:
         raise InvalidSeriesError(f"el fichero {path.name} no contiene ninguna vela")
 
+    aviso_zona = _detectar_columna_sin_zona(frame["timestamp"], path.name)
+
     marcas: list[datetime] = [
         ts.to_pydatetime() for ts in pd.to_datetime(frame["timestamp"], utc=True, format="mixed")
     ]
@@ -94,7 +96,40 @@ def load_series(
     )
 
     series = PriceSeries(symbol=symbol, interval=interval, calendar=calendar, bars=bars)
-    return series, detect_gaps(series)
+    avisos = ((aviso_zona,) if aviso_zona is not None else ()) + detect_gaps(series)
+    return series, avisos
+
+
+def _detectar_columna_sin_zona(columna: Any, nombre_fichero: str) -> DataWarning | None:
+    """¿La columna de timestamps original no llevaba zona horaria?
+
+    `pd.to_datetime(..., utc=True)` relabela en silencio cualquier marca naive como UTC. Eso es
+    correcto para los CSV que el propio proyecto escribe (siempre con zona), pero un CSV de
+    terceros con horas locales (p.ej. hora de Nueva York sin offset) se carga como si fueran UTC
+    sin que nadie lo note. No se rechaza — hay CSV legítimos escritos a mano sin zona, sobre todo
+    en cripto — mas hay que decirlo, porque la diferencia horaria falsea que velas se consideran
+    negociables y que huecos se reportan.
+    """
+    import pandas as pd
+
+    try:
+        sin_forzar = pd.to_datetime(columna, format="mixed")
+    except ValueError:
+        # Mezcla de valores con y sin zona en la misma columna: al menos una parte SI la llevaba,
+        # no es el caso "csv enteramente naive" que nos interesa avisar aqui.
+        return None
+
+    tz = getattr(sin_forzar.dtype, "tz", None)
+    if tz is not None:
+        return None
+
+    return DataWarning(
+        message=(
+            f"{nombre_fichero}: los timestamps no llevan zona horaria; se ha asumido UTC. "
+            "Si las horas del fichero eran locales (no UTC), las velas negociables y los huecos "
+            "detectados seran erroneos."
+        )
+    )
 
 
 def detect_gaps(series: PriceSeries) -> tuple[DataWarning, ...]:
