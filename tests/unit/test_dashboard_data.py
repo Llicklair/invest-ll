@@ -166,3 +166,81 @@ def test_el_panel_no_importa_red_ni_esta_en_el_motor() -> None:
                         f"{fichero.name} importa el panel: la dependencia va al reves"
                     )
                     assert nombre != "streamlit", f"{fichero.name} importa streamlit"
+
+
+class TestPreseleccion:
+    """El caso real que fallo al abrir el panel.
+
+    Se preseleccionaban los cuatro primeros de la lista, y entre ellos habia un historico que
+    acaba en 2010 (SPY) junto a otro que empieza en 2017 (BTC). Cero fechas comunes y un error en
+    la cara antes de tocar nada.
+    """
+
+    def guardar(self, tmp_path: Path, symbol: str, inicio: datetime, n: int) -> None:
+        from invest_ll.data.bar import Bar
+        from invest_ll.data.calendars import Continuous24x7
+        from invest_ll.data.series import PriceSeries
+
+        bars = tuple(
+            Bar(
+                timestamp=inicio + Interval.DAY_1.duration * i,
+                open=100.0,
+                high=101.0,
+                low=99.0,
+                close=100.0,
+                volume=1000.0,
+            )
+            for i in range(n)
+        )
+        serie = PriceSeries(
+            symbol=symbol,
+            interval=Interval.DAY_1,
+            calendar=Continuous24x7(),
+            bars=bars,
+        )
+        peticion = FetchRequest(
+            symbol=symbol,
+            interval=Interval.DAY_1,
+            start=inicio,
+            end=inicio + Interval.DAY_1.duration * n,
+            market=Market.CRYPTO,
+        )
+        procedencia = Provenance(
+            provider="test",
+            symbol=symbol,
+            interval="DAY_1",
+            market="crypto",
+            downloaded_at=datetime(2026, 1, 1, tzinfo=UTC),
+            range_start=bars[0].timestamp,
+            range_end=bars[-1].timestamp,
+            bar_count=n,
+            prices_adjusted=True,
+        )
+        HistoryStore(tmp_path).save(peticion, serie, procedencia)
+
+    def test_no_preselecciona_activos_que_no_se_solapan(self, tmp_path: Path) -> None:
+        from invest_ll.dashboard.data import suggest_compatible
+
+        self.guardar(tmp_path, "VIEJO", datetime(2000, 1, 1, tzinfo=UTC), 400)
+        self.guardar(tmp_path, "NUEVO", datetime(2017, 1, 1, tzinfo=UTC), 400)
+
+        sugeridos = suggest_compatible(discover_assets(tmp_path))
+        assert len(sugeridos) == 1, "junto dos historicos sin un solo dia en comun"
+
+    def test_la_preseleccion_si_se_puede_combinar(self, tmp_path: Path) -> None:
+        from invest_ll.dashboard.data import suggest_compatible
+        from invest_ll.data.universe import build_universe
+
+        self.guardar(tmp_path, "LARGO", datetime(2000, 1, 1, tzinfo=UTC), 900)
+        self.guardar(tmp_path, "MEDIO", datetime(2001, 1, 1, tzinfo=UTC), 500)
+        self.guardar(tmp_path, "APARTE", datetime(2020, 1, 1, tzinfo=UTC), 300)
+
+        sugeridos = suggest_compatible(discover_assets(tmp_path))
+        assert len(sugeridos) >= 2
+        universo = build_universe([a.load() for a in sugeridos])
+        assert len(universo) > 0
+
+    def test_sin_activos_no_sugiere_nada(self, tmp_path: Path) -> None:
+        from invest_ll.dashboard.data import suggest_compatible
+
+        assert suggest_compatible(discover_assets(tmp_path)) == []

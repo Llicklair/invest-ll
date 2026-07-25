@@ -27,6 +27,7 @@ from invest_ll.dashboard.data import (
     discover_assets,
     equity_table,
     metrics_table,
+    suggest_compatible,
     trades_table,
 )
 from invest_ll.data.universe import build_universe
@@ -158,8 +159,10 @@ def pestana_backtest(activos: list[AvailableAsset], friction: FrictionConfig) ->
 def pestana_cartera(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
     st.header("Una cartera de varios activos")
 
+    # La preseleccion se calcula: escoger los primeros de la lista puede juntar un historico que
+    # acaba en 2010 con otro que empieza en 2017, y el panel arrancaba con un error en la cara.
     seleccion = st.multiselect(
-        "Activos", activos, format_func=lambda a: a.label, default=activos[: min(4, len(activos))]
+        "Activos", activos, format_func=lambda a: a.label, default=suggest_compatible(activos)
     )
     if len(seleccion) < 2:
         st.info("Elige al menos dos activos: una cartera de uno no es una cartera.")

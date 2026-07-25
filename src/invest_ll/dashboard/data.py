@@ -11,6 +11,7 @@ toda la sesión evitando.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -164,6 +165,50 @@ def parse_amount(texto: str, *, campo: str) -> Decimal:
     if valor <= 0:
         raise ValueError(f"{campo} debe ser positivo, recibido {valor}")
     return valor
+
+
+def suggest_compatible(
+    assets: Sequence[AvailableAsset], *, maximo: int = 4
+) -> list[AvailableAsset]:
+    """Preseleccion de activos que de verdad se solapan en el tiempo.
+
+    Elegir los primeros de la lista sin mirar produce combinaciones imposibles -- por ejemplo un
+    historico que acaba en 2010 junto a otro que empieza en 2017. El panel arrancaba con un error
+    en la cara antes de que el operador tocara nada.
+
+    Se parte del activo con mas historia y se van anadiendo los que mantengan un solape util.
+    """
+    if not assets:
+        return []
+
+    cargados: list[tuple[AvailableAsset, datetime, datetime]] = []
+    for activo in assets:
+        try:
+            serie = activo.load()
+        except Exception:
+            continue
+        cargados.append((activo, serie.bars[0].timestamp, serie.bars[-1].timestamp))
+
+    if not cargados:
+        return []
+
+    # El de mayor recorrido manda: es el que mas probabilidades tiene de solapar con el resto.
+    cargados.sort(key=lambda c: c[2] - c[1], reverse=True)
+    elegidos = [cargados[0]]
+    inicio, fin = cargados[0][1], cargados[0][2]
+
+    for activo, desde, hasta in cargados[1:]:
+        if len(elegidos) >= maximo:
+            break
+        nuevo_inicio = max(inicio, desde)
+        nuevo_fin = min(fin, hasta)
+        if nuevo_inicio < nuevo_fin:
+            elegidos.append((activo, desde, hasta))
+            inicio, fin = nuevo_inicio, nuevo_fin
+
+    # Se devuelven en el orden original de la lista, que es el que el operador ve.
+    seleccionados = {id(a) for a, _, _ in elegidos}
+    return [a for a in assets if id(a) in seleccionados]
 
 
 def common_intervals(assets: Sequence[AvailableAsset]) -> list[Interval]:

@@ -62,6 +62,45 @@ class Universe:
         return tuple(bar.close for bar in self.bars_by_symbol[symbol][inicio : index + 1])
 
 
+def common_range(
+    series: Sequence[PriceSeries],
+) -> tuple[datetime, datetime, str, str]:
+    """Rango que comparten todos los activos, y quién marca cada extremo.
+
+    Si el inicio sale posterior al final, no hay solape — y los dos nombres devueltos son
+    exactamente los dos activos que lo impiden.
+    """
+    ultimo_inicio = max(series, key=lambda s: s.timestamps[0])
+    primer_final = min(series, key=lambda s: s.timestamps[-1])
+    return (
+        ultimo_inicio.timestamps[0],
+        primer_final.timestamps[-1],
+        ultimo_inicio.symbol,
+        primer_final.symbol,
+    )
+
+
+def _explicar_sin_solape(series: Sequence[PriceSeries]) -> str:
+    """Mensaje que dice qué activos chocan y qué hacer al respecto.
+
+    Listar los rangos de todos obliga a compararlos a ojo. Nombrar a los dos culpables y proponer
+    una salida convierte el error en algo accionable.
+    """
+    inicio, fin, quien_empieza, quien_acaba = common_range(series)
+
+    detalle = "\n".join(
+        f"    {s.symbol}: {s.timestamps[0].date()} a {s.timestamps[-1].date()}" for s in series
+    )
+    return (
+        f"los activos no comparten ninguna fecha. {quien_empieza} no tiene datos hasta "
+        f"{inicio.date()}, pero {quien_acaba} se acaba en {fin.date()}: no hay ni un dia en que "
+        f"todos coticen a la vez.\n"
+        f"  Rangos disponibles:\n{detalle}\n"
+        f"  Salidas: quita {quien_empieza} o {quien_acaba} de la seleccion, o amplia su descarga "
+        f"con invest-ll-fetch para que se solapen."
+    )
+
+
 def build_universe(series: Sequence[PriceSeries]) -> Universe:
     """Alinea varias series sobre las fechas que todas comparten.
 
@@ -89,10 +128,7 @@ def build_universe(series: Sequence[PriceSeries]) -> Universe:
         comunes &= set(otra.timestamps)
 
     if not comunes:
-        raise InvalidSeriesError(
-            "los activos no comparten ninguna fecha: no hay nada que comparar. "
-            f"Rangos: {[(s.symbol, s.timestamps[0].date(), s.timestamps[-1].date()) for s in series]}"
-        )
+        raise InvalidSeriesError(_explicar_sin_solape(series))
 
     fechas = tuple(sorted(comunes))
     por_simbolo: dict[str, tuple[Bar, ...]] = {}
