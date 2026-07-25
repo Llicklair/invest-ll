@@ -110,6 +110,14 @@ class DecisionRequest:
     market_context: str
     instructions_version: str
     model: str
+    # Que etiqueta anonima corresponde a cada activo real. NO entra en `cache_key`: se deriva de
+    # `symbols`, que si esta, asi que anadirlo no cambiaria la identidad de la pregunta.
+    symbol_map: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def labels(self) -> dict[str, str]:
+        """El mapa como diccionario, listo para traducir la respuesta."""
+        return dict(self.symbol_map)
 
     @property
     def cache_key(self) -> str:

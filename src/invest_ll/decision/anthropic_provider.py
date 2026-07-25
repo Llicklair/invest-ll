@@ -102,4 +102,9 @@ class AnthropicProvider:
         if texto is None:
             raise DecisionUnavailableError(f"la respuesta no trae texto (stop_reason={motivo})")
 
-        return parse_decision(texto, timestamp=request.timestamp, model=self._model)
+        return parse_decision(
+            texto,
+            timestamp=request.timestamp,
+            model=self._model,
+            symbol_map=request.labels or None,
+        )

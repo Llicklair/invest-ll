@@ -26,6 +26,7 @@ invest-ll-panel = "invest_ll.dashboard.launch:main"
 invest-ll-compare = "invest_ll.cli.compare:main"
 invest-ll-propose = "invest_ll.cli.propose:main"
 invest-ll-analyze = "invest_ll.cli.analyze:main"
+invest-ll-generate = "invest_ll.cli.generate:main"
 
 [dependency-groups]
 dev = [

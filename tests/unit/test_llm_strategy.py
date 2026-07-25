@@ -239,3 +239,53 @@ class TestQuedarseFuera:
             universo(300), estrategia, initial_capital=D(10000), friction=FR, risk=RI
         )
         assert informe.trade_count == 0
+
+
+class TestTraduccionDeSimbolos:
+    """El bug que aparecio al generar decisiones de verdad.
+
+    El contexto va anonimizado (A, B, C...) para no darle al modelo pistas sobre que activo es.
+    Si la respuesta no se traduce de vuelta, la decision guarda "C" y el motor busca un activo
+    llamado "C" que no existe. Los tests con dobles no lo detectaban porque los dobles devuelven
+    simbolos reales directamente.
+    """
+
+    def test_la_peticion_lleva_el_mapa_de_traduccion(self) -> None:
+        capturadas: list[DecisionRequest] = []
+
+        class Espia:
+            model = "espia"
+
+            def decide(self, request: DecisionRequest) -> Decision:
+                capturadas.append(request)
+                return Decision(
+                    timestamp=request.timestamp,
+                    assets=(),
+                    summary="fuera",
+                    model="espia",
+                )
+
+            def decide_many(self, requests: Sequence[DecisionRequest]) -> list[Decision]:
+                return [self.decide(r) for r in requests]
+
+        from invest_ll.engine.universe_view import UniverseView
+
+        LLMStrategy(Espia()).choose(UniverseView(universe=universo(100), cursor=50))
+
+        assert capturadas
+        assert capturadas[0].labels == {"A": "AAPL", "B": "GLD"}
+
+    def test_el_mapa_no_cambia_la_clave_del_cache(self) -> None:
+        """Se deriva de `symbols`, que ya esta en la clave: anadirlo seria redundante."""
+        from datetime import UTC, datetime
+
+        base = {
+            "timestamp": datetime(2020, 6, 1, tzinfo=UTC),
+            "symbols": ("AAPL", "GLD"),
+            "market_context": "x",
+            "instructions_version": "v1",
+            "model": "m",
+        }
+        sin_mapa = DecisionRequest(**base)  # type: ignore[arg-type]
+        con_mapa = DecisionRequest(**base, symbol_map=(("A", "AAPL"), ("B", "GLD")))  # type: ignore[arg-type]
+        assert sin_mapa.cache_key == con_mapa.cache_key

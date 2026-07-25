@@ -91,6 +91,9 @@ class LLMStrategy:
             market_context=render_context(view),
             instructions_version=INSTRUCCIONES_VERSION,
             model=self._provider.model,
+            # Sin esto la decision volveria con las etiquetas anonimas (A, B, C) y el motor
+            # buscaria un activo llamado "C" que no existe.
+            symbol_map=tuple(symbol_map(view).items()),
         )
 
     @staticmethod
