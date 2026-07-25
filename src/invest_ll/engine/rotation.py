@@ -178,6 +178,7 @@ def run_rotation(
         final_cash=cash,
         benchmark=equal_weight_hold(universe, capital=initial_capital, friction=friction),
         consistency=monthly_consistency(equity, marcas),
+        equity_timestamps=marcas,
     )
 
 

@@ -41,6 +41,8 @@ Recogidos en [la constitución del proyecto](.specify/memory/constitution.md):
 |---|---|---|
 | [001 · Motor de backtesting](specs/001-backtest-engine/) | Funcional | Mide una estrategia sobre el pasado y emite un veredicto honesto |
 | [002 · Descarga de histórico](specs/002-market-data-fetch/) | Funcional | Trae mercado real de cripto y bolsa, listo para el motor |
+| Carteras y rotación | Funcional | Universo de activos, momentum relativo, aportaciones periódicas y análisis de diversificación |
+| Panel interactivo | Funcional | Streamlit sobre el mismo motor |
 
 Soporta cripto (mercado continuo) y bolsa (con horario de sesión y festivos) sobre el mismo
 motor, con cualquier granularidad de vela. Incluye dos estrategias de referencia: cruce de medias
@@ -57,6 +59,16 @@ uv run invest-ll-fetch BTC/USDT --market crypto --interval DAY_1 \
 uv run invest-ll-fetch AAPL --market equity --interval DAY_1 \
     --start 2020-01-01 --end 2026-01-01
 ```
+
+**Abrir el panel interactivo:**
+
+```bash
+uv run invest-ll-panel
+```
+
+Tres pestañas: evaluar una estrategia sobre un activo, analizar una cartera (diversificación,
+aportaciones periódicas, rotación) y ver el estado de los históricos descargados. Todas las cifras
+salen del mismo motor que la línea de comandos, con las mismas advertencias.
 
 **Evaluar una estrategia sobre ellos:**
 

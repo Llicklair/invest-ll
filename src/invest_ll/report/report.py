@@ -15,6 +15,7 @@ from invest_ll.engine.execution import ExitReason, Order
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
+    from datetime import datetime
 
     from invest_ll.data.loader import DataWarning
     from invest_ll.engine.benchmark import BuyAndHold
@@ -49,6 +50,8 @@ class BacktestReport:
     rejected_orders: tuple[Order, ...] = ()
     buy_and_hold: BuyAndHold | None = None
     consistency: Consistency | None = None
+    equity_curve: tuple[Decimal, ...] = ()
+    equity_timestamps: tuple[datetime, ...] = ()
 
     @property
     def excess_return(self) -> Decimal:
@@ -237,6 +240,7 @@ def build_report(
     rejected_orders: Sequence[Order] = (),
     benchmark: BuyAndHold | None = None,
     consistency: Consistency | None = None,
+    equity_timestamps: Sequence[datetime] = (),
 ) -> BacktestReport:
     """Ensambla el informe a partir del registro de operaciones."""
     from invest_ll.report.metrics import expectancy, max_drawdown, win_rate
@@ -260,4 +264,6 @@ def build_report(
         rejected_orders=tuple(rejected_orders),
         buy_and_hold=benchmark,
         consistency=consistency,
+        equity_curve=tuple(equity_curve),
+        equity_timestamps=tuple(equity_timestamps),
     )

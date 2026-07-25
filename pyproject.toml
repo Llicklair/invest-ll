@@ -12,11 +12,15 @@ dependencies = [
     # falla si eso deja de ser cierto (tests/unit/test_engine_isolation.py).
     "ccxt>=4.4",
     "yfinance>=0.2.50",
+    # Panel interactivo. Solo lo usa src/invest_ll/dashboard/; el motor no lo conoce.
+    "streamlit>=1.40",
+    "altair>=5.4",
 ]
 
 [project.scripts]
 invest-ll = "invest_ll.cli:main"
 invest-ll-fetch = "invest_ll.cli_fetch:main"
+invest-ll-panel = "invest_ll.dashboard.launch:main"
 
 [dependency-groups]
 dev = [

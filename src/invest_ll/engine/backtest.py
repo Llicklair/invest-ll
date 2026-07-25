@@ -171,6 +171,7 @@ def run_backtest(
     return build_report(
         benchmark=buy_and_hold(series, capital=initial_capital, friction=friction),
         consistency=monthly_consistency(portfolio.equity_curve, portfolio.equity_timestamps),
+        equity_timestamps=portfolio.equity_timestamps,
         trades=trades,
         equity_curve=portfolio.equity_curve,
         friction=friction,
