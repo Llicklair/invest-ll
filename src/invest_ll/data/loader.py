@@ -14,13 +14,14 @@ informe y las estrategias siguen en modo estricto, que es donde un error de tipo
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from invest_ll.data.bar import Bar
+from invest_ll.data.reserved import aviso_al_saltarsela, load_reservation
 from invest_ll.data.series import PriceSeries
 from invest_ll.errors import InvalidSeriesError
 
@@ -49,8 +50,16 @@ def load_series(
     symbol: str,
     interval: Interval,
     calendar: MarketCalendar,
+    use_reserved: bool = False,
 ) -> tuple[PriceSeries, tuple[DataWarning, ...]]:
-    """Lee un CSV o Parquet y devuelve la serie validada junto a sus avisos."""
+    """Lee un CSV o Parquet y devuelve la serie validada junto a sus avisos.
+
+    Si hay una reserva de datos declarada (`data/market/reserved.json`), la serie **se recorta
+    ahi** salvo que se pida `use_reserved=True` — y en ese caso el aviso lo deja por escrito.
+
+    Es la misma filosofia que `MarketView`: hacer imposible lo que no debe pasar en vez de
+    recordar no hacerlo. Sin fichero de reserva, nada cambia.
+    """
     import pandas as pd
 
     if not path.exists():
@@ -97,7 +106,50 @@ def load_series(
 
     series = PriceSeries(symbol=symbol, interval=interval, calendar=calendar, bars=bars)
     avisos = ((aviso_zona,) if aviso_zona is not None else ()) + detect_gaps(series)
+
+    reserva = load_reservation()
+    if reserva is not None:
+        if use_reserved:
+            avisos = (
+                DataWarning(message=aviso_al_saltarsela(reserva)),
+                *avisos,
+            )
+        else:
+            recortada = _recortar_hasta(series, reserva.cutoff)
+            if recortada is None:
+                raise InvalidSeriesError(
+                    f"toda la serie de {symbol} es posterior al corte reservado "
+                    f"({reserva.cutoff}). Nada que evaluar sin usar datos reservados."
+                )
+            if len(recortada) != len(series):
+                avisos = (
+                    DataWarning(
+                        message=(
+                            f"datos reservados: la serie se ha recortado en {reserva.cutoff}, "
+                            f"{len(series) - len(recortada)} velas quedan fuera. "
+                            f"Motivo: {reserva.reason}"
+                        )
+                    ),
+                    *avisos,
+                )
+            series = recortada
+
     return series, avisos
+
+
+def _recortar_hasta(series: PriceSeries, cutoff: date) -> PriceSeries | None:
+    """Deja solo las velas hasta la fecha de corte, incluida. `None` si no queda ninguna."""
+    barras = tuple(b for b in series.bars if b.timestamp.date() <= cutoff)
+    if not barras:
+        return None
+    if len(barras) == len(series.bars):
+        return series
+    return PriceSeries(
+        symbol=series.symbol,
+        interval=series.interval,
+        calendar=series.calendar,
+        bars=barras,
+    )
 
 
 def _detectar_columna_sin_zona(columna: Any, nombre_fichero: str) -> DataWarning | None:
