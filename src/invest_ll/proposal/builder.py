@@ -20,7 +20,7 @@ from invest_ll.report.portfolio import analyze_portfolio
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.data.universe import Universe
     from invest_ll.engine.config import FrictionConfig
-    from invest_ll.engine.dca import DcaReport
+    from invest_ll.engine.dca import DCAReport
     from invest_ll.report.portfolio import PortfolioAnalysis
 
 CENTIMO = Decimal("0.01")
@@ -67,7 +67,7 @@ class Proposal:
     holdings: tuple[Holding, ...]
     contribution: Decimal
     every_periods: int
-    simulation: DcaReport
+    simulation: DCAReport
     diversification: PortfolioAnalysis
 
     @property

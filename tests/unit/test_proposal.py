@@ -26,7 +26,7 @@ D = Decimal
 FR = FrictionConfig(commission_rate=D("0.001"), slippage_rate=D("0.0005"))
 
 
-def universo(simbolos: tuple[str, ...] = ("GLD", "TLT"), n: int = 400):  # type: ignore[no-untyped-def]  # noqa: ANN202
+def universo(simbolos: tuple[str, ...] = ("GLD", "TLT"), n: int = 400):  # type: ignore[no-untyped-def]
     return build_universe(
         [
             series_from_closes(ramp(n, start=50.0 + i * 10), symbol=s, start=ORIGIN)

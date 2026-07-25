@@ -12,7 +12,12 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from invest_ll.cli.compare import SALIDA_ERROR, SALIDA_NO_ENCONTRADO, SALIDA_OK, _cargar
+from invest_ll.cli.compare import (
+    SALIDA_ERROR,
+    SALIDA_NO_ENCONTRADO,
+    SALIDA_OK,
+    cargar_series,
+)
 from invest_ll.data.bar import Interval
 from invest_ll.data.universe import build_universe
 from invest_ll.engine.config import FrictionConfig
@@ -40,7 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        universo = build_universe(_cargar(args.paths, Interval[args.interval]))
+        universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
         propuesta = propose_portfolio(
             universo,
             amount=args.amount,

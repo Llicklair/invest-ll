@@ -54,7 +54,7 @@ def _calendario(ruta: Path):  # type: ignore[no-untyped-def]
     return Continuous24x7() if "ccxt" in ruta.parts else ExchangeCalendarAdapter("XNYS")
 
 
-def _cargar(rutas: Sequence[Path], interval: Interval) -> list[PriceSeries]:
+def cargar_series(rutas: Sequence[Path], interval: Interval) -> list[PriceSeries]:
     series: list[PriceSeries] = []
     for ruta in rutas:
         if not ruta.exists():
@@ -110,7 +110,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     nombres = [n.strip() for n in args.strategies.split(",") if n.strip()]
 
     try:
-        universo = build_universe(_cargar(args.paths, Interval[args.interval]))
+        universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
     except FileNotFoundError as error:
         print(f"Error: {error}", file=sys.stderr)
         return SALIDA_NO_ENCONTRADO
