@@ -1,0 +1,37 @@
+# --- Secretos: NUNCA commitear claves de broker/exchange ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.*
+config.local.*
+credentials.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Datos de mercado y resultados (pesados, reproducibles) ---
+data/raw/
+data/cache/
+*.parquet
+*.duckdb
+*.sqlite
+backtests/results/
+
+# --- Entorno ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
