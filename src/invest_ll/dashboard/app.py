@@ -134,14 +134,13 @@ def mostrar_informe(report: BacktestReport) -> None:
         st.dataframe(trades_table(report), use_container_width=True, hide_index=True)
 
 
-def pestana_panorama(activos: list[AvailableAsset]) -> None:
+def seccion_panorama(activos: list[AvailableAsset]) -> None:
     """Como va cada cosa. Sin recomendar nada.
 
     Es deliberadamente aburrida comparada con un panel de mercado al uso: no hay indicadores de
     "miedo y codicia" ni "temporada de altcoins". Esos indicadores existen para que operes mas, y
     todo lo medido en este proyecto dice que operar mas pierde dinero.
     """
-    st.header("Panorama")
     st.caption(
         "Como ha ido cada activo. Son datos historicos hasta la ultima descarga, "
         "no precios en vivo."
@@ -234,8 +233,8 @@ def pestana_panorama(activos: list[AvailableAsset]) -> None:
         )
 
 
-def pestana_backtest(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
-    st.header("Una estrategia sobre un activo")
+def seccion_un_activo(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    st.subheader("Una estrategia sobre un activo")
 
     elegido = st.selectbox("Activo", activos, format_func=lambda a: f"{a.label} - {a.provider}")
 
@@ -275,8 +274,8 @@ def pestana_backtest(activos: list[AvailableAsset], friction: FrictionConfig) ->
     mostrar_informe(report)
 
 
-def pestana_cartera(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
-    st.header("Una cartera de varios activos")
+def seccion_una_cartera(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    st.subheader("Aportaciones periodicas a una cartera")
 
     # La preseleccion se calcula: escoger los primeros de la lista puede juntar un historico que
     # acaba en 2010 con otro que empieza en 2017, y el panel arrancaba con un error en la cara.
@@ -427,19 +426,12 @@ def pestana_seguimiento() -> None:
         )
 
 
-def pestana_invertir(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
-    """Las cuatro vías de invertir, y una sola puerta al dinero real.
+def seccion_propuesta(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    """El botón NO ejecuta nada: produce una propuesta simulada y el comando exacto.
 
-    El botón NO ejecuta nada: produce una propuesta simulada y el comando exacto para llevarla a
-    cabo. Freqtrade u OctoBot, una vez armados, operan solos; aquí la confirmación humana por
-    orden es el Principio I y el panel es de solo lectura respecto al dinero.
+    Freqtrade u OctoBot, una vez armados, operan solos; aquí la confirmación humana por orden es
+    el Principio I y el panel es de solo lectura respecto al dinero.
     """
-    st.header("Invertir")
-    st.caption(
-        "Cualquiera de las cuatro vias termina en `invest-ll-execute`, que pide confirmar "
-        "escribiendo la cantidad. Ninguna se salta ese paso."
-    )
-
     pausa = TriggerStore().halted()
     if pausa:
         st.warning(
@@ -498,13 +490,51 @@ def pestana_invertir(activos: list[AvailableAsset], friction: FrictionConfig) ->
             "entorno del modo real, no sale nada: lo dice el propio comando."
         )
 
+
+def pestana_mercado(activos: list[AvailableAsset]) -> None:
+    """¿Cómo está el mundo? Rendimiento, comparación y estado de los datos, juntos.
+
+    Antes esto vivía repartido entre "Panorama" y "Estado actual" — la misma pregunta contada en
+    dos pestañas. La reestructuración las junta: **una pestaña por pregunta**.
+    """
+    st.header("Mercado")
+    seccion_panorama(activos)
     st.divider()
-    st.subheader("Las cuatro vias")
+    seccion_datos(activos)
+
+
+def pestana_simular(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    """¿Qué pasaría si...? Todo lo que es ensayo vive junto, y nada de esto mueve dinero."""
+    st.header("Simular")
+    st.caption(
+        "Propuestas y backtests sobre datos historicos. Nada de esta pestana envia ordenes: "
+        "la unica puerta al dinero real es invest-ll-execute, con su confirmacion."
+    )
+
+    modo = st.radio(
+        "Que quieres ensayar",
+        [
+            "Propuesta simple",
+            "Aportaciones periodicas a una cartera",
+            "Una estrategia sobre un activo",
+        ],
+        horizontal=True,
+    )
+    st.divider()
+    if modo == "Propuesta simple":
+        seccion_propuesta(activos, friction)
+    elif modo == "Aportaciones periodicas a una cartera":
+        seccion_una_cartera(activos, friction)
+    else:
+        seccion_un_activo(activos, friction)
+
+    st.divider()
+    st.subheader("Las cuatro vias de invertir")
     st.markdown(
         "| Via | Como |\n"
         "|---|---|\n"
-        "| **Boton simple** | El de arriba: propuesta + comandos listos |\n"
-        "| **Bot determinista** | Rotacion momentum, en la pestana *Una cartera*; "
+        "| **Boton simple** | Propuesta simple, aqui arriba: simulacion + comandos listos |\n"
+        "| **Bot determinista** | Rotacion momentum (Aportaciones / Un activo); "
         "se evalua con las mismas metricas |\n"
         "| **LLM dentro (CLI)** | `invest-ll-generate` decide, `invest-ll-compare` lo mide "
         "contra momentum y contra no hacer nada |\n"
@@ -661,7 +691,7 @@ def pestana_alertas(activos: list[AvailableAsset]) -> None:
     Tampoco hay alertas de subidas. Una que dijera "GLD subio un 20%" no informa de nada que
     necesites: existe para que abras la aplicacion.
     """
-    st.header("Alertas")
+    st.header("Vigilar")
     st.caption(
         "Solo saltan por riesgo, nunca porque algo haya subido. Informan de un estado; "
         "ninguna dice que hacer."
@@ -803,8 +833,8 @@ def pestana_chat() -> None:
                 st.markdown(respuesta)
 
 
-def pestana_en_vivo(activos: list[AvailableAsset]) -> None:
-    st.header("Estado actual")
+def seccion_datos(activos: list[AvailableAsset]) -> None:
+    st.subheader("Datos descargados")
     st.caption(
         "Ultimo cierre de cada historico descargado. Para actualizarlo hay que volver a "
         "descargar con invest-ll-fetch: el motor no toca la red por diseno."
@@ -896,45 +926,21 @@ def main() -> None:
         "optimista."
     )
 
-    (
-        panorama,
-        mi_cartera,
-        invertir,
-        backtest,
-        cartera,
-        seguimiento,
-        alertas,
-        vivo,
-        chat,
-    ) = st.tabs(
-        [
-            "Panorama",
-            "Mi cartera",
-            "Invertir",
-            "Un activo",
-            "Una cartera",
-            "Estimado vs real",
-            "Alertas",
-            "Estado actual",
-            "Chat",
-        ]
+    # Seis pestanas, una pregunta cada una, en el orden en que se usan:
+    # mirar -> tener -> ensayar -> vigilar -> comprobar -> preguntar.
+    mercado, mi_cartera, simular, vigilar, seguimiento, chat = st.tabs(
+        ["Mercado", "Mi cartera", "Simular", "Vigilar", "Estimado vs real", "Chat"]
     )
-    with panorama:
-        pestana_panorama(activos)
+    with mercado:
+        pestana_mercado(activos)
     with mi_cartera:
         pestana_mi_cartera()
-    with invertir:
-        pestana_invertir(activos, friction)
-    with backtest:
-        pestana_backtest(activos, friction)
-    with cartera:
-        pestana_cartera(activos, friction)
+    with simular:
+        pestana_simular(activos, friction)
+    with vigilar:
+        pestana_alertas(activos)
     with seguimiento:
         pestana_seguimiento()
-    with alertas:
-        pestana_alertas(activos)
-    with vivo:
-        pestana_en_vivo(activos)
     with chat:
         pestana_chat()
 
