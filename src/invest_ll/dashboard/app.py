@@ -46,6 +46,7 @@ from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
+from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
 from invest_ll.strategy.breakout import BreakoutHighs
@@ -420,6 +421,88 @@ def pestana_seguimiento() -> None:
         )
 
 
+def pestana_invertir(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    """Las cuatro vías de invertir, y una sola puerta al dinero real.
+
+    El botón NO ejecuta nada: produce una propuesta simulada y el comando exacto para llevarla a
+    cabo. Freqtrade u OctoBot, una vez armados, operan solos; aquí la confirmación humana por
+    orden es el Principio I y el panel es de solo lectura respecto al dinero.
+    """
+    st.header("Invertir")
+    st.caption(
+        "Cualquiera de las cuatro vias termina en `invest-ll-execute`, que pide confirmar "
+        "escribiendo la cantidad. Ninguna se salta ese paso."
+    )
+
+    st.subheader("Propuesta simple")
+    seleccion = st.multiselect(
+        "Activos candidatos",
+        activos,
+        format_func=lambda a: a.label,
+        default=suggest_compatible(activos),
+        key="invertir_activos",
+    )
+    columnas = st.columns(2)
+    importe = columnas[0].number_input("Cuanto aportas cada vez", value=500, min_value=1)
+    frecuencia = columnas[1].selectbox("Cada cuanto", sorted(FRECUENCIAS), index=None)
+
+    if st.button("Proponer cartera (simulacion, no mueve dinero)"):
+        if not seleccion or frecuencia is None:
+            st.error("Elige al menos un activo y una frecuencia.")
+            return
+        try:
+            universo = build_universe([a.load() for a in seleccion])
+            propuesta = propose_portfolio(
+                universo, amount=D(int(importe)), frequency=frecuencia, friction=friction
+            )
+        except (InvestLLError, ValueError) as error:
+            st.error(f"No se pudo proponer: {error}")
+            return
+
+        st.text(propuesta.render())
+        st.caption("Esto es una simulacion sobre el pasado, no una recomendacion ni una prevision.")
+
+        st.subheader("Para ejecutarla de verdad")
+        lineas: list[str] = []
+        for h in propuesta.holdings:
+            cierre = ultimo_cierre(h.symbol)
+            if cierre is None:
+                lineas.append(f"# {h.symbol}: sin precio descargado, calcula la cantidad a mano")
+                continue
+            precio, fecha = cierre
+            cantidad = (h.amount_per_contribution / precio).quantize(D("0.0001"))
+            lineas.append(
+                f"# {h.symbol}: {h.amount_per_contribution:,.0f} a ~{precio:,.2f} "
+                f"(cierre del {fecha.date()})"
+            )
+            lineas.append(
+                f"uv run invest-ll-execute --symbol {h.symbol} --side buy --quantity {cantidad}"
+            )
+        st.code("\n".join(lineas), language="bash")
+        st.caption(
+            "Cada comando pide confirmar escribiendo la cantidad exacta. Sin las variables de "
+            "entorno del modo real, no sale nada: lo dice el propio comando."
+        )
+
+    st.divider()
+    st.subheader("Las cuatro vias")
+    st.markdown(
+        "| Via | Como |\n"
+        "|---|---|\n"
+        "| **Boton simple** | El de arriba: propuesta + comandos listos |\n"
+        "| **Bot determinista** | Rotacion momentum, en la pestana *Una cartera*; "
+        "se evalua con las mismas metricas |\n"
+        "| **LLM dentro (CLI)** | `invest-ll-generate` decide, `invest-ll-compare` lo mide "
+        "contra momentum y contra no hacer nada |\n"
+        "| **LLM desde fuera** | Cualquier agente puede leer los nueve comandos con `--json`; "
+        "las advertencias viajan en el JSON |\n"
+    )
+    st.caption(
+        "Lo medido hasta hoy (21 anhos, 4 activos): cuanto menos se opera, mejor -- 423 "
+        "operaciones dieron 2.890; una sola dio 37.773. Ver docs/experimento-llm-2026-07.md."
+    )
+
+
 def pestana_mi_cartera() -> None:
     """La cartera real, derivada del ledger de movimientos.
 
@@ -636,10 +719,11 @@ def main() -> None:
         "optimista."
     )
 
-    panorama, mi_cartera, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
+    panorama, mi_cartera, invertir, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
         [
             "Panorama",
             "Mi cartera",
+            "Invertir",
             "Un activo",
             "Una cartera",
             "Estimado vs real",
@@ -651,6 +735,8 @@ def main() -> None:
         pestana_panorama(activos)
     with mi_cartera:
         pestana_mi_cartera()
+    with invertir:
+        pestana_invertir(activos, friction)
     with backtest:
         pestana_backtest(activos, friction)
     with cartera:
