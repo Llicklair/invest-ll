@@ -30,6 +30,7 @@ invest-ll-generate = "invest_ll.cli.generate:main"
 invest-ll-execute = "invest_ll.cli.execute:main"
 invest-ll-track = "invest_ll.cli.track:main"
 invest-ll-alerts = "invest_ll.cli.alerts:main"
+invest-ll-portfolio = "invest_ll.cli.portfolio:main"
 
 [dependency-groups]
 dev = [
