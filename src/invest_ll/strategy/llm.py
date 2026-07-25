@@ -36,7 +36,7 @@ CADA_MES = 21
 class LLMStrategy:
     """Rota entre activos según lo que decida un LLM."""
 
-    __slots__ = ("_decisions", "_every", "_last_choice", "_provider", "_since")
+    __slots__ = ("_decisions", "_every", "_last_choice", "_last_timestamp", "_provider", "_since")
 
     def __init__(
         self,
@@ -53,6 +53,9 @@ class LLMStrategy:
         # el cursor es interno suyo, y la estrategia no tiene por que conocer sus tripas.
         self._since = 0
         self._decisions: list[Decision] = []
+        # Ultima marca vista. Es la unica forma de detectar, sin cooperacion del motor, que esta
+        # misma instancia se esta reutilizando en un segundo backtest (ver `choose`).
+        self._last_timestamp: datetime | None = None
 
     @property
     def decisions(self) -> tuple[Decision, ...]:
@@ -73,6 +76,22 @@ class LLMStrategy:
 
         Solo consulta en los puntos de decisión; el resto del tiempo devuelve lo vigente.
         """
+        momento = self._moment(view)
+        if self._last_timestamp is not None and momento <= self._last_timestamp:
+            # Dentro de un mismo backtest el motor solo avanza en el tiempo (rotation.py recorre
+            # `universe.timestamps` en orden). Una marca igual o anterior a la ultima vista solo
+            # puede significar que esta instancia se esta reutilizando en un segundo backtest, y
+            # entonces `_since`/`_last_choice`/`_decisions` seguirian siendo los del anterior: la
+            # primera llamada no consultaria al proveedor y el rastro auditable (FR-012) del nuevo
+            # informe describiria una decision que no ocurrio en el. No se puede corregir en
+            # silencio (un `reset()` invitaria justo a este reuso); hay que fallar.
+            raise RuntimeError(
+                f"LLMStrategy ya se uso hasta {self._last_timestamp} y ahora recibe {momento} "
+                "(igual o anterior): esta instancia se esta reutilizando en un segundo backtest. "
+                "Construye una instancia nueva de LLMStrategy para cada backtest."
+            )
+        self._last_timestamp = momento
+
         if self._decisions and self._since < self._every:
             self._since += 1
             return self._last_choice
