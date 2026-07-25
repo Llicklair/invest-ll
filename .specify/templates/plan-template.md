@@ -40,7 +40,19 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Derived from `.specify/memory/constitution.md` v1.0.0. Mark each: PASS / FAIL / N/A (justify N/A).
+
+| # | Gate | Check |
+|---|------|-------|
+| I | Seguridad del capital (NO NEGOCIABLE) | ¿Algún camino del diseño puede enviar una orden real sin activación explícita del humano? ¿El default sigue siendo simulación? ¿Se introduce algún secreto en el repo? |
+| II | Sin look-ahead (NO NEGOCIABLE) | ¿Alguna decisión simulada puede acceder a datos posteriores a su marca temporal? ¿La restricción es estructural o depende de disciplina? |
+| III | Métricas honestas | ¿Todo resultado reportado incluye expectancy, drawdown máximo, nº de operaciones y costes junto al win rate? |
+| IV | Fricción realista | ¿Las órdenes simuladas aplican comisiones y slippage? ¿Hay algún coste puesto a cero por defecto silencioso? |
+| V | Estrategias comparables | ¿La estrategia usa la interfaz común? ¿Añadirla exige tocar el motor de backtest o de ejecución? |
+| — | Gates técnicas | ruff · pyright · pytest (suite completa, sin regresión). Baselines/snapshots: solo aprobación humana. |
+
+Las violaciones de I y II **no admiten justificación** en la tabla de Complexity Tracking:
+el diseño se cambia.
 
 ## Project Structure
 
