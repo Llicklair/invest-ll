@@ -86,24 +86,24 @@ resultado calculado a mano, operación por operación.
 
 ### Tests para US1 (escribir primero, deben fallar)
 
-- [ ] T020 [P] [US1] Test de contrato de `Strategy`/`Signal` según [contracts/strategy-protocol.md](./contracts/strategy-protocol.md) en `tests/unit/test_strategy_protocol.py`
-- [ ] T021 [P] [US1] Test de temporización: toda orden se ejecuta a la apertura del periodo siguiente al de la señal, nunca al cierre propio (FR-024, SC-008), en `tests/unit/test_execution_timing.py`
-- [ ] T022 [P] [US1] Test de métricas: expectancy, drawdown máximo y win rate sobre secuencias de operaciones conocidas, en `tests/unit/test_metrics.py`
-- [ ] T023 [P] [US1] Test del informe: no se puede construir sin las seis métricas; `conclusive = False` con menos de 30 operaciones aunque el resultado sea positivo; cero operaciones → no concluyente; el win rate no encabeza la salida textual (FR-011..FR-013), en `tests/unit/test_report.py`
-- [ ] T024 [P] [US1] Test de fricción: `FrictionConfig` no instanciable sin declarar costes; comisión y slippage aplicados a cada orden (FR-007, FR-008), en `tests/unit/test_friction.py`
-- [ ] T025 [P] [US1] Test de capital: orden que excede la caja se registra como rechazada, no revienta el backtest (FR-010), en `tests/unit/test_portfolio.py`
-- [ ] T026 [P] [US1] Test end-to-end: cruce de medias sobre fixture sintética → informe idéntico al cálculo manual, en `tests/integration/test_end_to_end.py`
+- [X] T020 [P] [US1] Test de contrato de `Strategy`/`Signal` según [contracts/strategy-protocol.md](./contracts/strategy-protocol.md) en `tests/unit/test_strategy_protocol.py`
+- [X] T021 [P] [US1] Test de temporización: toda orden se ejecuta a la apertura del periodo siguiente al de la señal, nunca al cierre propio (FR-024, SC-008), en `tests/unit/test_execution_timing.py`
+- [X] T022 [P] [US1] Test de métricas: expectancy, drawdown máximo y win rate sobre secuencias de operaciones conocidas, en `tests/unit/test_metrics.py`
+- [X] T023 [P] [US1] Test del informe: no se puede construir sin las seis métricas; `conclusive = False` con menos de 30 operaciones aunque el resultado sea positivo; cero operaciones → no concluyente; el win rate no encabeza la salida textual (FR-011..FR-013), en `tests/unit/test_report.py`
+- [X] T024 [P] [US1] Test de fricción: `FrictionConfig` no instanciable sin declarar costes; comisión y slippage aplicados a cada orden (FR-007, FR-008), en `tests/unit/test_friction.py`
+- [X] T025 [P] [US1] Test de capital: orden que excede la caja se registra como rechazada, no revienta el backtest (FR-010), en `tests/unit/test_portfolio.py`
+- [X] T026 [P] [US1] Test end-to-end: cruce de medias sobre fixture sintética → informe idéntico al cálculo manual, en `tests/integration/test_end_to_end.py`
 
 ### Implementación para US1
 
-- [ ] T027 [P] [US1] Definir el protocolo `Strategy`, `Signal` y `SignalKind` en `src/invest_ll/strategy/protocol.py`
-- [ ] T028 [P] [US1] Implementar `FrictionConfig` y `RiskConfig` sin valores por defecto en `src/invest_ll/engine/config.py`
-- [ ] T029 [US1] Implementar `PortfolioState` y `Position`: caja en `Decimal`, curva de equity, una posición a la vez, en `src/invest_ll/engine/portfolio.py` (depende de T028)
-- [ ] T030 [US1] Implementar `Order`, `Trade` y el motor de ejecución: apertura del periodo siguiente, comisión y slippage, rechazo por capital, ejecución parcial (FR-007..FR-010, FR-024), en `src/invest_ll/engine/execution.py` (depende de T029)
-- [ ] T031 [P] [US1] Implementar el cálculo de métricas (expectancy, drawdown máximo, win rate, costes totales) en `src/invest_ll/report/metrics.py`
-- [ ] T032 [US1] Implementar `BacktestReport` con las seis métricas como campos obligatorios, etiqueta `conclusive` y presentación que no encabeza con win rate (FR-011..FR-014), en `src/invest_ll/report/report.py` (depende de T031)
-- [ ] T033 [US1] Implementar `run_backtest`: bucle secuencial, `MarketView` por paso, dimensionado por fracción del capital (FR-026, FR-027), en `src/invest_ll/engine/backtest.py` (depende de T017, T030, T032)
-- [ ] T034 [US1] Implementar la estrategia de cruce de medias con parámetros en número de periodos (FR-019, FR-033) en `src/invest_ll/strategy/moving_average.py` (depende de T027)
+- [X] T027 [P] [US1] Definir el protocolo `Strategy`, `Signal` y `SignalKind` en `src/invest_ll/strategy/protocol.py`
+- [X] T028 [P] [US1] Implementar `FrictionConfig` y `RiskConfig` sin valores por defecto en `src/invest_ll/engine/config.py`
+- [X] T029 [US1] Implementar `PortfolioState` y `Position`: caja en `Decimal`, curva de equity, una posición a la vez, en `src/invest_ll/engine/portfolio.py` (depende de T028)
+- [X] T030 [US1] Implementar `Order`, `Trade` y el motor de ejecución: apertura del periodo siguiente, comisión y slippage, rechazo por capital, ejecución parcial (FR-007..FR-010, FR-024), en `src/invest_ll/engine/execution.py` (depende de T029)
+- [X] T031 [P] [US1] Implementar el cálculo de métricas (expectancy, drawdown máximo, win rate, costes totales) en `src/invest_ll/report/metrics.py`
+- [X] T032 [US1] Implementar `BacktestReport` con las seis métricas como campos obligatorios, etiqueta `conclusive` y presentación que no encabeza con win rate (FR-011..FR-014), en `src/invest_ll/report/report.py` (depende de T031)
+- [X] T033 [US1] Implementar `run_backtest`: bucle secuencial, `MarketView` por paso, dimensionado por fracción del capital (FR-026, FR-027), en `src/invest_ll/engine/backtest.py` (depende de T017, T030, T032)
+- [X] T034 [US1] Implementar la estrategia de cruce de medias con parámetros en número de periodos (FR-019, FR-033) en `src/invest_ll/strategy/moving_average.py` (depende de T027)
 
 **Checkpoint**: MVP funcional. El operador ya puede medir una estrategia y obtener un veredicto
 honesto.
