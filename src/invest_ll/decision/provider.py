@@ -142,6 +142,16 @@ class CachedProvider:
 
         Separar lo cacheado de lo pendiente antes de llamar es lo que hace que repetir un
         experimento con un activo nuevo cueste una fracción en vez de todo otra vez.
+
+        Contrato del lote: **todo o nada**. Si `self._inner.decide_many(pendientes)` falla a
+        mitad, las decisiones que ya se habían obtenido en esa misma llamada de lote se pierden
+        — no se guardan una a una a medida que llegan, se guardan todas juntas después de que el
+        lote entero responda. Repetir la llamada volverá a pedirlas todas de nuevo, cacheadas o
+        no. Quien necesite preservar el progreso parcial ante un fallo a mitad de lote debe llamar
+        a `decide()` en bucle, un ítem cada vez, y guardar el resultado tras cada uno — que es
+        justo lo que hace `cli/generate.py`. No lo asumas resuelto aquí: convertir este método en
+        un bucle de `decide()` destruiría su razón de ser (el descuento por lote de una futura
+        Batches API, hoy no implementada por ningún proveedor).
         """
         pendientes: list[DecisionRequest] = []
         resultado: list[Decision | None] = []

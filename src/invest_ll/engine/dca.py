@@ -129,8 +129,23 @@ def run_dca(
     marcas: list[datetime] = []
 
     for i in range(len(universe)):
+        valor = sum(
+            (
+                MOTOR.multiply(cantidad, Decimal(str(universe.bar(symbol, i).close)))
+                for symbol, cantidad in unidades.items()
+            ),
+            start=Decimal(0),
+        )
+        # La curva analizada es la GANANCIA, no el saldo: el saldo sube cada mes por la aportación
+        # y daría una regularidad falsa.
+        ganancia.append(valor - aportado)
+        marcas.append(universe.timestamps[i])
+
         # Aportar. Se compra en la apertura del periodo siguiente, igual que en el resto del
-        # motor: la decisión de aportar se toma con el periodo actual ya cerrado.
+        # motor: la decisión de aportar se toma con el periodo actual ya cerrado. Este bloque va
+        # DESPUÉS de valorar la iteración i: el valor de i se calcula con las unidades que había
+        # antes de la aportación de i; las compradas ahora se ejecutan al open de i+1 y por eso
+        # las valora la iteración siguiente, no esta.
         if i % every_periods == 0 and i + 1 < len(universe):
             aportado += contribution
             aportaciones += 1
@@ -148,18 +163,6 @@ def run_dca(
                 unidades[symbol] += cantidad
                 costes += MOTOR.multiply(MOTOR.multiply(compra, cantidad), friction.commission_rate)
                 costes += MOTOR.multiply(compra - referencia, cantidad)
-
-        valor = sum(
-            (
-                MOTOR.multiply(cantidad, Decimal(str(universe.bar(symbol, i).close)))
-                for symbol, cantidad in unidades.items()
-            ),
-            start=Decimal(0),
-        )
-        # La curva analizada es la GANANCIA, no el saldo: el saldo sube cada mes por la aportación
-        # y daría una regularidad falsa.
-        ganancia.append(valor - aportado)
-        marcas.append(universe.timestamps[i])
 
     valor_final = sum(
         (
