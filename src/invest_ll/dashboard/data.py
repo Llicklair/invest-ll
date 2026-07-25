@@ -362,3 +362,33 @@ def normalised_series(
         )
 
     return puntos
+
+
+def fetch_args(asset: AvailableAsset, *, hasta: datetime) -> list[str] | None:
+    """El comando para re-descargar un histórico hasta `hasta`, o `None` sin procedencia.
+
+    Se reconstruye desde los metadatos de la descarga original (mismo proveedor, mismo inicio):
+    así actualizar no cambia la forma de la serie, solo la alarga. Sin procedencia no se
+    adivina — descargar con parámetros supuestos produciría una serie distinta en silencio.
+    """
+    p = asset.provenance
+    if p is None:
+        return None
+
+    args = [
+        "uv",
+        "run",
+        "invest-ll-fetch",
+        p.symbol,
+        "--market",
+        p.market,
+        "--interval",
+        p.interval,
+        "--start",
+        p.range_start.date().isoformat(),
+        "--end",
+        hasta.date().isoformat(),
+    ]
+    if p.market == "crypto" and "-" in p.provider:
+        args += ["--exchange", p.provider.split("-", 1)[1]]
+    return args

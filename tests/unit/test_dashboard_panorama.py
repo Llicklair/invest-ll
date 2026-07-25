@@ -11,7 +11,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-from invest_ll.dashboard.data import discover_assets, market_overview, normalised_series
+from invest_ll.dashboard.data import (
+    AvailableAsset,
+    discover_assets,
+    fetch_args,
+    market_overview,
+    normalised_series,
+)
 from invest_ll.data.bar import Bar, Interval
 from invest_ll.data.calendars import Continuous24x7
 from invest_ll.data.series import PriceSeries
@@ -185,3 +191,32 @@ class TestLaTablaDensa:
         guardar(tmp_path, "AAA", subida(30))
         fila = market_overview(discover_assets(tmp_path))[0]
         assert str(fila["datos hasta"]) == "2020-01-30"
+
+
+class TestActualizarHistoricos:
+    """El comando de re-descarga se reconstruye de la procedencia, no se adivina."""
+
+    def test_reconstruye_el_comando_desde_la_procedencia(self, tmp_path: Path) -> None:
+        guardar(tmp_path, "AAA", subida(30))
+        activo = discover_assets(tmp_path)[0]
+        argumentos = fetch_args(activo, hasta=datetime(2026, 7, 26, tzinfo=UTC))
+
+        assert argumentos is not None
+        assert argumentos[:3] == ["uv", "run", "invest-ll-fetch"]
+        assert "AAA" in argumentos
+        assert "--market" in argumentos and "crypto" in argumentos
+        assert "--start" in argumentos and "2020-01-01" in argumentos
+        assert "--end" in argumentos and "2026-07-26" in argumentos
+
+    def test_sin_procedencia_no_se_adivina(self, tmp_path: Path) -> None:
+        """Descargar con parametros supuestos produciria una serie distinta en silencio."""
+        guardar(tmp_path, "AAA", subida(30))
+        activo = discover_assets(tmp_path)[0]
+        sin_meta = AvailableAsset(
+            symbol=activo.symbol,
+            provider=activo.provider,
+            interval=activo.interval,
+            path=activo.path,
+            provenance=None,
+        )
+        assert fetch_args(sin_meta, hasta=datetime(2026, 7, 26, tzinfo=UTC)) is None

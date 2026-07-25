@@ -18,6 +18,7 @@ es donde un error de tipos costaría dinero, siguen en modo estricto.
 
 from __future__ import annotations
 
+import subprocess
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -26,11 +27,14 @@ import streamlit as st
 
 from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
 from invest_ll.alerts.models import Nivel, Umbrales
+from invest_ll.chat.context import build_context
+from invest_ll.chat.session import ChatSession, ChatUnavailableError
 from invest_ll.dashboard.data import (
     VENTANAS,
     AvailableAsset,
     discover_assets,
     equity_table,
+    fetch_args,
     market_overview,
     metrics_table,
     normalised_series,
@@ -44,9 +48,10 @@ from invest_ll.engine.dca import run_dca
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.derive import derive_portfolio
+from invest_ll.portfolio.models import Activity, ActivityType
 from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
-from invest_ll.portfolio.triggers import TriggerStore
+from invest_ll.portfolio.triggers import Trigger, TriggerRule, TriggerStore
 from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
@@ -521,6 +526,49 @@ def pestana_mi_cartera() -> None:
     """
     st.header("Mi cartera")
 
+    with (
+        st.expander("Registrar un movimiento (escribe en el ledger; NO envia ordenes)"),
+        st.form("registrar_movimiento", clear_on_submit=True),
+    ):
+        tipo = st.selectbox("Tipo", ["compra", "venta", "deposito", "retirada"])
+        c1, c2 = st.columns(2)
+        simbolo = c1.text_input("Activo (solo compra/venta)", placeholder="GLD")
+        fecha = c2.date_input("Fecha", value=datetime.now(UTC).date())
+        c3, c4, c5 = st.columns(3)
+        cantidad = c3.text_input("Cantidad (o importe si es efectivo)")
+        precio = c4.text_input("Precio unitario", placeholder="240.50")
+        comision = c5.text_input("Comision", value="0")
+
+        if st.form_submit_button("Registrar en el ledger"):
+            try:
+                momento = datetime(fecha.year, fecha.month, fecha.day, tzinfo=UTC)
+                if tipo in ("compra", "venta"):
+                    actividad = Activity(
+                        timestamp=momento,
+                        type=ActivityType.BUY if tipo == "compra" else ActivityType.SELL,
+                        symbol=simbolo.strip().upper(),
+                        quantity=D(cantidad.strip()),
+                        unit_price=D(precio.strip()),
+                        fee=D(comision.strip() or "0"),
+                        source="panel",
+                    )
+                else:
+                    actividad = Activity(
+                        timestamp=momento,
+                        type=(
+                            ActivityType.DEPOSIT if tipo == "deposito" else ActivityType.WITHDRAWAL
+                        ),
+                        symbol=None,
+                        quantity=D(cantidad.strip()),
+                        unit_price=D(1),
+                        source="panel",
+                    )
+                ActivityStore().append(actividad)
+            except (InvestLLError, ValueError, ArithmeticError) as error:
+                st.error(f"No registrado: {error}")
+            else:
+                st.rerun()
+
     try:
         cartera = derive_portfolio(ActivityStore().activities())
     except InvestLLError as error:
@@ -661,6 +709,99 @@ def pestana_alertas(activos: list[AvailableAsset]) -> None:
         "--holding GLD:10:180\n```"
     )
 
+    st.divider()
+    st.subheader("Triggers de retirada")
+    st.caption(
+        "Cuando se cruzan, PROPONEN la venta exacta (con `invest-ll-triggers check`); "
+        "ejecutarla y confirmarla sigue siendo cosa tuya."
+    )
+
+    triggers_store = TriggerStore()
+    pausa = triggers_store.halted()
+    if pausa:
+        st.warning(f"Pausa activa (no se proponen entradas nuevas): {pausa}")
+
+    armados = triggers_store.triggers()
+    for armado in armados:
+        col_desc, col_boton = st.columns([5, 1])
+        col_desc.write(f"`{armado.trigger_id}` {armado.describe()}")
+        if col_boton.button("Desarmar", key=f"desarmar_{armado.trigger_id}"):
+            triggers_store.disarm(armado.trigger_id)
+            st.rerun()
+    if not armados:
+        st.caption("Ninguno armado.")
+
+    with st.form("armar_trigger"):
+        col_a, col_b, col_c = st.columns(3)
+        simbolo_t = col_a.text_input("Activo", placeholder="GLD")
+        regla = col_b.selectbox("Regla", [r.value for r in TriggerRule])
+        umbral = col_c.slider("Umbral (%)", 5, 60, 15, step=5)
+        if st.form_submit_button("Armar trigger"):
+            try:
+                triggers_store.arm(
+                    Trigger(
+                        trigger_id=triggers_store.next_id(),
+                        symbol=simbolo_t.strip().upper(),
+                        rule=TriggerRule(regla),
+                        threshold=D(umbral) / 100,
+                        armed_at=datetime.now(UTC),
+                    )
+                )
+            except (InvestLLError, ValueError) as error:
+                st.error(str(error))
+            else:
+                st.rerun()
+
+    col_pausa, col_reanudar = st.columns(2)
+    with col_pausa, st.form("pausar_entradas"):
+        motivo = st.text_input("Motivo de la pausa (obligatorio)")
+        if st.form_submit_button("Pausar entradas nuevas"):
+            try:
+                triggers_store.halt(reason=motivo, at=datetime.now(UTC))
+            except InvestLLError as error:
+                st.error(str(error))
+            else:
+                st.rerun()
+    with col_reanudar:
+        if st.button("Retirar la pausa"):
+            triggers_store.resume()
+            st.rerun()
+
+
+def pestana_chat() -> None:
+    """Hablar con Claude sobre TU situacion. Lee y explica; no puede ejecutar nada.
+
+    Usa el CLI de `claude` con la suscripcion del operador (igual que invest-ll-generate).
+    El contexto (cartera, triggers, mercado con sus fechas) se reconstruye en cada mensaje.
+    """
+    st.header("Chat")
+    st.caption(
+        "Claude lee tu cartera, tus triggers y tus datos (con sus fechas). NO puede ejecutar "
+        "nada: propone comandos y ejecutarlos es cosa tuya. Cada mensaje gasta cuota de tu "
+        "suscripcion."
+    )
+
+    if "chat_sesion" not in st.session_state:
+        st.session_state["chat_sesion"] = ChatSession()
+    sesion: ChatSession = st.session_state["chat_sesion"]
+
+    for autor, texto in sesion.history:
+        with st.chat_message("user" if autor == "operador" else "assistant"):
+            st.markdown(texto)
+
+    pregunta = st.chat_input("Pregunta sobre tu cartera, tus datos o que comando usar")
+    if pregunta:
+        with st.chat_message("user"):
+            st.markdown(pregunta)
+        with st.chat_message("assistant"):
+            try:
+                with st.spinner("Preguntando a Claude (tu suscripcion)..."):
+                    respuesta = sesion.ask(pregunta, contexto=build_context())
+            except ChatUnavailableError as error:
+                st.error(str(error))
+            else:
+                st.markdown(respuesta)
+
 
 def pestana_en_vivo(activos: list[AvailableAsset]) -> None:
     st.header("Estado actual")
@@ -704,6 +845,33 @@ def pestana_en_vivo(activos: list[AvailableAsset]) -> None:
             "Los datos que ves no son actuales."
         )
 
+    st.divider()
+    if st.button("Actualizar todos los historicos (descarga de internet, tarda un rato)"):
+        resultados: list[tuple[str, bool, str]] = []
+        with st.status("Descargando...", expanded=True) as estado:
+            for activo in activos:
+                argumentos = fetch_args(activo, hasta=datetime.now(UTC))
+                if argumentos is None:
+                    st.write(f"{activo.symbol}: sin metadatos de procedencia, saltado")
+                    continue
+                st.write(f"{activo.symbol}...")
+                proceso = subprocess.run(
+                    argumentos, capture_output=True, text=True, timeout=600, check=False
+                )
+                detalle = (proceso.stderr or proceso.stdout or "").strip()[-200:]
+                resultados.append((activo.symbol, proceso.returncode == 0, detalle))
+
+            fallos = [r for r in resultados if not r[1]]
+            estado.update(
+                label=f"Terminado: {len(resultados) - len(fallos)} bien, {len(fallos)} con fallo",
+                state="error" if fallos else "complete",
+            )
+        for simbolo, bien, detalle in resultados:
+            if not bien:
+                st.error(f"{simbolo}: {detalle}")
+        if resultados and not fallos:
+            st.rerun()
+
 
 def main() -> None:
     st.set_page_config(page_title="INVEST LL", layout="wide")
@@ -728,7 +896,17 @@ def main() -> None:
         "optimista."
     )
 
-    panorama, mi_cartera, invertir, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
+    (
+        panorama,
+        mi_cartera,
+        invertir,
+        backtest,
+        cartera,
+        seguimiento,
+        alertas,
+        vivo,
+        chat,
+    ) = st.tabs(
         [
             "Panorama",
             "Mi cartera",
@@ -738,6 +916,7 @@ def main() -> None:
             "Estimado vs real",
             "Alertas",
             "Estado actual",
+            "Chat",
         ]
     )
     with panorama:
@@ -756,6 +935,8 @@ def main() -> None:
         pestana_alertas(activos)
     with vivo:
         pestana_en_vivo(activos)
+    with chat:
+        pestana_chat()
 
 
 if __name__ == "__main__":  # pragma: no cover
