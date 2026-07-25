@@ -26,6 +26,7 @@ from datetime import timedelta
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
+from invest_ll.engine.benchmark import buy_and_hold
 from invest_ll.engine.execution import (
     MOTOR,
     ExitReason,
@@ -167,6 +168,7 @@ def run_backtest(
         )
 
     return build_report(
+        benchmark=buy_and_hold(series, capital=initial_capital, friction=friction),
         trades=trades,
         equity_curve=portfolio.equity_curve,
         friction=friction,

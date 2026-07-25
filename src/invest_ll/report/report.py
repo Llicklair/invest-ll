@@ -17,6 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator, Sequence
 
     from invest_ll.data.loader import DataWarning
+    from invest_ll.engine.benchmark import BuyAndHold
     from invest_ll.engine.config import FrictionConfig, RiskConfig
     from invest_ll.engine.execution import Trade
 
@@ -45,6 +46,22 @@ class BacktestReport:
     data_warnings: tuple[DataWarning, ...] = ()
     final_cash: Decimal = Decimal(0)
     rejected_orders: tuple[Order, ...] = ()
+    buy_and_hold: BuyAndHold | None = None
+
+    @property
+    def excess_return(self) -> Decimal:
+        """Cuánto añade la estrategia sobre no hacer nada.
+
+        Negativo significa que todo el riesgo asumido y todas las comisiones pagadas han servido
+        para quedarse por debajo de comprar y olvidarse.
+        """
+        if self.buy_and_hold is None:
+            return Decimal(0)
+        return self.net_result - self.buy_and_hold.net_result
+
+    @property
+    def beats_market(self) -> bool:
+        return self.excess_return > 0
 
     @property
     def conclusive(self) -> bool:
@@ -109,6 +126,8 @@ class BacktestReport:
             f"  Riesgo aplicado     {self.risk.describe()}",
         ]
 
+        lineas += self._render_benchmark()
+
         desglose = self.exits_by_reason()
         if self.trade_count:
             lineas += [
@@ -135,6 +154,40 @@ class BacktestReport:
 
         return "\n".join(lineas)
 
+    def _render_benchmark(self) -> list[str]:
+        """La comparación que decide si la estrategia merece la pena.
+
+        Va después de las métricas y antes de los avisos porque es la conclusión, no un detalle.
+        Se dice en palabras además de en cifras: "no bate al mercado" no se malinterpreta.
+        """
+        if self.buy_and_hold is None or self.buy_and_hold.did_nothing:
+            return []
+
+        bh = self.buy_and_hold
+        lineas = [
+            "",
+            "  Frente a comprar y mantener",
+            f"    esta estrategia   {self.net_result:>16.2f}   (drawdown {self.max_drawdown:.2f})",
+            f"    comprar y esperar {bh.net_result:>16.2f}   (drawdown {bh.max_drawdown:.2f})",
+            f"    diferencia        {self.excess_return:>16.2f}",
+        ]
+
+        if self.beats_market:
+            lineas.append("    -> la estrategia BATE a comprar y mantener")
+        else:
+            lineas.append(
+                "    -> la estrategia NO bate a comprar y mantener: todo el riesgo asumido"
+            )
+            lineas.append("       y las comisiones pagadas quedaron por debajo de no hacer nada")
+
+        # Ganar menos sufriendo mucho menos es un resultado legitimo, y merece decirse.
+        if not self.beats_market and self.max_drawdown > bh.max_drawdown:
+            lineas.append(
+                "       (aunque su caida maxima fue menor: gano menos, pero sufrio menos)"
+            )
+
+        return lineas
+
     def __str__(self) -> str:
         return self.render()
 
@@ -150,6 +203,7 @@ def build_report(
     data_warnings: Sequence[DataWarning] = (),
     final_cash: Decimal = Decimal(0),
     rejected_orders: Sequence[Order] = (),
+    benchmark: BuyAndHold | None = None,
 ) -> BacktestReport:
     """Ensambla el informe a partir del registro de operaciones."""
     from invest_ll.report.metrics import expectancy, max_drawdown, win_rate
@@ -171,4 +225,5 @@ def build_report(
         data_warnings=tuple(data_warnings),
         final_cash=final_cash,
         rejected_orders=tuple(rejected_orders),
+        buy_and_hold=benchmark,
     )
