@@ -94,14 +94,14 @@ regla fija con las mismas métricas.
 
 ## Fase 5 · US3 · Saber qué hay detrás de cada activo (P2)
 
-- [ ] T041 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: un `Fact` sin `source` o sin `as_of` **no se construye** (FR-017)
-- [ ] T042 [US3] Implementar `Fact` y `AssetAnalysis` en `src/invest_ll/analysis/models.py`
-- [ ] T043 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: los hechos verificables y la interpretación del LLM viven en campos separados (FR-049)
-- [ ] T044 [US3] Implementar `YFinanceResearcher` en `src/invest_ll/analysis/yfinance_researcher.py` — sector, tamaño, deuda, márgenes
-- [ ] T045 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: un activo sin entidad detrás (oro, un índice) se explica sin inventarle una empresa (FR-019)
-- [ ] T046 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: los escenarios se presentan como escenarios, nunca como predicciones (FR-018)
-- [ ] T047 [US3] Añadir en `src/invest_ll/analysis/models.py` la advertencia de que los datos son actuales y **no sirven** para analizar el pasado (FR-051)
-- [ ] T048 [US3] Comando `invest-ll-analyze` en `src/invest_ll/cli/analyze.py`
+- [X] T041 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: un `Fact` sin `source` o sin `as_of` **no se construye** (FR-017)
+- [X] T042 [US3] Implementar `Fact` y `AssetAnalysis` en `src/invest_ll/analysis/models.py`
+- [X] T043 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: los hechos verificables y la interpretación del LLM viven en campos separados (FR-049)
+- [X] T044 [US3] Implementar `YFinanceResearcher` en `src/invest_ll/analysis/yfinance_researcher.py` — sector, tamaño, deuda, márgenes
+- [X] T045 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: un activo sin entidad detrás (oro, un índice) se explica sin inventarle una empresa (FR-019)
+- [X] T046 [P] [US3] Test en `tests/unit/test_asset_analysis.py`: los escenarios se presentan como escenarios, nunca como predicciones (FR-018)
+- [X] T047 [US3] Añadir en `src/invest_ll/analysis/models.py` la advertencia de que los datos son actuales y **no sirven** para analizar el pasado (FR-051)
+- [X] T048 [US3] Comando `invest-ll-analyze` en `src/invest_ll/cli/analyze.py`
 
 **Punto de control** (E5): el informe distingue visiblemente dato de interpretación.
 
@@ -111,14 +111,14 @@ regla fija con las mismas métricas.
 
 **La única evidencia no contaminada que vamos a tener.**
 
-- [ ] T049 [P] [US4] Test en `tests/unit/test_forecast.py`: una estimación registrada **no se puede modificar** (FR-021)
-- [ ] T050 [US4] Implementar `Forecast` y `Outcome` en `src/invest_ll/tracking/models.py`
-- [ ] T051 [P] [US4] Test en `tests/unit/test_forecast_store.py`: el almacén **solo añade**; reescribir el histórico falla
-- [ ] T052 [US4] Implementar `ForecastStore` en `src/invest_ll/tracking/store.py` — escritura atómica, solo-añadir
-- [ ] T053 [P] [US4] Test en `tests/unit/test_forecast_evaluation.py`: comparar una estimación con datos posteriores da la diferencia (FR-022)
-- [ ] T054 [US4] Implementar `evaluate_forecast()` en `src/invest_ll/tracking/forecast.py`
-- [ ] T055 [P] [US4] Test en `tests/unit/test_forecast_evaluation.py`: el histórico conserva los fallos y muestra si el sistema tiende a pasarse o quedarse corto (FR-023, FR-024)
-- [ ] T056 [US4] Comando `invest-ll-track` en `src/invest_ll/cli/track.py` con `--list` y `--evaluate`
+- [X] T049 [P] [US4] Test en `tests/unit/test_forecast.py`: una estimación registrada **no se puede modificar** (FR-021)
+- [X] T050 [US4] Implementar `Forecast` y `Outcome` en `src/invest_ll/tracking/models.py`
+- [X] T051 [P] [US4] Test en `tests/unit/test_forecast_store.py`: el almacén **solo añade**; reescribir el histórico falla
+- [X] T052 [US4] Implementar `ForecastStore` en `src/invest_ll/tracking/store.py` — escritura atómica, solo-añadir
+- [X] T053 [P] [US4] Test en `tests/unit/test_forecast_evaluation.py`: comparar una estimación con datos posteriores da la diferencia (FR-022)
+- [X] T054 [US4] Implementar `evaluate_forecast()` en `src/invest_ll/tracking/forecast.py`
+- [X] T055 [P] [US4] Test en `tests/unit/test_forecast_evaluation.py`: el histórico conserva los fallos y muestra si el sistema tiende a pasarse o quedarse corto (FR-023, FR-024)
+- [X] T056 [US4] Comando `invest-ll-track` en `src/invest_ll/cli/track.py` con `--list` y `--evaluate`
 
 **Punto de control** (E6): una estimación que salió mal sigue en la lista.
 
@@ -130,30 +130,30 @@ regla fija con las mismas métricas.
 
 ### Modos como tipos
 
-- [ ] T057 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo por defecto **es** `Simulation` sin configurar nada (FR-025)
-- [ ] T058 [US5] Implementar `Simulation`, `Testnet` y `Real` como tipos distintos en `src/invest_ll/live/mode.py` — no un booleano ni un enum con un flag
-- [ ] T059 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo real exige acción explícita **y** credenciales separadas; ninguna de las dos por sí sola basta (FR-026)
-- [ ] T060 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo real **no** se activa por configuración heredada ni por un valor por defecto (FR-027)
+- [X] T057 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo por defecto **es** `Simulation` sin configurar nada (FR-025)
+- [X] T058 [US5] Implementar `Simulation`, `Testnet` y `Real` como tipos distintos en `src/invest_ll/live/mode.py` — no un booleano ni un enum con un flag
+- [X] T059 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo real exige acción explícita **y** credenciales separadas; ninguna de las dos por sí sola basta (FR-026)
+- [X] T060 [P] [US5] Test en `tests/unit/test_operating_mode.py`: el modo real **no** se activa por configuración heredada ni por un valor por defecto (FR-027)
 
 ### El broker
 
-- [ ] T061 [P] [US5] Test en `tests/unit/test_broker_contract.py`: `submit()` **no se puede llamar** sin construir una `Confirmation` para esa orden concreta (FR-028)
-- [ ] T062 [US5] Definir el protocolo `Broker` y `Confirmation` en `src/invest_ll/live/broker.py` — `confirmation` sin valor por defecto
-- [ ] T063 [P] [US5] Test en `tests/unit/test_live_safety.py`: `SimulatedBroker` **nunca** produce una orden real, con ninguna confirmación (FR-038)
-- [ ] T064 [US5] Implementar `SimulatedBroker` en `src/invest_ll/live/simulated_broker.py`
+- [X] T061 [P] [US5] Test en `tests/unit/test_broker_contract.py`: `submit()` **no se puede llamar** sin construir una `Confirmation` para esa orden concreta (FR-028)
+- [X] T062 [US5] Definir el protocolo `Broker` y `Confirmation` en `src/invest_ll/live/broker.py` — `confirmation` sin valor por defecto
+- [X] T063 [P] [US5] Test en `tests/unit/test_live_safety.py`: `SimulatedBroker` **nunca** produce una orden real, con ninguna confirmación (FR-038)
+- [X] T064 [US5] Implementar `SimulatedBroker` en `src/invest_ll/live/simulated_broker.py`
 - [ ] T065 [P] [US5] Test en `tests/unit/test_ccxt_broker.py` con doble: el modo se comprueba **al enviar**, no al construir (FR-032)
 - [ ] T066 [US5] Implementar `CcxtBroker` en `src/invest_ll/live/ccxt_broker.py` — credenciales del entorno (FR-033)
-- [ ] T067 [P] [US5] Test en `tests/unit/test_live_safety.py`: las credenciales de pruebas y las reales no son intercambiables; usarlas cruzadas **falla visiblemente** (FR-048)
-- [ ] T068 [P] [US5] Test en `tests/unit/test_live_safety.py`: ningún mensaje de error, registro ni informe contiene una credencial (FR-034)
-- [ ] T069 [P] [US5] Test en `tests/unit/test_ccxt_broker.py`: perder la conexión con una orden enviada da `UNKNOWN`, nunca `FILLED` ni `REJECTED` (FR-035)
+- [X] T067 [P] [US5] Test en `tests/unit/test_live_safety.py`: las credenciales de pruebas y las reales no son intercambiables; usarlas cruzadas **falla visiblemente** (FR-048)
+- [X] T068 [P] [US5] Test en `tests/unit/test_live_safety.py`: ningún mensaje de error, registro ni informe contiene una credencial (FR-034)
+- [X] T069 [P] [US5] Test en `tests/unit/test_ccxt_broker.py`: perder la conexión con una orden enviada da `UNKNOWN`, nunca `FILLED` ni `REJECTED` (FR-035)
 
 ### Registro y testnet obligatoria
 
-- [ ] T070 [P] [US5] Test en `tests/unit/test_execution_ledger.py`: cada orden queda registrada con lo pedido, lo ejecutado **y el modo** (FR-030)
-- [ ] T071 [US5] Implementar `ExecutionLedger` en `src/invest_ll/live/ledger.py` — solo añadir
-- [ ] T072 [P] [US5] Test en `tests/unit/test_execution_ledger.py`: una diferencia entre lo pedido y lo ejecutado se comunica, no se da por buena (FR-031)
-- [ ] T073 [P] [US5] Test en `tests/unit/test_live_safety.py`: sin haber operado antes en testnet, el modo real se **rechaza** (FR-047)
-- [ ] T074 [US5] Implementar la comprobación de testnet previa en `src/invest_ll/live/mode.py`
+- [X] T070 [P] [US5] Test en `tests/unit/test_execution_ledger.py`: cada orden queda registrada con lo pedido, lo ejecutado **y el modo** (FR-030)
+- [X] T071 [US5] Implementar `ExecutionLedger` en `src/invest_ll/live/ledger.py` — solo añadir
+- [X] T072 [P] [US5] Test en `tests/unit/test_execution_ledger.py`: una diferencia entre lo pedido y lo ejecutado se comunica, no se da por buena (FR-031)
+- [X] T073 [P] [US5] Test en `tests/unit/test_live_safety.py`: sin haber operado antes en testnet, el modo real se **rechaza** (FR-047)
+- [X] T074 [US5] Implementar la comprobación de testnet previa en `src/invest_ll/live/mode.py`
 - [ ] T075 [US5] Comando `invest-ll-execute` en `src/invest_ll/cli/execute.py` con confirmación interactiva por orden
 - [ ] T076 [P] [US5] Test de integración en `tests/integration/test_execute_cli.py`: los cuatro negativos del escenario E7 se comportan como se describe
 
