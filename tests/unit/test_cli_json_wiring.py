@@ -21,8 +21,9 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parents[2]
 
-# `fetch` descarga y `panel` levanta un servidor: ninguno produce un resultado que consumir.
-SIN_JSON = frozenset({"invest-ll-fetch", "invest-ll-panel"})
+# `fetch` descarga, `panel` levanta un servidor y `chat` es una conversacion interactiva:
+# ninguno produce un resultado que otro programa deba consumir.
+SIN_JSON = frozenset({"invest-ll-fetch", "invest-ll-panel", "invest-ll-chat"})
 
 
 def puntos_de_entrada() -> dict[str, str]:
