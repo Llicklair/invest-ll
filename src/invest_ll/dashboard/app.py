@@ -42,6 +42,9 @@ from invest_ll.engine.config import FrictionConfig, RiskConfig
 from invest_ll.engine.dca import run_dca
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
+from invest_ll.portfolio.derive import derive_portfolio
+from invest_ll.portfolio.quotes import ultimo_cierre
+from invest_ll.portfolio.store import ActivityStore
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
 from invest_ll.strategy.breakout import BreakoutHighs
@@ -370,6 +373,97 @@ def pestana_seguimiento() -> None:
         )
 
 
+def pestana_mi_cartera() -> None:
+    """La cartera real, derivada del ledger de movimientos.
+
+    El panel SOLO LEE. Registrar movimientos se hace con `invest-ll-portfolio` — mantener la
+    escritura fuera del panel es deliberado: un formulario de compra a un clic del grafico es el
+    patron que la FCA midio en +11% de operaciones.
+    """
+    st.header("Mi cartera")
+
+    try:
+        cartera = derive_portfolio(ActivityStore().activities())
+    except InvestLLError as error:
+        st.error(f"El ledger cuenta una historia imposible: {error}")
+        return
+
+    if not cartera.open_positions and not cartera.closed_trades:
+        st.info(
+            "La cartera esta vacia: no hay ningun movimiento registrado.\n\n"
+            "Registra una compra o importa el CSV de tu broker:\n"
+            "```\nuv run invest-ll-portfolio add buy --symbol GLD --quantity 10 "
+            "--price 240.5 --fee 2\nuv run invest-ll-portfolio import movimientos.csv\n```"
+        )
+        return
+
+    for aviso in cartera.warnings:
+        st.warning(aviso)
+
+    if cartera.open_positions:
+        st.subheader("Posiciones abiertas")
+        st.caption("Su P&L es una **valoracion con la fecha de los datos al lado**, no un hecho.")
+
+        filas: list[dict[str, object]] = []
+        valor_total = D(0)
+        con_precio = True
+        for p in cartera.open_positions:
+            cierre = ultimo_cierre(p.symbol)
+            precio, fecha = cierre if cierre else (None, None)
+            if precio is not None:
+                valor_total += p.value_at(precio)
+            else:
+                con_precio = False
+            filas.append(
+                {
+                    "activo": p.symbol,
+                    "cantidad": float(p.quantity),
+                    "coste medio": round(float(p.avg_cost), 2),
+                    "invertido": round(float(p.cost), 2),
+                    "valor": round(float(p.value_at(precio)), 2) if precio is not None else None,
+                    "P&L no realizado": (
+                        round(float(p.unrealized_at(precio)), 2) if precio is not None else None
+                    ),
+                    "datos de": fecha.date() if fecha is not None else "sin datos",
+                }
+            )
+        st.dataframe(filas, use_container_width=True, hide_index=True)
+
+        columnas = st.columns(3)
+        columnas[0].metric("Invertido en abiertas", f"{cartera.invested_open:,.0f}")
+        columnas[1].metric(
+            "Valor con ultimos datos", f"{valor_total:,.0f}" if con_precio else "incompleto"
+        )
+        columnas[2].metric("Efectivo derivado", f"{cartera.cash:,.2f}")
+
+    if cartera.closed_trades:
+        st.subheader("Posiciones retiradas")
+        st.caption("Su P&L es **realizado**: un hecho que ya no cambia.")
+        st.dataframe(
+            [
+                {
+                    "activo": t.symbol,
+                    "abierta": t.opened_at.date(),
+                    "retirada": t.closed_at.date(),
+                    "dias": t.holding_days,
+                    "invertido": round(float(t.invested_total), 2),
+                    "recuperado": round(float(t.proceeds_total), 2),
+                    "P&L realizado": round(float(t.realized_pnl), 2),
+                }
+                for t in cartera.closed_trades
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption(f"P&L realizado total: **{cartera.realized_pnl:,.0f}**")
+
+    st.divider()
+    st.caption(
+        "El panel solo lee. Los movimientos se registran con `invest-ll-portfolio` "
+        "(add / cash / import), y las ordenes reales pasan siempre por `invest-ll-execute`."
+    )
+
+
 def pestana_alertas(activos: list[AvailableAsset]) -> None:
     """Lo que esta pasando con tus activos. Se mira; no persigue.
 
@@ -495,11 +589,21 @@ def main() -> None:
         "optimista."
     )
 
-    panorama, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
-        ["Panorama", "Un activo", "Una cartera", "Estimado vs real", "Alertas", "Estado actual"]
+    panorama, mi_cartera, backtest, cartera, seguimiento, alertas, vivo = st.tabs(
+        [
+            "Panorama",
+            "Mi cartera",
+            "Un activo",
+            "Una cartera",
+            "Estimado vs real",
+            "Alertas",
+            "Estado actual",
+        ]
     )
     with panorama:
         pestana_panorama(activos)
+    with mi_cartera:
+        pestana_mi_cartera()
     with backtest:
         pestana_backtest(activos, friction)
     with cartera:

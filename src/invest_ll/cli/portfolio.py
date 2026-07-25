@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,39 +22,19 @@ from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.csv_import import parse_broker_csv
 from invest_ll.portfolio.derive import Portfolio, derive_portfolio
 from invest_ll.portfolio.models import Activity, ActivityType, OpenPosition
+from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
 D = Decimal
-RAIZ_DATOS = Path("data/market")
 
 
 def _fecha(texto: str | None) -> datetime:
     if not texto:
         return datetime.now(UTC)
     return datetime.fromisoformat(texto).replace(tzinfo=UTC)
-
-
-def ultimo_cierre(symbol: str, raiz: Path = RAIZ_DATOS) -> tuple[Decimal, datetime] | None:
-    """El último cierre descargado de un activo, con su fecha.
-
-    La fecha viaja SIEMPRE con el precio: una valoración sin fecha parece de hoy, y con
-    históricos parados desde hace meses eso es exactamente la mentira que no podemos contar.
-    """
-    if not raiz.exists():
-        return None
-    for csv_path in sorted(raiz.glob(f"*/{symbol}/DAY_1.csv")):
-        lineas = csv_path.read_text(encoding="utf-8").strip().splitlines()
-        if len(lineas) < 2:
-            continue
-        campos = lineas[-1].split(",")
-        try:
-            return D(campos[4]), datetime.fromisoformat(campos[0])
-        except (InvalidOperation, ValueError, IndexError):  # pragma: no cover - csv corrupto
-            continue
-    return None
 
 
 def _posicion_json(
