@@ -9,7 +9,7 @@
 
 param(
     [switch]$SoloCheck,
-    [int]$Puerto = 8501
+    [int]$Puerto = 8601
 )
 
 $ErrorActionPreference = "Stop"
@@ -100,7 +100,25 @@ if ($SoloCheck) {
     exit 0
 }
 
-# --- 5. El panel ---
+# --- 5. Paneles viejos ---
+# Un panel viejo tiene los modulos cacheados en memoria: tras editar codigo da ImportError de
+# cosas que existen, y como cada arranque buscaba un puerto nuevo, el navegador seguia mirando
+# el panel muerto. Se mata lo que hubiera y se usa SIEMPRE el mismo puerto.
+Write-Host ""
+Write-Host "Paneles anteriores"
+$viejos = Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*streamlit*" }
+if ($viejos) {
+    foreach ($proceso in $viejos) {
+        Stop-Process -Id $proceso.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Escribir-Bien "cerrados $(@($viejos).Count) proceso(s) de un arranque anterior"
+    Start-Sleep -Seconds 2
+} else {
+    Escribir-Bien "ninguno abierto"
+}
+
+# --- 6. El panel ---
 Write-Host ""
 Write-Host ("=" * 60)
 Write-Host "Abriendo el panel en http://localhost:$Puerto" -ForegroundColor Cyan

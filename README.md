@@ -6,6 +6,8 @@ mentirte sobre sus propios resultados**.
 
 **Estado**: v1 en desarrollo. Solo simulación — no ejecuta órdenes con dinero real.
 
+**Arrancar**: doble clic en `levantar.cmd` (o `.\scripts\start.ps1` desde una terminal). Comprueba el entorno, cierra paneles viejos y abre el panel en http://localhost:8601.
+
 ---
 
 ## Lo primero que debes saber
