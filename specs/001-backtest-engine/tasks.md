@@ -120,16 +120,16 @@ dos ejecuciones idénticas producen informes idénticos.
 
 ### Tests para US2 (escribir primero, deben fallar)
 
-- [ ] T035 [P] [US2] Estrategia tramposa que intenta acceder a periodos futuros por la interfaz pública de `MarketView`; el test **falla si el backtest completa con éxito** (SC-003), en `tests/integration/test_no_lookahead.py`
-- [ ] T036 [P] [US2] Test de determinismo: dos ejecuciones idénticas producen informes idénticos campo a campo (FR-005, SC-006), en `tests/integration/test_determinism.py`
-- [ ] T037 [P] [US2] Property test: ninguna orden tiene `execution_timestamp ≤ signal_timestamp`, sobre series generadas con `hypothesis`, en `tests/property/test_temporal_invariants.py`
-- [ ] T038 [P] [US2] Test de borde temporal: señal en el último periodo de la serie no produce operación fantasma; posición abierta al acabar el histórico se valora sin contarla como ganancia realizada, en `tests/unit/test_series_end.py`
+- [X] T035 [P] [US2] Estrategia tramposa que intenta acceder a periodos futuros por la interfaz pública de `MarketView`; el test **falla si el backtest completa con éxito** (SC-003), en `tests/integration/test_no_lookahead.py`
+- [X] T036 [P] [US2] Test de determinismo: dos ejecuciones idénticas producen informes idénticos campo a campo (FR-005, SC-006), en `tests/integration/test_determinism.py`
+- [X] T037 [P] [US2] Property test: ninguna orden tiene `execution_timestamp ≤ signal_timestamp`, sobre series generadas con `hypothesis`, en `tests/property/test_temporal_invariants.py`
+- [X] T038 [P] [US2] Test de borde temporal: señal en el último periodo de la serie no produce operación fantasma; posición abierta al acabar el histórico se valora sin contarla como ganancia realizada, en `tests/unit/test_series_end.py`
 
 ### Implementación para US2
 
-- [ ] T039 [US2] Endurecer `MarketView` con los huecos que revelen T035–T037 y documentar en el docstring el límite real de la garantía (interfaz pública, no sandbox) en `src/invest_ll/engine/view.py`
-- [ ] T040 [US2] Auditar el motor y eliminar toda fuente de no-determinismo (orden de iteración, aleatoriedad sin semilla, reloj del sistema) en `src/invest_ll/engine/backtest.py`
-- [ ] T041 [US2] Implementar el cierre de posiciones abiertas al final de la serie con motivo `END_OF_SERIES` en `src/invest_ll/engine/backtest.py`
+- [X] T039 [US2] Endurecer `MarketView` con los huecos que revelen T035–T037 y documentar en el docstring el límite real de la garantía (interfaz pública, no sandbox) en `src/invest_ll/engine/view.py`
+- [X] T040 [US2] Auditar el motor y eliminar toda fuente de no-determinismo (orden de iteración, aleatoriedad sin semilla, reloj del sistema) en `src/invest_ll/engine/backtest.py`
+- [X] T041 [US2] Implementar el cierre de posiciones abiertas al final de la serie con motivo `END_OF_SERIES` en `src/invest_ll/engine/backtest.py`
 
 **Checkpoint**: el veredicto del motor es creíble y reproducible.
 

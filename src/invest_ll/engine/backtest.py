@@ -9,6 +9,15 @@ Estructura de un paso, y el orden importa:
 
 Ejecutar al cierre del propio periodo de la señal sería asumir un precio que no se conocía al
 decidir. Es la forma más común de inflar un backtest, y aquí no existe como opción (FR-025).
+
+**Determinismo (FR-005)** — auditado en T040. El bucle no usa ninguna de las fuentes habituales
+de irreproducibilidad: sin `random`, sin reloj del sistema, sin concurrencia, sin iteración sobre
+conjuntos o diccionarios cuyo orden dependa del `hash` del proceso. El único orden que existe es
+el cronológico de la serie. La contabilidad va en `Decimal`, así que tampoco hay acumulación de
+error que dependa del orden de las sumas.
+
+Si algún día entra aquí una fuente de azar, debe recibir una semilla explícita que forme parte
+del informe. Un backtest que no se puede repetir no permite comparar nada.
 """
 
 from __future__ import annotations
@@ -17,6 +26,7 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
 from invest_ll.engine.execution import (
+    MOTOR,
     ExitReason,
     Order,
     OrderSide,
@@ -161,7 +171,9 @@ def _open_position(
     # ROUND_DOWN, no el redondeo por defecto: redondear hacia arriba haría que el desembolso
     # superase la caja por una fracción ínfima y la orden se rechazaría siempre que se invierta
     # el capital completo. Comprometer de menos es aceptable; de más, nunca.
-    quantity = (presupuesto / coste_unitario).quantize(LOTE_MINIMO, rounding=ROUND_DOWN)
+    quantity = MOTOR.divide(presupuesto, coste_unitario).quantize(
+        LOTE_MINIMO, rounding=ROUND_DOWN, context=MOTOR
+    )
 
     if quantity <= 0:
         rejected.append(

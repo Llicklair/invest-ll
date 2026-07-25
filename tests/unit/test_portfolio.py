@@ -110,3 +110,24 @@ def test_los_costes_se_contabilizan_por_operacion() -> None:
         risk=TODO_EL_CAPITAL,
     )
     assert report.total_costs == sum((t.costs for t in report.trades), start=D(0))
+
+
+def test_precios_muy_dispares_no_agotan_la_precision_decimal() -> None:
+    """Regresión: caso encontrado por hypothesis (T037).
+
+    Con una serie que salta de 1 a ~10.000, la cantidad comprada tiene 12 dígitos y el producto
+    precio x cantidad x comisión superaba los 28 dígitos por defecto de `decimal`. No daba un
+    número impreciso: lanzaba InvalidOperation y el backtest moría a mitad de la simulación.
+    """
+    from invest_ll.strategy.moving_average import MovingAverageCrossover
+
+    closes = [1.0] * 11 + [2.0, 1.0, 2628.0, 9756.0, 1.0, 4369.0, 1.0, 1742.0, 1.0, 6970.0] * 3
+    report = run_backtest(
+        series_from_closes(closes),
+        MovingAverageCrossover(short=3, long=10),
+        initial_capital=D(10000),
+        friction=CON_FRICCION,
+        risk=RiskConfig(position_fraction=D("0.5")),
+    )
+    assert report.trade_count >= 0
+    assert report.net_result == sum((t.net_pnl for t in report.trades), start=D(0))

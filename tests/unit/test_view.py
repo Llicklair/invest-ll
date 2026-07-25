@@ -6,6 +6,8 @@ funciona, todo backtest posterior es ficción.
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
 
 from invest_ll.engine.view import MarketView
@@ -98,3 +100,23 @@ def test_dos_vistas_del_mismo_cursor_son_equivalentes() -> None:
     serie = series_from_closes(ramp(10))
     a, b = MarketView(serie, cursor=4), MarketView(serie, cursor=4)
     assert list(a.closes(5)) == list(b.closes(5))
+
+
+def test_los_cierres_devueltos_son_de_solo_lectura(view: MarketView) -> None:
+    """T039: un slice de numpy es una vista sobre el buffer original.
+
+    Sin protección, una estrategia podría reescribir el histórico que ven las demás. No es
+    look-ahead, es peor: rompe el determinismo sin que nada falle de forma visible.
+    """
+    ventana = view.closes(3)
+    with pytest.raises(ValueError, match=r"read-only|writeable"):
+        ventana[0] = 999.0
+
+
+def test_reescribir_no_altera_la_serie_original() -> None:
+    serie = series_from_closes(ramp(10))
+    original = list(serie.closes)
+    vista = MarketView(serie, cursor=5)
+    with contextlib.suppress(ValueError):
+        vista.closes(3)[0] = 999.0
+    assert list(serie.closes) == original

@@ -91,9 +91,17 @@ class MarketView:
         return self._series.bars[start : self._cursor + 1]
 
     def closes(self, periods: int) -> NDArray[np.float64]:
-        """Precios de cierre del pasado reciente, listos para calcular indicadores."""
+        """Precios de cierre del pasado reciente, listos para calcular indicadores.
+
+        El array se devuelve **de solo lectura**. Un slice de numpy es una vista sobre el buffer
+        original: sin esto, una estrategia podría escribir en él y alterar la serie histórica que
+        ven las demás. No sería mirar al futuro, sería reescribir el pasado — y el determinismo
+        de FR-005 se caería sin que nada fallara de forma visible.
+        """
         start = self._slice_start(periods)
-        return self._series.closes[start : self._cursor + 1]
+        ventana = self._series.closes[start : self._cursor + 1].view()
+        ventana.flags.writeable = False
+        return ventana
 
     def _slice_start(self, periods: int) -> int:
         if periods <= 0:

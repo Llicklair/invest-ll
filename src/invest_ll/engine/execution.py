@@ -8,10 +8,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Context, Decimal
 from enum import Enum
 
 CENT = Decimal("0.00000001")
+
+# Contexto decimal propio del motor, con precisión muy por encima de lo que cualquier operación
+# necesita. Dos razones:
+#
+# 1. Los 28 dígitos por defecto se agotan de verdad: con una serie que va de 1 a 10.000, la
+#    cantidad comprada tiene 12 dígitos y multiplicarla por precio y comisión pasa de 28. El
+#    resultado no es un número impreciso, es `InvalidOperation` y el backtest muere a mitad.
+# 2. Es explícito: el contexto global de `decimal` lo puede cambiar cualquier código del proceso,
+#    y con él cambiarían los resultados. El determinismo de FR-005 no puede depender de eso.
+MOTOR = Context(prec=60)
 
 
 class OrderSide(Enum):
@@ -88,7 +98,7 @@ def apply_slippage(price: Decimal, side: OrderSide, rate: Decimal) -> Decimal:
     Modelarlo a favor en algún caso sería inventar un mercado amable que no existe.
     """
     factor = (1 + rate) if side is OrderSide.BUY else (1 - rate)
-    return (price * factor).quantize(CENT)
+    return MOTOR.multiply(price, factor).quantize(CENT, context=MOTOR)
 
 
 def build_order(
@@ -103,8 +113,12 @@ def build_order(
 ) -> Order:
     """Construye una orden ejecutada aplicando la fricción configurada."""
     fill_price = apply_slippage(reference_price, side, slippage_rate)
-    slippage_cost = (abs(fill_price - reference_price) * quantity).quantize(CENT)
-    commission = (fill_price * quantity * commission_rate).quantize(CENT)
+    slippage_cost = MOTOR.multiply(abs(fill_price - reference_price), quantity).quantize(
+        CENT, context=MOTOR
+    )
+    commission = MOTOR.multiply(MOTOR.multiply(fill_price, quantity), commission_rate).quantize(
+        CENT, context=MOTOR
+    )
 
     return Order(
         signal_timestamp=signal_timestamp,
