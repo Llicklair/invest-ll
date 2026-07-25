@@ -118,7 +118,7 @@ class ClaudeCliProvider:
                     # Espera creciente: si el motivo es el ritmo, insistir de inmediato no ayuda.
                     time.sleep(ESPERA_BASE_SEGUNDOS * intento)
 
-        assert ultimo is not None  # noqa: S101 - el bucle siempre deja un error si llega aqui
+        assert ultimo is not None
         raise ultimo
 
     def _una_vez(self, prompt: str) -> str:

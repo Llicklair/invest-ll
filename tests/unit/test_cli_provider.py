@@ -26,6 +26,11 @@ from invest_ll.decision.schema import DecisionParseError, DecisionUnavailableErr
 
 CUANDO = datetime(2020, 6, 1, tzinfo=UTC)
 
+
+def _no_esperar(segundos: float) -> None:
+    """Sustituye a time.sleep en los tests de reintento: esperar de verdad los haria lentos."""
+
+
 DECISION_JSON = json.dumps(
     {
         "summary": "el activo A lidera",
@@ -183,10 +188,10 @@ class TestReintentos:
     def test_reintenta_tras_un_fallo_transitorio(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import invest_ll.decision.cli_provider as modulo
 
-        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        monkeypatch.setattr(modulo.time, "sleep", _no_esperar)
         intentos = {"n": 0}
 
-        def falla_una_vez(prompt: str) -> str:
+        def falla_una_vez(_prompt: str) -> str:
             intentos["n"] += 1
             if intentos["n"] == 1:
                 raise DecisionUnavailableError("el CLI fallo (codigo 1): sin mensaje")
@@ -199,10 +204,10 @@ class TestReintentos:
         """Rendirse es correcto: mejor una decision que falta que una inventada."""
         import invest_ll.decision.cli_provider as modulo
 
-        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        monkeypatch.setattr(modulo.time, "sleep", _no_esperar)
         intentos = {"n": 0}
 
-        def siempre_falla(prompt: str) -> str:
+        def siempre_falla(_prompt: str) -> str:
             intentos["n"] += 1
             raise DecisionUnavailableError("el CLI fallo (codigo 1): sin mensaje")
 
@@ -214,10 +219,10 @@ class TestReintentos:
         """Volver a pedir lo mismo daria lo mismo: reintentar solo gastaria cuota."""
         import invest_ll.decision.cli_provider as modulo
 
-        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        monkeypatch.setattr(modulo.time, "sleep", _no_esperar)
         intentos = {"n": 0}
 
-        def responde_basura(prompt: str) -> str:
+        def responde_basura(_prompt: str) -> str:
             intentos["n"] += 1
             return "no hay json aqui"
 
