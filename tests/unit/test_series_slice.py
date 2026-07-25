@@ -8,6 +8,7 @@ periodo afortunado.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -81,12 +82,11 @@ def test_dos_mitades_reconstruyen_el_total() -> None:
 
 
 class TestEnLaCLI:
-    def test_la_cli_acepta_un_subperiodo(self, tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]  # noqa: ANN001
-        from pathlib import Path
-
+    def test_la_cli_acepta_un_subperiodo(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         from invest_ll.cli import main
 
-        assert isinstance(tmp_path, Path)
         filas = "".join(
             f"{(datetime(2025, 1, 1, tzinfo=UTC).replace(day=1) + PASO * i).isoformat()},"
             f"{100 + i},{101 + i},{99 + i},{100 + i},1000\n"
@@ -112,12 +112,9 @@ class TestEnLaCLI:
         assert codigo in (0, 3)
         assert "Resultado neto" in salida
 
-    def test_un_subperiodo_sin_datos_falla_con_claridad(self, tmp_path) -> None:  # type: ignore[no-untyped-def]  # noqa: ANN001
-        from pathlib import Path
-
+    def test_un_subperiodo_sin_datos_falla_con_claridad(self, tmp_path: Path) -> None:
         from invest_ll.cli import main
 
-        assert isinstance(tmp_path, Path)
         filas = "".join(
             f"{(datetime(2025, 1, 1, tzinfo=UTC) + PASO * i).isoformat()},"
             f"{100 + i},{101 + i},{99 + i},{100 + i},1000\n"
