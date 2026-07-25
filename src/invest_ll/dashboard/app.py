@@ -46,6 +46,7 @@ from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
+from invest_ll.portfolio.triggers import TriggerStore
 from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
@@ -433,6 +434,14 @@ def pestana_invertir(activos: list[AvailableAsset], friction: FrictionConfig) ->
         "Cualquiera de las cuatro vias termina en `invest-ll-execute`, que pide confirmar "
         "escribiendo la cantidad. Ninguna se salta ese paso."
     )
+
+    pausa = TriggerStore().halted()
+    if pausa:
+        st.warning(
+            f"Pausa activa: {pausa}. No se proponen entradas nuevas; las posiciones abiertas "
+            "no se tocan. Retirala con `invest-ll-triggers resume`."
+        )
+        return
 
     st.subheader("Propuesta simple")
     seleccion = st.multiselect(

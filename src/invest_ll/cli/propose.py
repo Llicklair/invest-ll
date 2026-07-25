@@ -26,6 +26,7 @@ from invest_ll.data.bar import Interval
 from invest_ll.data.universe import build_universe
 from invest_ll.engine.config import FrictionConfig
 from invest_ll.errors import InvestLLError
+from invest_ll.portfolio.triggers import TriggerStore
 from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -49,6 +50,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     salida = salida_de(args, "propose")
+
+    # Nivel 1 del kill switch: con la pausa activa no se proponen entradas nuevas. Las
+    # posiciones abiertas no se tocan; esto solo cierra el grifo de las propuestas.
+    pausa = TriggerStore().halted()
+    if pausa is not None:
+        return salida.error(
+            f"las entradas nuevas estan en pausa: {pausa}. "
+            "Retira la pausa con 'invest-ll-triggers resume'",
+            SALIDA_ERROR,
+        )
 
     try:
         universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
