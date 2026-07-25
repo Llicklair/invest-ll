@@ -8,6 +8,16 @@
 
 **Input**: User description: "Decisión asistida por LLM, análisis de activos y ejecución real con salvaguardas. El operador no es experto en inversión y quiere el flujo más simple posible: pedir que se invierta, ver una simulación estimada, y poder pasar a dinero real conectando una cartera de cripto o una API de bolsa."
 
+## Clarifications
+
+### Session 2026-07-25
+
+- Q: ¿Qué parte de la decisión toma el LLM? → A: Qué activos **y** cuándo entrar o salir
+- Q: ¿Con qué frecuencia decide? → A: Configurable, mensual por defecto
+- Q: ¿Qué proveedor de LLM y cómo se maneja su no-determinismo? → A: Claude, con caché de decisiones en disco
+- Q: ¿Por dónde se ejecutan las órdenes reales? → A: Cripto y bolsa, cripto primero, con red de pruebas obligatoria
+- Q: ¿De dónde sale el análisis de cada activo? → A: Datos verificables del proveedor y contexto del LLM, en secciones separadas
+
 ## User Scenarios & Testing *(mandatory)*
 
 El actor es el **operador**: sabe lo que quiere conseguir con su dinero, pero no es experto en
@@ -192,6 +202,22 @@ ejecuta una orden y se registra; sin esas dos condiciones, no se ejecuta nada.
 - **FR-013**: El sistema MUST NOT presentar al LLM como capaz de predecir precios.
 - **FR-014**: El sistema MUST registrar que dos ejecuciones del LLM pueden diferir, y hacer
   explícito que eso rompe la reproducibilidad que sí tienen las estrategias de reglas.
+- **FR-039**: El LLM MUST decidir tanto qué activos tener como cuándo entrar y salir de ellos.
+- **FR-040**: La frecuencia de decisión MUST ser configurable, con **periodicidad mensual por
+  defecto**. Decidir en cada periodo de una serie diaria haría inviable cualquier backtest largo:
+  21 años son más de 5.000 decisiones, con su coste y su tiempo.
+- **FR-041**: Antes de lanzar una simulación, el sistema MUST informar de cuántas decisiones
+  costará y MUST pedir confirmación cuando superen un umbral configurable. Una simulación diaria
+  sobre 21 años cuesta cientos de euros y varias horas: eso no puede lanzarse por descuido.
+- **FR-042**: El sistema MUST reutilizar la decisión vigente entre dos puntos de decisión, en
+  lugar de consultar al LLM en cada periodo.
+- **FR-043**: Cada decisión del LLM MUST guardarse en disco al calcularse, indexada por lo que la
+  determina. Repetir un experimento MUST reutilizar lo guardado.
+- **FR-044**: Gracias a ese registro, dos ejecuciones del mismo experimento MUST dar el mismo
+  resultado. Es lo que devuelve a las decisiones del LLM la reproducibilidad que FR-005 exige a
+  las estrategias de reglas, y sin ello dos experimentos no serían comparables.
+- **FR-045**: El registro MUST distinguir qué modelo produjo cada decisión. Cambiar de modelo
+  MUST NOT reutilizar decisiones del anterior.
 
 **Análisis de activos (US3)**
 
@@ -203,6 +229,12 @@ ejecuta una orden y se registra; sin esas dos condiciones, no se ejecuta nada.
   predicciones ni como cifras esperadas.
 - **FR-019**: Para activos sin entidad detrás, el sistema MUST explicar qué son en lugar de
   atribuirles una.
+- **FR-049**: El análisis MUST separar visiblemente los datos verificables del proveedor de la
+  interpretación del LLM. Mezclarlos convertiría un informe comprobable en uno del que no se sabe
+  qué parte creerse.
+- **FR-050**: Los datos verificables MUST poder contrastarse contra su fuente.
+- **FR-051**: El sistema MUST advertir de que los datos de la entidad son actuales y **no sirven**
+  para analizar decisiones del pasado sin incurrir en look-ahead.
 
 **Estimado contra real (US4)**
 
@@ -234,6 +266,11 @@ ejecuta una orden y se registra; sin esas dos condiciones, no se ejecuta nada.
 - **FR-034**: Ningún mensaje, registro ni informe MUST incluir una credencial.
 - **FR-035**: Ante pérdida de conexión con una orden enviada, el sistema MUST marcarla como estado
   desconocido y MUST NOT asumir que se ejecutó ni que falló.
+- **FR-046**: El sistema MUST soportar ejecución en cripto y en bolsa, **empezando por cripto**.
+- **FR-047**: Antes de operar con dinero real en un mercado, el sistema MUST haber operado en la
+  red de pruebas de ese mercado. Pasar de pruebas a real MUST ser una activación aparte.
+- **FR-048**: Las credenciales de pruebas y las de dinero real MUST ser distintas y no
+  intercambiables. Usar unas donde tocan las otras MUST fallar de forma visible.
 
 **Verificabilidad**
 
@@ -277,6 +314,16 @@ ejecuta una orden y se registra; sin esas dos condiciones, no se ejecuta nada.
 - **SC-010**: Ninguna credencial aparece en el repositorio, en los registros ni en los informes.
 - **SC-011**: El 100% de la suite de tests se ejecuta sin red y sin llamadas reales a un LLM.
 - **SC-012**: El 100% de las órdenes enviadas queda registrado con lo pedido y lo ejecutado.
+- **SC-013**: Un backtest de 21 años con periodicidad mensual consume del orden de 250 decisiones,
+  no una por periodo de la serie.
+- **SC-014**: Ninguna simulación que supere el umbral de decisiones configurado se lanza sin
+  confirmación explícita.
+- **SC-015**: Repetir un experimento con el LLM produce un resultado idéntico y no consume
+  decisiones nuevas.
+- **SC-016**: Ninguna orden con dinero real se envía a un mercado en el que no se haya operado
+  antes en su red de pruebas.
+- **SC-017**: El 100% de los informes de análisis distingue qué es dato verificable y qué es
+  interpretación.
 
 ## Assumptions
 
@@ -288,11 +335,22 @@ ejecuta una orden y se registra; sin esas dos condiciones, no se ejecuta nada.
   entrenamiento está contaminado de una forma que ningún diseño corrige. Se puede acotar (no darle
   fechas, no darle nombres) y se debe advertir, pero un resultado bueno del LLM sobre el pasado no
   es evidencia de nada. **Solo la comparación con resultados futuros reales (US4) lo es.**
+- **El LLM decide activos y momento** (decisión del operador, sesión 2026-07-25). Se acepta
+  sabiendo que las 40 configuraciones de *timing* medidas hoy perdieron todas contra comprar y
+  mantener: si el LLM también pierde ahí, el sistema lo dirá con las mismas cifras.
+- **Frecuencia mensual por defecto, configurable.** El coste no es un detalle de implementación:
+  a razón de una decisión por vela, un backtest largo cuesta cientos de euros. Por eso FR-041
+  obliga a avisar antes de lanzar.
 - **Ejecución real solo con confirmación por orden.** No hay modo desatendido. Es una decisión de
   diseño, no una limitación: el sistema lleva nueve defectos encontrados al usarlo, y ninguno se
   vio leyendo el código.
-- **Cripto primero para la ejecución.** Los exchanges de cripto permiten operar por API con menos
-  fricción que los brókers de bolsa, que suelen exigir contratos y aprobaciones.
+- **Cripto primero para la ejecución** (decisión del operador): se cubren los dos mercados, pero
+  cripto va antes porque su API no exige contratos ni aprobaciones y la librería ya está integrada.
+  La red de pruebas es obligatoria antes de tocar dinero real: es donde se descubren los fallos de
+  ejecución sin pagarlos.
+- **El caché de decisiones es lo que hace comparables los experimentos.** Un LLM no es determinista
+  ni con temperatura cero. Sin guardar cada decisión, dos ejecuciones del mismo backtest darían
+  cifras distintas y ninguna comparación significaría nada — además de volver a pagar cada vez.
 - **Sin asesoramiento financiero.** El sistema informa y simula; no recomienda formalmente ni
   sustituye a un asesor.
 - **Datos fundamentales del proveedor gratuito.** Con sus límites: los datos actuales no sirven

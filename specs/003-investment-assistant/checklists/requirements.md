@@ -31,12 +31,23 @@
 
 ## Notes
 
-- Validación pasada en la primera iteración. **38 requisitos funcionales, 12 criterios de éxito,
-  5 historias, 13 edge cases** — es la feature más grande del proyecto y la única que toca dinero
-  real.
-- **Sin marcadores [NEEDS CLARIFICATION]**: las decisiones abiertas (qué proveedor de LLM, qué
-  exchange, cómo acotar el no-determinismo) son de implementación y se resuelven en
-  `/speckit-clarify`. La spec las cubre de forma agnóstica.
+- Validación pasada en la primera iteración. Tras la clarificación: **51 requisitos funcionales,
+  17 criterios de éxito, 5 historias, 13 edge cases**. Re-validado: 16/16 se mantienen.
+- **Sesión de clarificación 2026-07-25**: 5 preguntas resueltas — alcance del LLM, frecuencia de
+  decisión, proveedor y caché, mercados de ejecución, y origen del análisis. Añadidos FR-039..FR-051
+  y SC-013..SC-017.
+
+### Dos consecuencias de la clarificación que cambian el diseño
+
+- **El coste dejó de ser un detalle.** El operador eligió que el LLM decida también el *cuándo*.
+  A una decisión por vela, un backtest de 21 años son más de 5.000 llamadas: cientos de euros y
+  varias horas por simulación. De ahí FR-040 (mensual por defecto), FR-041 (avisar antes de lanzar)
+  y FR-042 (reutilizar la decisión vigente). Sin eso la feature sería inusable para iterar.
+
+- **El caché no es una optimización, es lo que hace posible comparar.** Un LLM no es determinista
+  ni con temperatura cero, así que sin guardar cada decisión dos ejecuciones del mismo experimento
+  darían cifras distintas. FR-043..FR-045 devuelven a las decisiones del LLM la reproducibilidad
+  que FR-005 exige a las reglas fijas — y de paso evitan pagar dos veces lo mismo.
 
 ### Lo que esta spec hace distinto, y por qué
 
