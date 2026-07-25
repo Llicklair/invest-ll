@@ -10,12 +10,12 @@ Lo que se guarda aquí es lo que después hace reproducible el experimento: `inv
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from invest_ll.cli.compare import SALIDA_ERROR, SALIDA_NO_ENCONTRADO, SALIDA_OK, cargar_series
+from invest_ll.cli.emit import AVISO_FALLOS_GENERACION, add_json_flag, salida_de
 from invest_ll.data.bar import Interval
 from invest_ll.data.universe import build_universe
 from invest_ll.decision.cache import DecisionStore
@@ -46,17 +46,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--model", default="claude-opus-4-6")
     parser.add_argument("--limit", type=int, help="Genera solo las N primeras (para probar)")
     parser.add_argument("--yes", action="store_true", help="No preguntar antes de empezar")
+    add_json_flag(parser)
 
     args = parser.parse_args(argv)
+    salida = salida_de(args, "generate")
 
     try:
         universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
     except FileNotFoundError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_NO_ENCONTRADO
+        return salida.error(str(error), SALIDA_NO_ENCONTRADO)
     except (InvestLLError, KeyError, ValueError) as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(str(error), SALIDA_ERROR)
 
     almacen = DecisionStore(args.out)
     proveedor = ClaudeCliProvider(model=args.model)
@@ -83,29 +83,41 @@ def main(argv: Sequence[str] | None = None) -> int:
     pendientes = [p for p in peticiones if not almacen.has(p.cache_key)]
     ya_estan = len(peticiones) - len(pendientes)
 
-    print(f"Universo: {len(universo)} periodos, {len(universo.symbols)} activos")
-    print(f"Puntos de decision: {len(peticiones)} (cada {args.every} periodos)")
+    salida.dato(
+        universe={"periods": len(universo), "symbols": list(universo.symbols)},
+        decision_points=len(peticiones),
+        already_cached=ya_estan,
+        pending=len(pendientes),
+        model=args.model,
+        out=args.out,
+    )
+
+    salida.linea(f"Universo: {len(universo)} periodos, {len(universo.symbols)} activos")
+    salida.linea(f"Puntos de decision: {len(peticiones)} (cada {args.every} periodos)")
     if ya_estan:
-        print(f"  Ya generadas: {ya_estan} — no se vuelven a pedir")
+        salida.linea(f"  Ya generadas: {ya_estan} — no se vuelven a pedir")
 
     if not pendientes:
-        print("\nNo hay nada que generar. Todas las decisiones estan ya guardadas.")
-        return SALIDA_OK
+        salida.linea("\nNo hay nada que generar. Todas las decisiones estan ya guardadas.")
+        salida.dato(generated=0)
+        return salida.cerrar(SALIDA_OK)
 
     minutos = len(pendientes) * SEGUNDOS_POR_DECISION / 60
-    print(f"  Por generar: {len(pendientes)} (~{minutos:.0f} min, secuencial)")
-    print(f"  Modelo: {args.model} · via CLI, con tu suscripcion")
+    salida.linea(f"  Por generar: {len(pendientes)} (~{minutos:.0f} min, secuencial)")
+    salida.linea(f"  Modelo: {args.model} · via CLI, con tu suscripcion")
 
     if not args.yes:
+        # `--json` NO exime de confirmar: gastar cuota es una accion, no un formato de salida.
         try:
-            respuesta = input("\nContinuar? [s/N] ").strip().lower()
+            respuesta = salida.pregunta("\nContinuar? [s/N] ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             respuesta = ""
         if respuesta != "s":
-            print("Cancelado. No se ha gastado nada.")
-            return SALIDA_CANCELADO
+            salida.linea("Cancelado. No se ha gastado nada.")
+            salida.dato(cancelled=True)
+            return salida.cerrar(SALIDA_CANCELADO)
 
-    print()
+    salida.linea()
     fallos: list[str] = []
     inicio = time.monotonic()
 
@@ -118,37 +130,46 @@ def main(argv: Sequence[str] | None = None) -> int:
             # durante un backtest, donde si detiene -- aqui todavia no hay ningun resultado que
             # pudiera quedar falseado.
             fallos.append(f"{etiqueta}: {error}")
-            print(f"  [{i}/{len(pendientes)}] {etiqueta}  FALLO: {str(error)[:60]}")
+            salida.linea(f"  [{i}/{len(pendientes)}] {etiqueta}  FALLO: {str(error)[:60]}")
             continue
 
         almacen.put(peticion.cache_key, decision)
         elegido = decision.chosen or "fuera del mercado"
-        print(f"  [{i}/{len(pendientes)}] {etiqueta}  -> {elegido}")
+        salida.linea(f"  [{i}/{len(pendientes)}] {etiqueta}  -> {elegido}")
 
     transcurrido = (time.monotonic() - inicio) / 60
     generadas = len(pendientes) - len(fallos)
 
-    print()
-    print(f"Generadas {generadas} de {len(pendientes)} en {transcurrido:.1f} min")
-    print(f"Guardadas en {args.out}")
+    salida.dato(generated=generadas, failed=len(fallos), failures=fallos, minutes=transcurrido)
+
+    salida.linea()
+    salida.linea(f"Generadas {generadas} de {len(pendientes)} en {transcurrido:.1f} min")
+    salida.linea(f"Guardadas en {args.out}")
 
     if fallos:
-        print()
-        print(f"[!] {len(fallos)} decision(es) fallaron y NO se guardaron:")
+        salida.aviso(
+            AVISO_FALLOS_GENERACION,
+            f"{len(fallos)} decision(es) fallaron y NO se guardaron. Mientras falte alguna, "
+            "invest-ll-compare se negara a evaluar el LLM en vez de rellenar el hueco con "
+            "una suposicion.",
+            mostrar=False,
+        )
+        salida.linea()
+        salida.linea(f"[!] {len(fallos)} decision(es) fallaron y NO se guardaron:")
         for fallo in fallos[:5]:
-            print(f"    {fallo}")
-        print()
-        print("    Vuelve a lanzar el comando: las que ya estan no se repiten.")
-        print("    Mientras falte alguna, invest-ll-compare se negara a evaluar el LLM")
-        print("    en vez de rellenar el hueco con una suposicion.")
+            salida.linea(f"    {fallo}")
+        salida.linea()
+        salida.linea("    Vuelve a lanzar el comando: las que ya estan no se repiten.")
+        salida.linea("    Mientras falte alguna, invest-ll-compare se negara a evaluar el LLM")
+        salida.linea("    en vez de rellenar el hueco con una suposicion.")
 
-    print()
-    print("Ahora puedes comparar sin gastar nada mas:")
-    print(f"  uv run invest-ll-compare {' '.join(str(p) for p in args.paths)} \\")
-    print("      --strategies llm,momentum --commission 0.001 --slippage 0.0005 \\")
-    print(f"      --recorded {args.out} --model {args.model} --every {args.every}")
+    salida.linea()
+    salida.linea("Ahora puedes comparar sin gastar nada mas:")
+    salida.linea(f"  uv run invest-ll-compare {' '.join(str(p) for p in args.paths)} \\")
+    salida.linea("      --strategies llm,momentum --commission 0.001 --slippage 0.0005 \\")
+    salida.linea(f"      --recorded {args.out} --model {args.model} --every {args.every}")
 
-    return SALIDA_OK if not fallos else SALIDA_ERROR
+    return salida.cerrar(SALIDA_OK if not fallos else SALIDA_ERROR)
 
 
 if __name__ == "__main__":  # pragma: no cover

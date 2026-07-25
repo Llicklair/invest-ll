@@ -13,12 +13,19 @@ Está escrito para que sea difícil equivocarse, no para que sea cómodo:
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from invest_ll.cli.emit import (
+    AVISO_DINERO_REAL,
+    AVISO_ORDEN_REVISAR,
+    AVISO_SOLO_SIMULACION,
+    Salida,
+    add_json_flag,
+    salida_de,
+)
 from invest_ll.errors import InvestLLError
 from invest_ll.live.broker import (
     Broker,
@@ -41,47 +48,57 @@ SALIDA_CANCELADO = 4
 SALIDA_ATENCION = 5
 
 
-def _explicar_simulacion() -> None:
-    print("MODO SIMULACION — no se ha enviado nada al exterior.")
-    print()
-    print("Para operar de verdad hacen falta CUATRO cosas, y ninguna basta por si sola:")
-    print()
-    print("  1. INVEST_LL_MODE=testnet (o =real)")
-    print("  2. Las credenciales de ese modo, que son distintas entre si:")
-    print("       pruebas -> INVEST_LL_TESTNET_KEY / INVEST_LL_TESTNET_SECRET")
-    print("       real    -> INVEST_LL_LIVE_KEY / INVEST_LL_LIVE_SECRET")
-    print("  3. Para el modo real: haber operado antes en pruebas")
-    print("       (INVEST_LL_TESTNET_VERIFIED=1)")
-    print("  4. Confirmar ESTA orden concreta cuando el comando lo pida")
-    print()
-    print("Empieza por testnet. Es donde se descubren los fallos sin pagarlos.")
+def _explicar_simulacion(salida: Salida) -> None:
+    salida.aviso(
+        AVISO_SOLO_SIMULACION,
+        "MODO SIMULACION: no se ha enviado nada al exterior. Operar de verdad exige modo, "
+        "credenciales propias de ese modo, haber operado antes en pruebas, y confirmar la orden.",
+        mostrar=False,
+    )
+    salida.linea("MODO SIMULACION — no se ha enviado nada al exterior.")
+    salida.linea()
+    salida.linea("Para operar de verdad hacen falta CUATRO cosas, y ninguna basta por si sola:")
+    salida.linea()
+    salida.linea("  1. INVEST_LL_MODE=testnet (o =real)")
+    salida.linea("  2. Las credenciales de ese modo, que son distintas entre si:")
+    salida.linea("       pruebas -> INVEST_LL_TESTNET_KEY / INVEST_LL_TESTNET_SECRET")
+    salida.linea("       real    -> INVEST_LL_LIVE_KEY / INVEST_LL_LIVE_SECRET")
+    salida.linea("  3. Para el modo real: haber operado antes en pruebas")
+    salida.linea("       (INVEST_LL_TESTNET_VERIFIED=1)")
+    salida.linea("  4. Confirmar ESTA orden concreta cuando el comando lo pida")
+    salida.linea()
+    salida.linea("Empieza por testnet. Es donde se descubren los fallos sin pagarlos.")
 
 
-def _pedir_confirmacion(request: OrderRequest, *, real: bool) -> bool:
+def _pedir_confirmacion(request: OrderRequest, *, real: bool, salida: Salida) -> bool:
     """Pide confirmar escribiendo la cantidad.
 
     Escribir la cantidad y no pulsar 's' es deliberado: obliga a mirar el número que se va a
     mover. Un "sí" distraído no debería ejecutar una orden de 0,5 BTC.
+
+    **El formato de salida no entra aquí.** `--json` cambia cómo se comunica el resultado, nunca
+    si hay que preguntar: en modo JSON el mensaje sale por stderr y se sigue esperando respuesta.
+    Que un agente pueda leer la salida no significa que pueda ocupar el lugar de la persona.
+    `tests/integration/test_cli_json.py` comprueba que en este cuerpo no aparece `json_mode`.
     """
-    print()
-    print("=" * 60)
-    if real:
-        print("  *** DINERO REAL ***")
-    else:
-        print("  Red de pruebas (dinero ficticio, ordenes reales)")
-    print("=" * 60)
-    print(f"  {request.side.value.upper():<6} {request.quantity} {request.symbol}")
-    print("  a precio de mercado, ahora mismo")
-    print("=" * 60)
-    print()
+    salida.linea()
+    salida.linea("=" * 60)
+    salida.linea("  *** DINERO REAL ***" if real else "  Red de pruebas (dinero ficticio)")
+    salida.linea("=" * 60)
+    salida.linea(f"  {request.side.value.upper():<6} {request.quantity} {request.symbol}")
+    salida.linea("  a precio de mercado, ahora mismo")
+    salida.linea("=" * 60)
+    salida.linea()
 
     try:
-        escrito = input(f"Escribe la cantidad exacta ({request.quantity}) para confirmar: ")
+        escrito = salida.pregunta(
+            f"Escribe la cantidad exacta ({request.quantity}) para confirmar: "
+        )
     except (EOFError, KeyboardInterrupt):
         return False
 
     if escrito.strip() != str(request.quantity):
-        print("La cantidad no coincide. Cancelado, no se ha enviado nada.")
+        salida.linea("La cantidad no coincide. Cancelado, no se ha enviado nada.")
         return False
     return True
 
@@ -110,14 +127,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Muestra lo que se enviaria y para, sin pedir confirmacion.",
     )
+    add_json_flag(parser)
 
     args = parser.parse_args(argv)
+    salida = salida_de(args, "execute")
 
     try:
         modo = resolve_mode()
     except InvestLLError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(str(error), SALIDA_ERROR)
 
     try:
         peticion = OrderRequest(
@@ -127,60 +145,88 @@ def main(argv: Sequence[str] | None = None) -> int:
             requested_at=datetime.now(UTC),
         )
     except ValueError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(str(error), SALIDA_ERROR)
 
-    print(f"Modo: {modo.name}")
+    # El modo va SIEMPRE, y va primero. Quien lea esta salida —persona o programa— tiene que
+    # saber en que mundo ocurrio antes de leer ningun numero.
+    salida.dato(
+        mode=modo.name,
+        symbol=peticion.symbol,
+        side=peticion.side.value,
+        quantity=peticion.quantity,
+        submitted=False,
+    )
+    salida.linea(f"Modo: {modo.name}")
 
     if isinstance(modo, Simulation):
-        print()
-        print(
-            f"Se habria enviado: {peticion.side.value.upper()} {peticion.quantity} {peticion.symbol}"
+        salida.linea()
+        salida.linea(
+            f"Se habria enviado: {peticion.side.value.upper()} {peticion.quantity} "
+            f"{peticion.symbol}"
         )
-        print()
-        _explicar_simulacion()
-        return SALIDA_OK
+        salida.linea()
+        _explicar_simulacion(salida)
+        return salida.cerrar(SALIDA_OK)
 
     if args.dry_run:
-        print()
-        print(f"Se enviaria: {peticion.side.value.upper()} {peticion.quantity} {peticion.symbol}")
-        print("(--dry-run: no se ha enviado nada ni se ha pedido confirmacion)")
-        return SALIDA_OK
+        salida.linea()
+        salida.linea(
+            f"Se enviaria: {peticion.side.value.upper()} {peticion.quantity} {peticion.symbol}"
+        )
+        salida.linea("(--dry-run: no se ha enviado nada ni se ha pedido confirmacion)")
+        salida.dato(dry_run=True)
+        return salida.cerrar(SALIDA_OK)
 
     es_real = isinstance(modo, Real)
-    if not _pedir_confirmacion(peticion, real=es_real):
-        print("Cancelado. No se ha enviado nada.")
-        return SALIDA_CANCELADO
+    if es_real:
+        salida.aviso(
+            AVISO_DINERO_REAL, "Esta orden mueve DINERO REAL en el exchange.", mostrar=False
+        )
+
+    if not _pedir_confirmacion(peticion, real=es_real, salida=salida):
+        salida.linea("Cancelado. No se ha enviado nada.")
+        salida.dato(cancelled=True)
+        return salida.cerrar(SALIDA_CANCELADO)
 
     try:
         broker = _construir_broker(modo, args.exchange)
     except (InvestLLError, ValueError, ImportError) as error:
-        print(f"Error preparando el exchange: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(f"preparando el exchange: {error}", SALIDA_ERROR)
 
     confirmacion = Confirmation.para(peticion, at=datetime.now(UTC))
 
     try:
         resultado = broker.submit(peticion, confirmation=confirmacion)
     except InvestLLError as error:
-        print(f"Error al enviar: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(f"al enviar: {error}", SALIDA_ERROR)
 
     libro = ExecutionLedger(args.ledger) if args.ledger else ExecutionLedger()
     libro.record(resultado, mode_name=modo.name)
 
-    print()
-    print(resultado.describe())
-    print()
-    print(f"Registrado en {libro.path}")
+    salida.dato(
+        submitted=True,
+        ledger=libro.path,
+        needs_attention=resultado.needs_attention,
+    )
+
+    salida.linea()
+    salida.linea(resultado.describe())
+    salida.linea()
+    salida.linea(f"Registrado en {libro.path}")
 
     if resultado.needs_attention:
-        print()
-        print("[!] La orden NO salio exactamente como se pidio. Revisala en el exchange")
-        print("    antes de volver a operar.")
-        return SALIDA_ATENCION
+        salida.aviso(
+            AVISO_ORDEN_REVISAR,
+            "La orden NO salio exactamente como se pidio. Revisala en el exchange antes de "
+            "volver a operar.",
+            mostrar=False,
+        )
+        salida.linea()
+        salida.linea("[!] La orden NO salio exactamente como se pidio. Revisala en el exchange")
+        salida.linea("    antes de volver a operar.")
+        return salida.cerrar(SALIDA_ATENCION)
 
-    return SALIDA_OK
+    return salida.cerrar(SALIDA_OK)
 
 
 if __name__ == "__main__":  # pragma: no cover

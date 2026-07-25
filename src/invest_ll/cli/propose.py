@@ -7,7 +7,6 @@ ese es justo el conocimiento que el operador no tiene.
 from __future__ import annotations
 
 import argparse
-import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,6 +16,11 @@ from invest_ll.cli.compare import (
     SALIDA_NO_ENCONTRADO,
     SALIDA_OK,
     cargar_series,
+)
+from invest_ll.cli.emit import (
+    AVISO_NO_ES_PREVISION,
+    add_json_flag,
+    salida_de,
 )
 from invest_ll.data.bar import Interval
 from invest_ll.data.universe import build_universe
@@ -41,8 +45,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--interval", default="DAY_1")
     parser.add_argument("--commission", type=D, default=D("0.001"))
     parser.add_argument("--slippage", type=D, default=D("0.0005"))
+    add_json_flag(parser)
 
     args = parser.parse_args(argv)
+    salida = salida_de(args, "propose")
 
     try:
         universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
@@ -53,16 +59,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             friction=FrictionConfig(commission_rate=args.commission, slippage_rate=args.slippage),
         )
     except FileNotFoundError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_NO_ENCONTRADO
+        return salida.error(str(error), SALIDA_NO_ENCONTRADO)
     except (InvestLLError, KeyError, ValueError) as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(str(error), SALIDA_ERROR)
 
-    print(propuesta.render())
-    print()
-    print("Esto es una simulacion sobre el pasado, no una recomendacion ni una prevision.")
-    return SALIDA_OK
+    simulacion = propuesta.simulation
+    salida.dato(
+        contribution=propuesta.contribution,
+        frequency=args.frequency,
+        every_periods=propuesta.every_periods,
+        holdings=[
+            {
+                "symbol": h.symbol,
+                "weight": h.weight,
+                "amount_per_contribution": h.amount_per_contribution,
+                "explanation": h.explanation,
+            }
+            for h in propuesta.holdings
+        ],
+        simulation={
+            "contributions": simulacion.contributions,
+            "total_contributed": simulacion.total_contributed,
+            "final_value": simulacion.final_value,
+            "net_result": simulacion.net_result,
+            "total_costs": simulacion.total_costs,
+            "max_drawdown": simulacion.max_drawdown,
+            "lump_sum_value": simulacion.lump_sum_value,
+            "beats_lump_sum": simulacion.beats_lump_sum,
+        },
+    )
+
+    salida.linea(propuesta.render())
+    salida.linea()
+    salida.aviso(
+        AVISO_NO_ES_PREVISION,
+        "Esto es una simulacion sobre el pasado, no una recomendacion ni una prevision.",
+    )
+    return salida.cerrar(SALIDA_OK)
 
 
 if __name__ == "__main__":  # pragma: no cover

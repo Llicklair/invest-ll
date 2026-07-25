@@ -10,11 +10,16 @@ sin declarar la fricción (Principio IV).
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from invest_ll.cli.emit import (
+    AVISO_NO_CONCLUYENTE,
+    AVISO_WIN_RATE,
+    add_json_flag,
+    salida_de,
+)
 from invest_ll.data.bar import Interval
 from invest_ll.data.calendars import Continuous24x7, ExchangeCalendarAdapter, MarketCalendar
 from invest_ll.data.loader import load_series
@@ -78,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=30,
         help="operaciones minimas para considerar concluyente el resultado",
     )
+    add_json_flag(parser)
     return parser
 
 
@@ -102,6 +108,7 @@ def _strategy(args: argparse.Namespace) -> Strategy:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    salida = salida_de(args, "backtest")
 
     try:
         serie, avisos = load_series(
@@ -129,17 +136,44 @@ def main(argv: list[str] | None = None) -> int:
             data_warnings=avisos,
         )
     except FileNotFoundError as error:
-        print(f"error: {error}", file=sys.stderr)
-        return 2
+        return salida.error(str(error), 2)
     except (InvestLLError, ValueError, InvalidOperation) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return 1
+        return salida.error(str(error), 1)
 
-    print(report.render())
+    salida.linea(report.render())
+    salida.dato(
+        symbol=args.symbol,
+        strategy=args.strategy,
+        periods=len(serie),
+        net_result=report.net_result,
+        max_drawdown=report.max_drawdown,
+        trades=report.trade_count,
+        costs=report.total_costs,
+        conclusive=report.conclusive,
+        rendered=report.render(),
+    )
+    salida.aviso(
+        AVISO_WIN_RATE,
+        "El win rate no es criterio de exito. Mira la expectancy y el drawdown antes de "
+        "creerte un resultado.",
+        mostrar=False,
+    )
+
+    # Los avisos de datos (huecos, zona horaria, reserva) viajan con el resultado en los dos
+    # modos: son justo lo que explica por que una cifra puede no significar lo que parece.
+    for aviso in avisos:
+        salida.aviso("data_quality", aviso.message, mostrar=False)
 
     # Codigo de salida distinto cuando el resultado no concluye: permite encadenar la CLI en un
     # script sin tomar por bueno un resultado que no lo es.
-    return 0 if report.conclusive else 3
+    if not report.conclusive:
+        salida.aviso(
+            AVISO_NO_CONCLUYENTE,
+            report.inconclusive_reason or "el resultado no es concluyente",
+            mostrar=False,
+        )
+        return salida.cerrar(3)
+    return salida.cerrar(0)
 
 
 if __name__ == "__main__":  # pragma: no cover

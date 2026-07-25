@@ -9,11 +9,19 @@ mejor" dejaría de ser una afirmación comprobable.
 from __future__ import annotations
 
 import argparse
-import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from invest_ll.cli.emit import (
+    AVISO_CONTAMINACION,
+    AVISO_NO_CONCLUYENTE,
+    AVISO_SIN_VENTAJA,
+    AVISO_SOBREAJUSTE,
+    AVISO_WIN_RATE,
+    add_json_flag,
+    salida_de,
+)
 from invest_ll.data.bar import Interval
 from invest_ll.data.calendars import Continuous24x7, ExchangeCalendarAdapter
 from invest_ll.data.loader import load_series
@@ -78,6 +86,25 @@ def _fila(nombre: str, informe: BacktestReport) -> str:
     )
 
 
+def _estrategia_json(nombre: str, informe: BacktestReport) -> dict[str, object]:
+    """Los mismos números de la tabla, sin el formato.
+
+    Salen TODOS los campos para todas las estrategias, incluido `conclusive`: si el JSON omitiera
+    el motivo por el que un resultado no significa nada, quien lo consuma leería solo la cifra.
+    """
+    return {
+        "name": nombre,
+        "net_result": informe.net_result,
+        "max_drawdown": informe.max_drawdown,
+        "trades": informe.trade_count,
+        "costs": informe.total_costs,
+        "excess_vs_holding": (informe.excess_return if informe.buy_and_hold is not None else None),
+        "beats_holding": informe.beats_market,
+        "conclusive": informe.conclusive,
+        "inconclusive_reason": informe.inconclusive_reason,
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="invest-ll-compare",
@@ -106,18 +133,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Carpeta de decisiones grabadas. Sin ella, el LLM no se puede evaluar sin red.",
     )
     parser.add_argument("--model", default="claude-opus-5")
+    add_json_flag(parser)
 
     args = parser.parse_args(argv)
+    salida = salida_de(args, "compare")
     nombres = [n.strip() for n in args.strategies.split(",") if n.strip()]
 
     try:
         universo = build_universe(cargar_series(args.paths, Interval[args.interval]))
     except FileNotFoundError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_NO_ENCONTRADO
+        return salida.error(str(error), SALIDA_NO_ENCONTRADO)
     except (InvestLLError, KeyError, ValueError) as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error(str(error), SALIDA_ERROR)
 
     friccion = FrictionConfig(commission_rate=args.commission, slippage_rate=args.slippage)
     riesgo = RiskConfig(position_fraction=D(1))
@@ -136,20 +163,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         elif nombre == "llm":
             if args.recorded is None:
-                print(
-                    "Error: evaluar el LLM necesita --recorded con decisiones ya generadas.\n"
-                    "       El motor no toca la red por diseno.",
-                    file=sys.stderr,
+                return salida.error(
+                    "evaluar el LLM necesita --recorded con decisiones ya generadas; "
+                    "el motor no toca la red por diseno",
+                    SALIDA_ERROR,
                 )
-                return SALIDA_ERROR
 
             almacen = DecisionStore(args.recorded)
             estimacion = estimate_cost(
                 total_decisions=len(universo) // max(1, args.every),
                 cached_decisions=almacen.count(),
             )
-            print(estimacion.render())
-            print()
+            salida.linea(estimacion.render())
+            salida.linea()
 
             try:
                 informes["llm"] = run_rotation(
@@ -162,77 +188,122 @@ def main(argv: Sequence[str] | None = None) -> int:
                     risk=riesgo,
                 )
             except InvestLLError as error:
-                print(f"Error evaluando el LLM: {error}", file=sys.stderr)
-                return SALIDA_ERROR
+                return salida.error(f"evaluando el LLM: {error}", SALIDA_ERROR)
             llm_incluido = True
         else:
-            print(f"Error: estrategia desconocida {nombre!r}", file=sys.stderr)
-            return SALIDA_ERROR
+            return salida.error(f"estrategia desconocida {nombre!r}", SALIDA_ERROR)
 
     if not informes:
-        print("Error: no se indico ninguna estrategia", file=sys.stderr)
-        return SALIDA_ERROR
+        return salida.error("no se indico ninguna estrategia", SALIDA_ERROR)
 
     # Cuenta esta evaluacion ANTES de mostrar nada: si el operador ve el resultado y decide no
     # mirar el contador, la cuenta ya esta hecha igualmente.
     intentos = AttemptLog().record(universo.symbols, interval=args.interval)
+    salida.dato(
+        attempts={
+            "count": intentos.count,
+            "expected_positive_by_chance": intentos.expected_by_chance,
+            "first_at": intentos.first_at,
+        }
+    )
 
     referencia = next(iter(informes.values()))
-    print(f"Universo: {len(universo)} periodos, {len(universo.symbols)} activos")
-    print("=" * 84)
-    print(
+    salida.dato(
+        universe={
+            "periods": len(universo),
+            "symbols": list(universo.symbols),
+            "interval": args.interval,
+        },
+        strategies=[_estrategia_json(n, i) for n, i in informes.items()],
+    )
+
+    salida.linea(f"Universo: {len(universo)} periodos, {len(universo.symbols)} activos")
+    salida.linea("=" * 84)
+    salida.linea(
         f"{'estrategia':<22}{'RESULTADO':>14}{'DRAWDOWN':>14}"
         f"{'ops':>7}{'COSTES':>12}{'vs NO HACER NADA':>20}"
     )
-    print("-" * 84)
+    salida.linea("-" * 84)
 
     for nombre, informe in informes.items():
-        print(_fila(nombre, informe))
+        salida.linea(_fila(nombre, informe))
 
     if referencia.buy_and_hold is not None:
         bh = referencia.buy_and_hold
         # BuyAndHold no lleva trade_count: por definicion es una entrada y ninguna decision mas.
-        print(
+        salida.linea(
             f"{'comprar y mantener':<22}{bh.net_result:>14,.0f}"
             f"{bh.max_drawdown:>14,.0f}{1:>7}{bh.costs:>12,.0f}{'referencia':>20}"
         )
+        salida.dato(
+            buy_and_hold={
+                "net_result": bh.net_result,
+                "max_drawdown": bh.max_drawdown,
+                "trades": 1,
+                "costs": bh.costs,
+            }
+        )
 
-    print("-" * 84)
+    salida.linea("-" * 84)
 
     ganadoras = [n for n, i in informes.items() if i.beats_market]
+    salida.dato(beats_holding=ganadoras)
     if ganadoras:
-        print(f"  Baten a comprar y mantener: {', '.join(ganadoras)}")
-        print("  Eso no garantiza nada de cara al futuro. Ver la validacion fuera de muestra.")
+        salida.linea(f"  Baten a comprar y mantener: {', '.join(ganadoras)}")
+        salida.linea(
+            "  Eso no garantiza nada de cara al futuro. Ver la validacion fuera de muestra."
+        )
     else:
-        print("  [!] Ninguna bate a comprar y mantener.")
-        print("      Todo el riesgo asumido y las comisiones pagadas quedaron por debajo")
-        print("      de no hacer nada.")
+        # Va como aviso y no como linea: en JSON es la diferencia entre que quien lo consuma
+        # vea "ninguna bate a no hacer nada" o solo vea una lista vacia y saque sus conclusiones.
+        salida.aviso(
+            AVISO_SIN_VENTAJA,
+            "Ninguna bate a comprar y mantener. Todo el riesgo asumido y las comisiones "
+            "pagadas quedaron por debajo de no hacer nada.",
+            mostrar=False,
+        )
+        salida.linea("  [!] Ninguna bate a comprar y mantener.")
+        salida.linea("      Todo el riesgo asumido y las comisiones pagadas quedaron por debajo")
+        salida.linea("      de no hacer nada.")
 
-    print()
-    print("  El win rate no aparece aqui a proposito: no es criterio de exito.")
+    salida.linea()
+    salida.aviso(
+        AVISO_WIN_RATE,
+        "El win rate no aparece aqui a proposito: no es criterio de exito.",
+        mostrar=False,
+    )
+    salida.linea("  El win rate no aparece aqui a proposito: no es criterio de exito.")
 
     if intentos.count > 1:
         # Tras el separador: lo de arriba es el RESULTADO (identico al repetir, FR-044); lo de
         # abajo es cuantas veces lo has mirado, que cambia por definicion. Mezclarlos haria
         # parecer que el experimento no es reproducible cuando si lo es.
-        print()
-        print("--- historial de esta sesion de trabajo ---")
-        print(intentos.render())
+        salida.linea()
+        salida.linea("--- historial de esta sesion de trabajo ---")
+        salida.linea(intentos.render())
+        salida.aviso(
+            AVISO_SOBREAJUSTE,
+            f"Llevas {intentos.count} evaluaciones sobre este universo; con esa cantidad de "
+            f"pruebas sin ventaja real esperarias ~{intentos.expected_by_chance:.0f} positivas "
+            "por azar.",
+            mostrar=False,
+        )
 
     if llm_incluido:
-        print()
-        print(ADVERTENCIA_CONTAMINACION)
+        salida.linea()
+        salida.linea(ADVERTENCIA_CONTAMINACION)
+        salida.aviso(AVISO_CONTAMINACION, ADVERTENCIA_CONTAMINACION.strip(), mostrar=False)
 
     # El veredicto mira TODAS las estrategias, no solo la primera: si una de ellas opero tan
     # poco que su resultado no significa nada, la comparacion tampoco lo hace.
     dudosas = {n: i.inconclusive_reason for n, i in informes.items() if not i.conclusive}
     if dudosas:
-        print()
+        salida.linea()
         for nombre, motivo in dudosas.items():
-            print(f"NO CONCLUYENTE ({nombre}): {motivo}")
-        return SALIDA_NO_CONCLUYENTE
+            salida.aviso(AVISO_NO_CONCLUYENTE, f"NO CONCLUYENTE ({nombre}): {motivo}")
+        return salida.cerrar(SALIDA_NO_CONCLUYENTE)
 
-    return SALIDA_OK
+    return salida.cerrar(SALIDA_OK)
 
 
 if __name__ == "__main__":  # pragma: no cover
