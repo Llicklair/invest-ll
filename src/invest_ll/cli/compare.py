@@ -24,6 +24,7 @@ from invest_ll.decision.provider import RecordedProvider
 from invest_ll.engine.config import FrictionConfig, RiskConfig
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
+from invest_ll.research.attempts import AttemptLog
 from invest_ll.strategy.llm import CADA_MES, LLMStrategy
 from invest_ll.strategy.rotation import RelativeMomentum
 
@@ -172,6 +173,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("Error: no se indico ninguna estrategia", file=sys.stderr)
         return SALIDA_ERROR
 
+    # Cuenta esta evaluacion ANTES de mostrar nada: si el operador ve el resultado y decide no
+    # mirar el contador, la cuenta ya esta hecha igualmente.
+    intentos = AttemptLog().record(universo.symbols, interval=args.interval)
+
     referencia = next(iter(informes.values()))
     print(f"Universo: {len(universo)} periodos, {len(universo.symbols)} activos")
     print("=" * 84)
@@ -205,6 +210,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print()
     print("  El win rate no aparece aqui a proposito: no es criterio de exito.")
+
+    if intentos.count > 1:
+        # Tras el separador: lo de arriba es el RESULTADO (identico al repetir, FR-044); lo de
+        # abajo es cuantas veces lo has mirado, que cambia por definicion. Mezclarlos haria
+        # parecer que el experimento no es reproducible cuando si lo es.
+        print()
+        print("--- historial de esta sesion de trabajo ---")
+        print(intentos.render())
 
     if llm_incluido:
         print()

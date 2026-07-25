@@ -215,12 +215,19 @@ class TestReproducibilidad:
             "--model",
             MODELO,
         ]
-        main(argumentos)
-        primera = capsys.readouterr().out
-        main(argumentos)
-        segunda = capsys.readouterr().out
+        separador = "--- historial de esta sesion de trabajo ---"
 
-        assert primera == segunda
+        main(argumentos)
+        primera = capsys.readouterr().out.split(separador)[0]
+        main(argumentos)
+        salida_segunda = capsys.readouterr().out
+        segunda = salida_segunda.split(separador)[0]
+
+        assert primera == segunda, "el RESULTADO debe ser identico al repetir (FR-044)"
+        assert separador in salida_segunda, (
+            "y el contador de intentos SI debe aparecer en la segunda: mide cuantas veces has "
+            "mirado estos mismos datos, que es justo lo que cambia"
+        )
 
 
 class TestErrores:

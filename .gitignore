@@ -41,6 +41,7 @@ Thumbs.db
 decisions/
 ledger/
 forecasts/
+attempts/
 
 # Basura que dejan pytest y hypothesis en el directorio de trabajo (Windows).
 # No es codigo del proyecto: el test que los provoca no toca disco.
