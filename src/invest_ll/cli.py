@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -62,12 +63,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--fraction", default="0.5", help="fraccion del capital por entrada, en (0, 1]"
     )
     parser.add_argument(
+        "--from",
+        dest="desde",
+        help="evaluar solo desde esta fecha (AAAA-MM-DD). Para validacion fuera de muestra",
+    )
+    parser.add_argument(
+        "--to",
+        dest="hasta",
+        help="evaluar solo hasta esta fecha, sin incluirla (AAAA-MM-DD)",
+    )
+    parser.add_argument(
         "--min-trades",
         type=int,
         default=30,
         help="operaciones minimas para considerar concluyente el resultado",
     )
     return parser
+
+
+def _fecha(texto: str | None) -> datetime | None:
+    """Convierte AAAA-MM-DD a un instante UTC. `None` significa sin limite."""
+    if not texto:
+        return None
+    return datetime.fromisoformat(texto).replace(tzinfo=UTC)
 
 
 def _calendar(nombre: str) -> MarketCalendar:
@@ -92,6 +110,12 @@ def main(argv: list[str] | None = None) -> int:
             interval=Interval[args.interval],
             calendar=_calendar(args.calendar),
         )
+        if args.desde or args.hasta:
+            serie = serie.slice(
+                start=_fecha(args.desde),
+                end=_fecha(args.hasta),
+            )
+
         report = run_backtest(
             serie,
             _strategy(args),

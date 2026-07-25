@@ -86,6 +86,35 @@ class PriceSeries:
                     f"{current.timestamp} está a {delta}s de la anterior"
                 )
 
+    def slice(self, *, start: datetime | None = None, end: datetime | None = None) -> PriceSeries:
+        """Devuelve el subperiodo `[start, end)` como una serie nueva.
+
+        Es lo que permite la validación fuera de muestra: medir la estrategia en un tramo y
+        comprobarla en otro que no se usó para decidir nada. Sin partir la serie no hay forma de
+        distinguir una estrategia que funciona de un periodo que salió bien.
+
+        Un recorte vacío se rechaza en lugar de devolver una serie sin velas: el error debe salir
+        aquí y no tres capas más adelante.
+        """
+        seleccion = tuple(
+            bar
+            for bar in self.bars
+            if (start is None or bar.timestamp >= start) and (end is None or bar.timestamp < end)
+        )
+        if not seleccion:
+            raise InvalidSeriesError(
+                f"el subperiodo solicitado no contiene ninguna vela de {self.symbol} "
+                f"(la serie cubre de {self.bars[0].timestamp.date()} a "
+                f"{self.bars[-1].timestamp.date()})"
+            )
+
+        return PriceSeries(
+            symbol=self.symbol,
+            interval=self.interval,
+            calendar=self.calendar,
+            bars=seleccion,
+        )
+
     def __len__(self) -> int:
         return len(self.bars)
 
