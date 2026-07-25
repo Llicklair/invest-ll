@@ -24,6 +24,18 @@ if TYPE_CHECKING:  # pragma: no cover
 # algunos proveedores sin dejar pasar una vela realmente descolocada.
 _TOLERANCIA_SEGUNDOS = 1.0
 
+# Tolerancia adicional para series de un día o más.
+#
+# Los proveedores de bolsa fechan las velas diarias con la hora local del mercado, y esa hora se
+# desplaza cuando el país cambia al horario de verano. El fin de semana del cambio, dos velas
+# consecutivas quedan a 71 horas en vez de 72 y dejan de ser múltiplo del intervalo.
+#
+# No es un dato corrupto: es el reloj del proveedor. Una hora de desviación en una serie diaria
+# solo puede ser eso. En intradía no se aplica, porque ahí una hora de diferencia sí significa que
+# la vela está donde no debe.
+_TOLERANCIA_DST_SEGUNDOS = 3600.0
+_UN_DIA_SEGUNDOS = 86400.0
+
 
 @dataclass(frozen=True, slots=True)
 class PriceSeries:
@@ -54,6 +66,7 @@ class PriceSeries:
 
     def _validate_chronology(self) -> None:
         step = self.interval.duration.total_seconds()
+        tolerancia = _TOLERANCIA_DST_SEGUNDOS if step >= _UN_DIA_SEGUNDOS else _TOLERANCIA_SEGUNDOS
 
         for previous, current in zip(self.bars, self.bars[1:], strict=False):
             delta = (current.timestamp - previous.timestamp).total_seconds()
@@ -67,7 +80,7 @@ class PriceSeries:
             # calendario). Un resto distinto de cero significa una vela desalineada: la serie
             # no es del intervalo que dice ser.
             resto = delta % step
-            if min(resto, step - resto) > _TOLERANCIA_SEGUNDOS:
+            if min(resto, step - resto) > tolerancia:
                 raise InvalidSeriesError(
                     f"marca no alineada al intervalo {self.interval.name}: "
                     f"{current.timestamp} está a {delta}s de la anterior"

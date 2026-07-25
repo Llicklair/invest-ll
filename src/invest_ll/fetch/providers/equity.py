@@ -33,6 +33,25 @@ INTERVALOS: dict[Interval, str] = {
     Interval.DAY_1: "1d",
 }
 
+UN_DIA = Interval.DAY_1.duration
+
+
+def normalize_daily(momento: datetime, interval: Interval) -> datetime:
+    """Lleva las marcas diarias a medianoche UTC.
+
+    Yahoo devuelve las velas diarias con la hora local del mercado: 05:00 UTC en invierno y 04:00
+    en verano, porque Nueva York cambia de horario. El fin de semana del cambio, el salto entre
+    dos velas es de 71 horas en vez de 72 y deja de ser múltiplo del intervalo.
+
+    Una vela diaria representa una sesión entera, no un instante, así que esa hora es ruido del
+    proveedor. Se limpia aquí, en el borde, para que no se propague al resto del sistema.
+
+    En intradía **no se toca**: ahí la hora es el dato.
+    """
+    if interval.duration < UN_DIA:
+        return momento
+    return momento.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
 
 class YFinanceProvider:
     """Histórico de bolsa con precios ajustados por splits y dividendos."""
@@ -90,6 +109,8 @@ class YFinanceProvider:
                 momento = momento.replace(tzinfo=UTC)
             else:
                 momento = momento.astimezone(UTC)
+
+            momento = normalize_daily(momento, interval)
 
             volumen = float(fila["Volume"])
             bars.append(
