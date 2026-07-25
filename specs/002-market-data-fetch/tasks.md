@@ -82,21 +82,21 @@ el fichero resultante.
 
 ### Tests para US1 (escribir primero, deben fallar)
 
-- [ ] T021 [P] [US1] Test de fusión básica: sin nada almacenado, el resultado es lo descargado, en orden y sin duplicados, en `tests/unit/test_merge.py`
-- [ ] T022 [P] [US1] Test de la vela en curso: el último periodo no cerrado se descarta; el instante actual va inyectado (FR-007), en `tests/unit/test_current_bar.py`
-- [ ] T023 [P] [US1] Test de validación: datos que no pasan las reglas del motor no se guardan (FR-019); los huecos se reportan y no se rellenan (FR-020), en `tests/unit/test_fetch_validation.py`
-- [ ] T024 [P] [US1] Test de errores: activo desconocido, rango sin datos y granularidad no soportada se comunican con claridad y **no dejan fichero a medias** (FR-009), en `tests/unit/test_fetch_errors.py`
-- [ ] T025 [P] [US1] Test end-to-end: descargar con el proveedor grabado y ejecutar un backtest sobre el CSV resultante sin conversión manual (SC-001), en `tests/integration/test_fetch_to_backtest.py`
+- [X] T021 [P] [US1] Test de fusión básica: sin nada almacenado, el resultado es lo descargado, en orden y sin duplicados, en `tests/unit/test_merge.py`
+- [X] T022 [P] [US1] Test de la vela en curso: el último periodo no cerrado se descarta; el instante actual va inyectado (FR-007), en `tests/unit/test_current_bar.py`
+- [X] T023 [P] [US1] Test de validación: datos que no pasan las reglas del motor no se guardan (FR-019); los huecos se reportan y no se rellenan (FR-020), en `tests/unit/test_fetch_validation.py`
+- [X] T024 [P] [US1] Test de errores: activo desconocido, rango sin datos y granularidad no soportada se comunican con claridad y **no dejan fichero a medias** (FR-009), en `tests/unit/test_fetch_errors.py`
+- [X] T025 [P] [US1] Test end-to-end: descargar con el proveedor grabado y ejecutar un backtest sobre el CSV resultante sin conversión manual (SC-001), en `tests/integration/test_fetch_to_backtest.py`
 
 ### Implementación para US1
 
-- [ ] T026 [US1] Implementar `merge` como **función pura** (sin E/S, sin red, sin reloj): fusión, orden y deduplicación, en `src/invest_ll/fetch/merge.py`
-- [ ] T027 [US1] Implementar `fetch_history`: orquestación completa con `now` y `sleep` inyectados (FR-004..FR-008), en `src/invest_ll/fetch/service.py` (depende de T017, T026)
-- [ ] T028 [P] [US1] Implementar `CcxtProvider` con paginación, marcas en UTC y control de tasa de la propia librería, en `src/invest_ll/fetch/providers/crypto.py`
-- [ ] T029 [P] [US1] Implementar `YFinanceProvider` con `auto_adjust=True` para obtener precios ajustados (FR-017), en `src/invest_ll/fetch/providers/equity.py`
-- [ ] T030 [US1] Implementar la selección de proveedor y calendario según el mercado (cripto → continuo, bolsa → calendario bursátil) en `src/invest_ll/fetch/service.py`
-- [ ] T031 [US1] Implementar la CLI de descarga `invest-ll-fetch` con los códigos de salida del contrato en `src/invest_ll/cli_fetch.py`
-- [ ] T032 [US1] Registrar el ejecutable `invest-ll-fetch` en `pyproject.toml`
+- [X] T026 [US1] Implementar `merge` como **función pura** (sin E/S, sin red, sin reloj): fusión, orden y deduplicación, en `src/invest_ll/fetch/merge.py`
+- [X] T027 [US1] Implementar `fetch_history`: orquestación completa con `now` y `sleep` inyectados (FR-004..FR-008), en `src/invest_ll/fetch/service.py` (depende de T017, T026)
+- [X] T028 [P] [US1] Implementar `CcxtProvider` con paginación, marcas en UTC y control de tasa de la propia librería, en `src/invest_ll/fetch/providers/crypto.py`
+- [X] T029 [P] [US1] Implementar `YFinanceProvider` con `auto_adjust=True` para obtener precios ajustados (FR-017), en `src/invest_ll/fetch/providers/equity.py`
+- [X] T030 [US1] Implementar la selección de proveedor y calendario según el mercado (cripto → continuo, bolsa → calendario bursátil) en `src/invest_ll/fetch/service.py`
+- [X] T031 [US1] Implementar la CLI de descarga `invest-ll-fetch` con los códigos de salida del contrato en `src/invest_ll/cli_fetch.py`
+- [X] T032 [US1] Registrar el ejecutable `invest-ll-fetch` en `pyproject.toml`
 
 **Checkpoint**: MVP. Ya se puede backtestear sobre mercado real en vez de sobre series inventadas.
 

@@ -91,10 +91,10 @@ def load_series(
     )
 
     series = PriceSeries(symbol=symbol, interval=interval, calendar=calendar, bars=bars)
-    return series, _detect_gaps(series)
+    return series, detect_gaps(series)
 
 
-def _detect_gaps(series: PriceSeries) -> tuple[DataWarning, ...]:
+def detect_gaps(series: PriceSeries) -> tuple[DataWarning, ...]:
     """Clasifica cada salto: cierre legítimo del mercado o dato ausente (FR-021).
 
     La diferencia importa. En bolsa, la noche y los festivos son huecos normales; reportarlos
