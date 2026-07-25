@@ -16,7 +16,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from invest_ll.data.bar import Interval
+from invest_ll.data.bar import Bar, Interval
 from invest_ll.data.calendars import Continuous24x7, ExchangeCalendarAdapter, MarketCalendar
 from invest_ll.data.loader import load_series
 from invest_ll.fetch.provenance import Provenance
@@ -263,12 +263,33 @@ def _rendimiento(cierres: list[float], periodos: int) -> float | None:
     return cierres[-1] / anterior - 1
 
 
+# Sesiones que cubre la sparkline de cada fila (~3 meses). Una sola imagen por fila, sin ejes:
+# es la única redundancia visual que la tabla se permite, igual que hace CoinMarketCap.
+SPARKLINE_SESIONES = 63
+
+
+def _ytd(bars: Sequence[Bar]) -> float | None:
+    """Variación desde el último cierre del año anterior. `None` si el histórico no llega."""
+    if not bars:
+        return None
+    anho_actual = bars[-1].timestamp.year
+    for barra in reversed(bars):
+        if barra.timestamp.year < anho_actual:
+            return bars[-1].close / barra.close - 1 if barra.close else None
+    return None
+
+
 def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]:
-    """Una fila por activo: rendimiento en varias ventanas y distancia a su máximo.
+    """Una fila por activo, al estilo de la tabla principal de CoinMarketCap — sin sus anzuelos.
+
+    Lo copiado: densidad, variaciones por ventana, una sparkline por fila, ordenación por
+    columna. Lo descartado a propósito: el 1h%% (ninguna decisión de aportación cambia por la
+    última hora) y todo el catálogo de enganche (tendencias, ganadores del día, sentimiento).
 
     **La distancia al máximo es la columna que menos se mira y más importa.** Un activo que subió
-    un 40% en el año pero está un 30% por debajo de su pico no está "yendo bien": está
-    recuperándose de una caída que alguien sufrió.
+    un 40%% en el año pero está un 30%% por debajo de su pico no está "yendo bien": está
+    recuperándose de una caída que alguien sufrió. CoinMarketCap la esconde en la página de
+    detalle; CoinGecko la trata como dato de primera clase. Aquí es una columna.
     """
     filas: list[dict[str, object]] = []
 
@@ -288,12 +309,23 @@ def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]
             "que es": NOMBRES.get(activo.symbol, "—"),
             "ultimo": round(cierres[-1], 2),
         }
+
+        dia = _rendimiento(cierres, 1)
+        semana = _rendimiento(cierres, 5)
+        fila["1 dia"] = None if dia is None else round(dia * 100, 1)
+        fila["1 semana"] = None if semana is None else round(semana * 100, 1)
+
         for etiqueta, periodos in VENTANAS:
             rendimiento = _rendimiento(cierres, periodos)
             fila[etiqueta] = None if rendimiento is None else round(rendimiento * 100, 1)
 
+        ytd = _ytd(serie.bars)
+        fila["YTD"] = None if ytd is None else round(ytd * 100, 1)
+
         fila["desde maximo"] = round((cierres[-1] / maximo - 1) * 100, 1) if maximo else None
+        fila["sparkline"] = [round(c, 4) for c in cierres[-SPARKLINE_SESIONES:]]
         fila["desde"] = serie.bars[0].timestamp.date()
+        fila["datos hasta"] = serie.bars[-1].timestamp.date()
         filas.append(fila)
 
     return filas

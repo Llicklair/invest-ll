@@ -21,6 +21,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pandas as pd
 import streamlit as st
 
 from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
@@ -145,12 +146,58 @@ def pestana_panorama(activos: list[AvailableAsset]) -> None:
         return
 
     st.subheader("Rendimiento por periodo")
-    st.dataframe(filas, use_container_width=True, hide_index=True)
+
+    # La forma de CoinMarketCap sin sus anzuelos: color SOLO en las variaciones (la tinta
+    # codifica una unica cosa: direccion), una sparkline por fila como unica imagen, y
+    # ordenacion pinchando la cabecera. Ni 1h%, ni tendencias, ni ganadores del dia.
+    df = pd.DataFrame(filas)
+    variaciones = [
+        c for c in ("1 dia", "1 semana", "1 mes", "3 meses", "YTD", "1 año", "5 años") if c in df
+    ]
+
+    def _tinta(valor: object) -> str:
+        if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+            return ""
+        numero = float(valor)  # type: ignore[arg-type]
+        if numero > 0:
+            return "color: #1a873b"
+        return "color: #c92a2a" if numero < 0 else ""
+
+    estilo = (
+        df.style.map(_tinta, subset=[*variaciones, "desde maximo"])
+        .format("{:+.1f}%", subset=[*variaciones, "desde maximo"], na_rep="—")
+        .format("{:,.2f}", subset=["ultimo"])
+    )
+    st.dataframe(
+        estilo,
+        use_container_width=True,
+        hide_index=True,
+        column_order=[
+            "activo",
+            "que es",
+            "ultimo",
+            "1 dia",
+            "1 semana",
+            "1 mes",
+            "3 meses",
+            "YTD",
+            "1 año",
+            "5 años",
+            "desde maximo",
+            "sparkline",
+            "datos hasta",
+        ],
+        column_config={
+            "ultimo": st.column_config.NumberColumn("precio"),
+            "sparkline": st.column_config.LineChartColumn("3 meses (grafico)", width="small"),
+            "datos hasta": st.column_config.DateColumn("datos hasta"),
+        },
+    )
     st.caption(
         "**La columna que mas importa es 'desde maximo'**: un activo que subio un 40% este anho "
         "pero sigue un 30% por debajo de su pico no esta yendo bien, se esta recuperando de una "
         "caida que alguien sufrio. Un hueco significa que no hay historico suficiente para esa "
-        "ventana, no que rindiera un 0%."
+        "ventana, no que rindiera un 0%. Pincha una cabecera para ordenar por esa columna."
     )
 
     st.divider()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from invest_ll.dashboard.data import discover_assets, market_overview, normalised_series
 from invest_ll.data.bar import Bar, Interval
@@ -141,3 +142,46 @@ class TestComparacionNormalizada:
 
     def test_sin_activos_no_rompe(self) -> None:
         assert normalised_series([]) == []
+
+
+class TestLaTablaDensa:
+    """Las columnas nuevas del Panorama al estilo CoinMarketCap — sin sus anzuelos."""
+
+    def test_las_variaciones_cortas_salen(self, tmp_path: Path) -> None:
+        guardar(tmp_path, "AAA", subida(30))
+        fila = market_overview(discover_assets(tmp_path))[0]
+
+        assert fila["1 dia"] is not None
+        assert fila["1 semana"] is not None
+        assert fila["1 dia"] > 0  # type: ignore[operator]
+
+    def test_no_existe_columna_de_una_hora(self, tmp_path: Path) -> None:
+        """El 1h% es el anzuelo de CMC: ninguna aportacion periodica cambia por la ultima hora."""
+        guardar(tmp_path, "AAA", subida(30))
+        assert "1 hora" not in market_overview(discover_assets(tmp_path))[0]
+
+    def test_ytd_sin_anho_anterior_no_se_inventa(self, tmp_path: Path) -> None:
+        """Con datos solo del anho en curso, YTD es 'no se sabe', no un numero."""
+        guardar(tmp_path, "AAA", subida(30))  # 30 velas desde 2020-01-01: sin 2019
+        assert market_overview(discover_assets(tmp_path))[0]["YTD"] is None
+
+    def test_ytd_cruza_el_anho_cuando_hay_datos(self, tmp_path: Path) -> None:
+        # 400 velas diarias desde 2020-01-01 cruzan a 2021.
+        guardar(tmp_path, "AAA", [100.0] * 366 + [110.0] * 34)
+        fila = market_overview(discover_assets(tmp_path))[0]
+        assert fila["YTD"] is not None
+        assert fila["YTD"] == 10.0
+
+    def test_la_sparkline_es_el_final_de_la_serie(self, tmp_path: Path) -> None:
+        guardar(tmp_path, "AAA", subida(100))
+        fila = market_overview(discover_assets(tmp_path))[0]
+        chispas = cast("list[float]", fila["sparkline"])
+        assert isinstance(chispas, list)
+        assert len(chispas) == 63, "~3 meses de sesiones, como maximo"
+        assert chispas[-1] == fila["ultimo"], "termina en el ultimo cierre"
+
+    def test_la_fecha_de_los_datos_viaja_en_la_fila(self, tmp_path: Path) -> None:
+        """Sin 'datos hasta', una tabla con historicos parados pareceria de hoy."""
+        guardar(tmp_path, "AAA", subida(30))
+        fila = market_overview(discover_assets(tmp_path))[0]
+        assert str(fila["datos hasta"]) == "2020-01-30"
