@@ -40,6 +40,7 @@ Recogidos en [la constitución del proyecto](.specify/memory/constitution.md):
 | Feature | Estado | Descripción |
 |---|---|---|
 | [001 · Motor de backtesting](specs/001-backtest-engine/) | Funcional | Mide una estrategia sobre el pasado y emite un veredicto honesto |
+| [002 · Descarga de histórico](specs/002-market-data-fetch/) | Funcional | Trae mercado real de cripto y bolsa, listo para el motor |
 
 Soporta cripto (mercado continuo) y bolsa (con horario de sesión y festivos) sobre el mismo
 motor, con cualquier granularidad de vela. Incluye dos estrategias de referencia: cruce de medias
@@ -47,11 +48,41 @@ móviles y ruptura de máximos.
 
 ## Uso
 
+**Traer datos reales:**
+
 ```bash
-uv run invest-ll datos/btc.csv --symbol BTC --interval DAY_1 \
+uv run invest-ll-fetch BTC/USDT --market crypto --interval DAY_1 \
+    --start 2025-01-01 --end 2026-01-01
+
+uv run invest-ll-fetch AAPL --market equity --interval DAY_1 \
+    --start 2020-01-01 --end 2026-01-01
+```
+
+**Evaluar una estrategia sobre ellos:**
+
+```bash
+uv run invest-ll data/market/ccxt-binance/BTC-USDT/DAY_1.csv --symbol BTC \
     --strategy ma-cross --short 10 --long 30 \
     --commission 0.001 --slippage 0.0005 --fraction 0.5
 ```
+
+### Lo que debes saber sobre los datos de bolsa
+
+Tres cosas hacen que un backtest con datos reales mienta con toda credibilidad. El sistema avisa
+de las tres, pero solo puede **corregir** las dos primeras:
+
+- **Splits**: una división de acciones parte el precio sin que la empresa pierda valor. Sin
+  ajustar, el motor vería una caída del 50% que nunca ocurrió. → Se guardan precios ajustados.
+- **Dividendos**: el precio cae el día del reparto. Sin ajustar, cada dividendo parece una
+  pérdida. → Se guardan precios ajustados.
+- **Sesgo de supervivencia**: los proveedores gratuitos solo listan empresas que siguen
+  cotizando. Un backtest sobre ellas ignora a las que quebraron y sale mejor de lo que la
+  realidad fue. → **Se advierte, no se corrige.** Corregirlo exige datos de pago con activos
+  retirados.
+
+El histórico se guarda junto a un fichero de procedencia que dice quién dio los datos, cuándo se
+descargaron y qué cubren. Si el proveedor revisa datos que ya tenías, el sistema avisa y
+**conserva lo local**: un backtest de hace tres meses sigue siendo reproducible hoy.
 
 `--commission` y `--slippage` son **obligatorios**. No se puede lanzar un backtest sin declarar
 los costes: una simulación sin fricción da resultados que no existen.

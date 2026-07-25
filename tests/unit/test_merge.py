@@ -121,9 +121,25 @@ class TestRangosFaltantes:
         from invest_ll.fetch.merge import missing_ranges
 
         almacenado = velas(5)
-        faltantes = missing_ranges(almacenado, ORIGEN, ORIGEN + PASO * 10, interval_duration=PASO)
+        faltantes = missing_ranges(
+            almacenado, ORIGEN, ORIGEN + PASO * 10, interval_duration=PASO, overlap_bars=0
+        )
         assert len(faltantes) == 1
         assert faltantes[0][0] >= almacenado[-1].timestamp
+
+    def test_el_solape_retrocede_para_poder_detectar_revisiones(self) -> None:
+        """FR-011: sin volver a mirar algo ya guardado, no hay nada que comparar."""
+        from invest_ll.fetch.merge import missing_ranges
+
+        almacenado = velas(20)
+        con_solape = missing_ranges(
+            almacenado, ORIGEN, ORIGEN + PASO * 40, interval_duration=PASO, overlap_bars=5
+        )
+        sin_solape = missing_ranges(
+            almacenado, ORIGEN, ORIGEN + PASO * 40, interval_duration=PASO, overlap_bars=0
+        )
+        assert con_solape[0][0] < sin_solape[0][0]
+        assert con_solape[0][0] == sin_solape[0][0] - PASO * 5
 
     def test_ampliar_por_la_izquierda_solo_pide_la_cabeza(self) -> None:
         from invest_ll.fetch.merge import missing_ranges

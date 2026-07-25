@@ -112,17 +112,17 @@ detecta y **no se sobrescribe**.
 
 ### Tests para US2 (escribir primero, deben fallar)
 
-- [ ] T033 [P] [US2] Test de redescarga idéntica: no cambia el fichero ni genera avisos, en `tests/integration/test_discrepancies.py`
-- [ ] T034 [P] [US2] Test de discrepancia: valores distintos para una fecha ya almacenada se detectan, **lo local no se toca**, y la versión nueva se guarda aparte (FR-011, FR-026), en `tests/integration/test_discrepancies.py`
-- [ ] T035 [P] [US2] Test del contenido del aviso: identifica la fecha concreta y los dos valores en conflicto (FR-027, SC-011), en `tests/unit/test_merge.py`
-- [ ] T036 [P] [US2] Test de aceptación explícita: adoptar la versión nueva requiere una acción del operador; nunca ocurre sola (FR-028), en `tests/unit/test_merge.py`
-- [ ] T037 [P] [US2] Test de descarga interrumpida: no queda ningún fichero parcial utilizable, en `tests/unit/test_store_atomicity.py`
+- [X] T033 [P] [US2] Test de redescarga idéntica: no cambia el fichero ni genera avisos, en `tests/integration/test_discrepancies.py`
+- [X] T034 [P] [US2] Test de discrepancia: valores distintos para una fecha ya almacenada se detectan, **lo local no se toca**, y la versión nueva se guarda aparte (FR-011, FR-026), en `tests/integration/test_discrepancies.py`
+- [X] T035 [P] [US2] Test del contenido del aviso: identifica la fecha concreta y los dos valores en conflicto (FR-027, SC-011), en `tests/unit/test_merge.py`
+- [X] T036 [P] [US2] Test de aceptación explícita: adoptar la versión nueva requiere una acción del operador; nunca ocurre sola (FR-028), en `tests/unit/test_merge.py`
+- [X] T037 [P] [US2] Test de descarga interrumpida: no queda ningún fichero parcial utilizable, en `tests/unit/test_store_atomicity.py`
 
 ### Implementación para US2
 
-- [ ] T038 [US2] Implementar la detección de discrepancias en el solape dentro de `merge` — comparación vela a vela con prioridad de lo almacenado, en `src/invest_ll/fetch/merge.py`
-- [ ] T039 [US2] Implementar `save_discrepancies`: la versión en conflicto se guarda bajo `discrepancias/` sin tocar el histórico, en `src/invest_ll/fetch/store.py`
-- [ ] T040 [US2] Implementar `verify_history`: reverificación completa **explícita**, que no ocurre durante una descarga normal (FR-029), en `src/invest_ll/fetch/service.py`
+- [X] T038 [US2] Implementar la detección de discrepancias en el solape dentro de `merge` — comparación vela a vela con prioridad de lo almacenado, en `src/invest_ll/fetch/merge.py`
+- [X] T039 [US2] Implementar `save_discrepancies`: la versión en conflicto se guarda bajo `discrepancias/` sin tocar el histórico, en `src/invest_ll/fetch/store.py`
+- [X] T040 [US2] Implementar `verify_history`: reverificación completa **explícita**, que no ocurre durante una descarga normal (FR-029), en `src/invest_ll/fetch/service.py`
 
 **Checkpoint**: los backtests de ayer siguen siendo reproducibles hoy.
 
@@ -137,16 +137,16 @@ que faltaba.
 
 ### Tests para US3 (escribir primero, deben fallar)
 
-- [ ] T041 [P] [US3] Test incremental: ampliar un rango pide solo las fechas ausentes; un rango ya cubierto pide **cero** (SC-005), en `tests/unit/test_incremental.py`
-- [ ] T042 [P] [US3] Test de límite de tasa: se espera y se reintenta de forma escalonada, sin repetir de inmediato (FR-014), en `tests/unit/test_retry.py`
-- [ ] T043 [P] [US3] Test de proveedor caído: agotados los reintentos se informa y **el histórico local queda intacto** (FR-015), en `tests/unit/test_retry.py`
-- [ ] T044 [P] [US3] Property tests de la fusión: rangos contiguos, solapados, disjuntos, invertidos y vacíos. Invariantes — orden cronológico, sin duplicados, ninguna vela almacenada se pierde ni cambia de valor, en `tests/property/test_merge_invariants.py`
+- [X] T041 [P] [US3] Test incremental: ampliar un rango pide solo las fechas ausentes; un rango ya cubierto pide **cero** (SC-005), en `tests/unit/test_incremental.py`
+- [X] T042 [P] [US3] Test de límite de tasa: se espera y se reintenta de forma escalonada, sin repetir de inmediato (FR-014), en `tests/unit/test_retry.py`
+- [X] T043 [P] [US3] Test de proveedor caído: agotados los reintentos se informa y **el histórico local queda intacto** (FR-015), en `tests/unit/test_retry.py`
+- [X] T044 [P] [US3] Property tests de la fusión: rangos contiguos, solapados, disjuntos, invertidos y vacíos. Invariantes — orden cronológico, sin duplicados, ninguna vela almacenada se pierde ni cambia de valor, en `tests/property/test_merge_invariants.py`
 
 ### Implementación para US3
 
-- [ ] T045 [US3] Implementar el cálculo de rangos faltantes a partir de lo almacenado en `src/invest_ll/fetch/merge.py`
-- [ ] T046 [US3] Conectar el cálculo de rangos faltantes a `fetch_history` y contabilizar `requests_made` (FR-013) en `src/invest_ll/fetch/service.py`
-- [ ] T047 [US3] Aplicar la espera escalonada a las llamadas de ambos proveedores en `src/invest_ll/fetch/providers/`
+- [X] T045 [US3] Implementar el cálculo de rangos faltantes a partir de lo almacenado en `src/invest_ll/fetch/merge.py`
+- [X] T046 [US3] Conectar el cálculo de rangos faltantes a `fetch_history` y contabilizar `requests_made` (FR-013) en `src/invest_ll/fetch/service.py`
+- [X] T047 [US3] Aplicar la espera escalonada a las llamadas de ambos proveedores en `src/invest_ll/fetch/providers/`
 
 **Checkpoint**: ampliar un histórico grande deja de ser caro y de castigar al proveedor.
 
@@ -161,14 +161,14 @@ falsear un backtest.
 
 ### Tests para US4 (escribir primero, deben fallar)
 
-- [ ] T048 [P] [US4] Test de procedencia: proveedor, momento, activo, rango, granularidad y si los precios están ajustados (FR-016, SC-007), en `tests/unit/test_provenance.py`
-- [ ] T049 [P] [US4] Test de avisos derivados de las capacidades: `adjusts_prices=False` genera `UNADJUSTED_PRICES`; `includes_delisted=False` genera `SURVIVORSHIP_BIAS` (FR-018, FR-030, SC-009), en `tests/unit/test_provenance.py`
-- [ ] T050 [P] [US4] Test de credenciales: ninguna aparece en procedencia ni en mensajes de error (FR-023, SC-008), en `tests/unit/test_provenance.py`
+- [X] T048 [P] [US4] Test de procedencia: proveedor, momento, activo, rango, granularidad y si los precios están ajustados (FR-016, SC-007), en `tests/unit/test_provenance.py`
+- [X] T049 [P] [US4] Test de avisos derivados de las capacidades: `adjusts_prices=False` genera `UNADJUSTED_PRICES`; `includes_delisted=False` genera `SURVIVORSHIP_BIAS` (FR-018, FR-030, SC-009), en `tests/unit/test_provenance.py`
+- [X] T050 [P] [US4] Test de credenciales: ninguna aparece en procedencia ni en mensajes de error (FR-023, SC-008), en `tests/unit/test_provenance.py`
 
 ### Implementación para US4
 
-- [ ] T051 [US4] Implementar la generación de avisos de calidad **derivada de las capacidades declaradas** por el proveedor, no de recordar ponerlos, en `src/invest_ll/fetch/provenance.py`
-- [ ] T052 [US4] Propagar los avisos hasta el informe del backtest, aprovechando `data_warnings` que la 001 ya acepta, en `src/invest_ll/fetch/service.py`
+- [X] T051 [US4] Implementar la generación de avisos de calidad **derivada de las capacidades declaradas** por el proveedor, no de recordar ponerlos, en `src/invest_ll/fetch/provenance.py`
+- [X] T052 [US4] Propagar los avisos hasta el informe del backtest, aprovechando `data_warnings` que la 001 ya acepta, en `src/invest_ll/fetch/service.py`
 
 **Checkpoint**: las cuatro historias funcionan de forma independiente.
 
@@ -176,11 +176,11 @@ falsear un backtest.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T053 [P] Documentar en `README.md` el uso de la descarga y las advertencias del dominio: splits, dividendos y sesgo de supervivencia
-- [ ] T054 [P] Añadir un aviso destacado en la salida de la CLI cuando el histórico traiga `SURVIVORSHIP_BIAS` o `UNADJUSTED_PRICES`, en `src/invest_ll/cli_fetch.py`
-- [ ] T055 Ejecutar las 8 validaciones de [quickstart.md](./quickstart.md) y dejar constancia
-- [ ] T056 Ejecutar la cadena completa de gates (`ruff` → `pyright` → `pytest`) sin regresión
-- [ ] T057 Actualizar `.github/workflows/ci.yml` si hiciera falta para las dependencias nuevas
+- [X] T053 [P] Documentar en `README.md` el uso de la descarga y las advertencias del dominio: splits, dividendos y sesgo de supervivencia
+- [X] T054 [P] Añadir un aviso destacado en la salida de la CLI cuando el histórico traiga `SURVIVORSHIP_BIAS` o `UNADJUSTED_PRICES`, en `src/invest_ll/cli_fetch.py`
+- [X] T055 Ejecutar las 8 validaciones de [quickstart.md](./quickstart.md) y dejar constancia
+- [X] T056 Ejecutar la cadena completa de gates (`ruff` → `pyright` → `pytest`) sin regresión
+- [X] T057 Actualizar `.github/workflows/ci.yml` si hiciera falta para las dependencias nuevas
 - [ ] T058 **Comprobación manual contra los proveedores reales** — fuera de la suite, porque toca la red. Descargar un activo de cripto y uno de bolsa y verificar que el formato recibido hoy es el esperado. **La ejecuta Marcos**: los proveedores grabados prueban la lógica, solo el real prueba el formato
 
 ---

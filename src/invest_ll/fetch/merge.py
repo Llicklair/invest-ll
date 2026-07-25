@@ -21,6 +21,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 CAMPOS_COMPARADOS = ("open", "high", "low", "close", "volume")
 
+# Cuántas velas ya almacenadas se vuelven a pedir al ampliar un histórico. Es lo que hace que las
+# revisiones del proveedor se detecten en el uso normal sin gastar peticiones de más: van dentro
+# de una petición que ya se iba a hacer. Cinco cubre la frontera reciente, que es donde los
+# proveedores corrigen.
+SOLAPE_POR_DEFECTO = 5
+
 
 @dataclass(frozen=True, slots=True)
 class Discrepancy:
@@ -100,6 +106,7 @@ def missing_ranges(
     end: datetime,
     *,
     interval_duration: timedelta,
+    overlap_bars: int = SOLAPE_POR_DEFECTO,
 ) -> list[tuple[datetime, datetime]]:
     """Qué tramos del rango pedido no están todavía en local (FR-013).
 
@@ -111,6 +118,16 @@ def missing_ranges(
     No intenta rellenar huecos interiores, y es a propósito — un hueco dentro del rango cubierto
     suele ser un cierre de mercado o un dato que el proveedor sencillamente no tiene, y volver a
     pedirlo en cada descarga gastaría peticiones para recibir lo mismo.
+
+    **`overlap_bars` resuelve una contradicción real del diseño.** FR-013 pide no solicitar lo que
+    ya se tiene, pero FR-011 exige detectar que el proveedor haya revisado datos guardados — y para
+    detectarlo hay que volver a mirarlos. Sin solape, una descarga normal nunca compara nada y
+    FR-011 se queda en papel mojado.
+
+    El solape retrocede unas pocas velas al ampliar por la derecha. No cuesta ninguna petición
+    extra: amplía ligeramente el rango de una petición que ya se iba a hacer. A cambio, cada
+    ampliación revisa la frontera de lo ya almacenado, que es justo donde un proveedor corrige sus
+    datos recientes. La reverificación completa sigue siendo explícita (FR-029).
     """
     if not stored:
         return [(start, end)]
@@ -122,7 +139,8 @@ def missing_ranges(
     if start < primera:
         faltantes.append((start, min(primera, end)))
     if end > fin_cubierto:
-        faltantes.append((max(fin_cubierto, start), end))
+        desde = max(fin_cubierto - interval_duration * max(overlap_bars, 0), start)
+        faltantes.append((min(desde, fin_cubierto), end))
     return faltantes
 
 
