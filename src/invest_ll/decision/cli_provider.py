@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,12 @@ from invest_ll.decision.schema import (
 
 EJECUTABLE = "claude"
 TIMEOUT_SEGUNDOS = 240
+
+# El CLI falla de forma transitoria en rafagas largas: codigo 1 y sin mensaje. Reintentar con
+# espera creciente lo resuelve, y no reintentar convierte una limitacion de ritmo en decisiones
+# perdidas.
+INTENTOS = 3
+ESPERA_BASE_SEGUNDOS = 20
 
 FORMATO_PEDIDO = """
 Responde UNICAMENTE con un objeto JSON que cumpla este esquema. Sin texto antes ni despues,
@@ -96,11 +103,29 @@ class ClaudeCliProvider:
         )
 
     def _invocar(self, prompt: str) -> str:
+        """Pide una respuesta, reintentando los fallos transitorios.
+
+        El reintento envuelve tambien al `runner` inyectado: es politica del proveedor, no del
+        transporte, y asi se puede probar sin lanzar procesos.
+        """
+        ultimo: DecisionUnavailableError | None = None
+        for intento in range(1, INTENTOS + 1):
+            try:
+                return self._una_vez(prompt)
+            except DecisionUnavailableError as error:
+                ultimo = error
+                if intento < INTENTOS:
+                    # Espera creciente: si el motivo es el ritmo, insistir de inmediato no ayuda.
+                    time.sleep(ESPERA_BASE_SEGUNDOS * intento)
+
+        assert ultimo is not None  # noqa: S101 - el bucle siempre deja un error si llega aqui
+        raise ultimo
+
+    def _una_vez(self, prompt: str) -> str:
         if self._runner is not None:  # inyectado en los tests
             return self._runner(prompt)
 
         self._cwd.mkdir(parents=True, exist_ok=True)
-
         try:
             proceso = subprocess.run(
                 [EJECUTABLE, *self._extra_args],
@@ -120,8 +145,11 @@ class ClaudeCliProvider:
             raise DecisionUnavailableError(f"el CLI no respondio en {TIMEOUT_SEGUNDOS}s") from error
 
         if proceso.returncode != 0:
+            # El CLI a veces escribe el motivo en stdout y deja stderr vacio: se miran los dos,
+            # porque un error sin mensaje no se puede diagnosticar.
+            detalle = (proceso.stderr or proceso.stdout or "sin mensaje").strip()
             raise DecisionUnavailableError(
-                f"el CLI fallo (codigo {proceso.returncode}): {proceso.stderr[:200]}"
+                f"el CLI fallo (codigo {proceso.returncode}): {detalle[:300]}"
             )
 
         return extraer_resultado(proceso.stdout)

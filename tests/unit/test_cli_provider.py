@@ -170,3 +170,57 @@ class TestNoSaleALaRedEnLosTests:
         ClaudeCliProvider(runner=capturar).decide(peticion())
         assert "UNICAMENTE" in capturado[0]
         assert "weight" in capturado[0]
+
+
+class TestReintentos:
+    """El CLI falla de forma transitoria en rafagas largas: codigo 1 y sin mensaje.
+
+    Se descubrio generando 84 decisiones seguidas: las 25 primeras salieron y a partir de ahi
+    fallaron 18 consecutivas, mientras el CLI seguia funcionando si se llamaba a mano. No
+    reintentar convertia una limitacion de ritmo en decisiones perdidas.
+    """
+
+    def test_reintenta_tras_un_fallo_transitorio(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import invest_ll.decision.cli_provider as modulo
+
+        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        intentos = {"n": 0}
+
+        def falla_una_vez(prompt: str) -> str:
+            intentos["n"] += 1
+            if intentos["n"] == 1:
+                raise DecisionUnavailableError("el CLI fallo (codigo 1): sin mensaje")
+            return DECISION_JSON
+
+        assert ClaudeCliProvider(runner=falla_una_vez).decide(peticion()).chosen == "A"
+        assert intentos["n"] == 2
+
+    def test_se_rinde_tras_agotar_los_intentos(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Rendirse es correcto: mejor una decision que falta que una inventada."""
+        import invest_ll.decision.cli_provider as modulo
+
+        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        intentos = {"n": 0}
+
+        def siempre_falla(prompt: str) -> str:
+            intentos["n"] += 1
+            raise DecisionUnavailableError("el CLI fallo (codigo 1): sin mensaje")
+
+        with pytest.raises(DecisionUnavailableError):
+            ClaudeCliProvider(runner=siempre_falla).decide(peticion())
+        assert intentos["n"] == modulo.INTENTOS
+
+    def test_un_error_de_formato_no_se_reintenta(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Volver a pedir lo mismo daria lo mismo: reintentar solo gastaria cuota."""
+        import invest_ll.decision.cli_provider as modulo
+
+        monkeypatch.setattr(modulo.time, "sleep", lambda _: None)
+        intentos = {"n": 0}
+
+        def responde_basura(prompt: str) -> str:
+            intentos["n"] += 1
+            return "no hay json aqui"
+
+        with pytest.raises(DecisionParseError):
+            ClaudeCliProvider(runner=responde_basura).decide(peticion())
+        assert intentos["n"] == 1
