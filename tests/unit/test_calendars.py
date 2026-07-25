@@ -66,3 +66,31 @@ class TestClasificacionDeHuecos:
         cal = ExchangeCalendarAdapter("XNYS")
         media_sesion = LUNES_APERTURA + timedelta(hours=1)
         assert cal.is_open(media_sesion)
+
+
+class TestRangoHistorico:
+    """Regresion encontrada al descargar SPY del ano 2000.
+
+    exchange_calendars solo carga por defecto las sesiones de los ultimos 20 anos. Pedir datos
+    anteriores fallaba con "cannot be earlier than the first session of calendar". Backtestear la
+    decada perdida (2000-2010) es justo uno de los casos que mas valor tiene, asi que el
+    calendario tiene que llegar mas atras.
+    """
+
+    def test_el_calendario_cubre_el_ano_2000(self) -> None:
+        cal = ExchangeCalendarAdapter("XNYS")
+        # 3 de enero de 2000: primer dia habil del milenio, sesion normal en Nueva York.
+        assert cal.is_session(datetime(2000, 1, 3, tzinfo=UTC))
+
+    def test_el_calendario_cubre_los_anos_noventa(self) -> None:
+        cal = ExchangeCalendarAdapter("XNYS")
+        assert cal.is_session(datetime(1995, 6, 15, tzinfo=UTC))
+
+    def test_un_festivo_antiguo_no_es_sesion(self) -> None:
+        """No basta con que responda: tiene que responder bien."""
+        cal = ExchangeCalendarAdapter("XNYS")
+        assert not cal.is_session(datetime(2000, 12, 25, tzinfo=UTC))
+
+    def test_el_inicio_es_configurable(self) -> None:
+        cal = ExchangeCalendarAdapter("XNYS", start="2015-01-01")
+        assert cal.is_session(datetime(2020, 6, 15, tzinfo=UTC))

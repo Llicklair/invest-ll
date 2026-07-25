@@ -36,6 +36,19 @@ INTERVALOS: dict[Interval, str] = {
 UN_DIA = Interval.DAY_1.duration
 
 
+def coherent_ohlc(*, open_: float, high: float, low: float, close: float) -> tuple[float, float]:
+    """Devuelve un maximo y un minimo que engloban de verdad a la apertura y al cierre.
+
+    El ajuste por splits y dividendos multiplica cada precio por un factor, y el redondeo puede
+    dejar el cierre por encima del maximo por una fraccion infinitesimal. Cuando eso pasa, el
+    maximo correcto ES ese cierre: el precio maximo del dia fue al menos aquel al que cerro.
+
+    No se inventa nada. Se corrige una incoherencia aritmetica en el borde, para que no se
+    propague al resto del sistema.
+    """
+    return max(high, open_, close), min(low, open_, close)
+
+
 def normalize_daily(momento: datetime, interval: Interval) -> datetime:
     """Lleva las marcas diarias a medianoche UTC.
 
@@ -112,14 +125,23 @@ class YFinanceProvider:
 
             momento = normalize_daily(momento, interval)
 
+            apertura = float(fila["Open"])
+            cierre = float(fila["Close"])
+            maximo, minimo = coherent_ohlc(
+                open_=apertura,
+                high=float(fila["High"]),
+                low=float(fila["Low"]),
+                close=cierre,
+            )
+
             volumen = float(fila["Volume"])
             bars.append(
                 Bar(
                     timestamp=momento,
-                    open=float(fila["Open"]),
-                    high=float(fila["High"]),
-                    low=float(fila["Low"]),
-                    close=float(fila["Close"]),
+                    open=apertura,
+                    high=maximo,
+                    low=minimo,
+                    close=cierre,
                     volume=max(volumen, 0.0),
                 )
             )

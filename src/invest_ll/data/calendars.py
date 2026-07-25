@@ -20,6 +20,12 @@ if TYPE_CHECKING:  # pragma: no cover
     import exchange_calendars as xcals
 
 
+# Hasta donde llega hacia atras el calendario burstail. Cargar mas anos cuesta algo de memoria al
+# construirlo, y es un precio pequeno a cambio de poder medir una estrategia contra los mercados
+# bajistas de 2000-2002 y 2008, que son los que de verdad la ponen a prueba.
+INICIO_HISTORICO = "1990-01-01"
+
+
 @runtime_checkable
 class MarketCalendar(Protocol):
     """Tres preguntas: ¿está abierto ahora?, ¿fue sesión este día?, ¿cuándo vuelve a abrir?
@@ -77,11 +83,15 @@ class ExchangeCalendarAdapter:
 
     __slots__ = ("_calendar", "_name")
 
-    def __init__(self, name: str = "XNYS") -> None:
+    def __init__(self, name: str = "XNYS", *, start: str = INICIO_HISTORICO) -> None:
         import exchange_calendars as xcals
 
         self._name = name
-        self._calendar: xcals.ExchangeCalendar = xcals.get_calendar(name)
+        # `start` explícito: por defecto la librería solo carga las sesiones de los últimos veinte
+        # años, y pedir datos anteriores falla con "cannot be earlier than the first session".
+        # Backtestear la década perdida (2000-2010) es justo uno de los casos que más dicen sobre
+        # una estrategia, porque incluye dos mercados bajistas de verdad.
+        self._calendar: xcals.ExchangeCalendar = xcals.get_calendar(name, start=start)
 
     def is_open(self, moment: datetime) -> bool:
         import pandas as pd
