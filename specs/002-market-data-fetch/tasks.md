@@ -181,7 +181,7 @@ falsear un backtest.
 - [X] T055 Ejecutar las 8 validaciones de [quickstart.md](./quickstart.md) y dejar constancia
 - [X] T056 Ejecutar la cadena completa de gates (`ruff` → `pyright` → `pytest`) sin regresión
 - [X] T057 Actualizar `.github/workflows/ci.yml` si hiciera falta para las dependencias nuevas
-- [ ] T058 **Comprobación manual contra los proveedores reales** — fuera de la suite, porque toca la red. Descargar un activo de cripto y uno de bolsa y verificar que el formato recibido hoy es el esperado. **La ejecuta Marcos**: los proveedores grabados prueban la lógica, solo el real prueba el formato
+- [X] T058 **Comprobación manual contra los proveedores reales** — fuera de la suite, porque toca la red. Descargar un activo de cripto y uno de bolsa y verificar que el formato recibido hoy es el esperado. **La ejecuta Marcos**: los proveedores grabados prueban la lógica, solo el real prueba el formato
 
 ---
 

@@ -28,7 +28,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.data.bar import Interval
     from invest_ll.data.calendars import MarketCalendar
 
+from datetime import timedelta
+
 COLUMNAS = ("timestamp", "open", "high", "low", "close", "volume")
+_UN_DIA = timedelta(days=1)
 _PRECIOS = ("open", "high", "low", "close", "volume")
 
 
@@ -103,14 +106,19 @@ def detect_gaps(series: PriceSeries) -> tuple[DataWarning, ...]:
     step = series.interval.duration
     avisos: list[DataWarning] = []
 
+    # Misma distinción que en el motor: para velas de un día o más la pregunta es si hubo sesión,
+    # no si el mercado estaba abierto en ese instante concreto. Con velas diarias fechadas a
+    # medianoche, `is_open` diría siempre que no y ningún hueco se reportaría jamás.
+    negociable = series.calendar.is_session if step >= _UN_DIA else series.calendar.is_open
+
     for previous, current in zip(series.bars, series.bars[1:], strict=False):
         if current.timestamp - previous.timestamp <= step:
             continue
 
-        # Hay salto: ¿el mercado estuvo abierto en algún momento del hueco?
+        # Hay salto: ¿el mercado operaba en algún momento del hueco?
         momento = previous.timestamp + step
         while momento < current.timestamp:
-            if series.calendar.is_open(momento):
+            if negociable(momento):
                 avisos.append(
                     DataWarning(
                         message=(

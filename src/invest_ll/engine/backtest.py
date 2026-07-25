@@ -22,6 +22,7 @@ del informe. Un backtest que no se puede repetir no permite comparar nada.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING
 
@@ -52,6 +53,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # Granularidad mínima de una posición. Ocho decimales cubren activos fraccionables como cripto.
 LOTE_MINIMO = Decimal("0.00000001")
+
+# A partir de esta duración, una vela representa una sesión entera y no un instante.
+UN_DIA = timedelta(days=1)
 
 
 def run_backtest(
@@ -211,15 +215,30 @@ def _check_protective_exit(
     return None
 
 
-def _next_open_index(series: PriceSeries, start: int) -> int | None:
-    """Primer periodo desde `start` con el mercado abierto, o `None` si no queda ninguno.
+def _tradeable(series: PriceSeries, moment: datetime) -> bool:
+    """¿Se puede operar en el periodo que empieza en `moment`?
 
-    En un mercado continuo devuelve `start` siempre. En bolsa salta la noche y los festivos: una
-    señal emitida al cierre de la sesión se ejecuta a la apertura de la siguiente, que es lo que
+    La pregunta depende de la granularidad, y confundirlas cuesta caro. Una vela diaria suele
+    fecharse a medianoche, hora a la que ningún mercado con horario está abierto: preguntar
+    `is_open` sobre ella responde siempre que no, y el motor no ejecuta una sola orden en todo el
+    backtest. Sin error, sin aviso, con cero operaciones y aspecto de resultado válido.
+
+    Para velas de un día o más la pregunta correcta es si ese día hubo sesión.
+    """
+    if series.interval.duration >= UN_DIA:
+        return series.calendar.is_session(moment)
+    return series.calendar.is_open(moment)
+
+
+def _next_open_index(series: PriceSeries, start: int) -> int | None:
+    """Primer periodo negociable desde `start`, o `None` si no queda ninguno.
+
+    En un mercado continuo devuelve `start` siempre. En bolsa salta los días sin sesión: una
+    señal emitida al cierre del viernes se ejecuta en la apertura del lunes, que es lo que
     ocurriría de verdad.
     """
     for index in range(start, len(series)):
-        if series.calendar.is_open(series.bars[index].timestamp):
+        if _tradeable(series, series.bars[index].timestamp):
             return index
     return None
 

@@ -9,7 +9,7 @@ La comprobación estricta se relaja solo en este módulo — ver `loader.py` par
 
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
 # pyright: reportUnknownVariableType=false, reportMissingTypeStubs=false
-# pyright: reportArgumentType=false
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false
 
 from __future__ import annotations
 
@@ -22,10 +22,23 @@ if TYPE_CHECKING:  # pragma: no cover
 
 @runtime_checkable
 class MarketCalendar(Protocol):
-    """Dos preguntas: ¿está abierto?, ¿cuándo vuelve a abrir?"""
+    """Tres preguntas: ¿está abierto ahora?, ¿fue sesión este día?, ¿cuándo vuelve a abrir?
+
+    La distinción entre las dos primeras no es un matiz. Una vela diaria representa una sesión
+    entera, y suele fecharse a medianoche — un instante en el que ningún mercado con horario está
+    abierto. Preguntar `is_open` sobre ella responde siempre que no, y un motor que use esa
+    respuesta para decidir si opera no ejecutará jamás una orden.
+    """
 
     def is_open(self, moment: datetime) -> bool:
-        """¿Se puede negociar en este instante?"""
+        """¿Se puede negociar en este instante concreto? Para velas intradía."""
+        ...
+
+    def is_session(self, moment: datetime) -> bool:
+        """¿El día al que pertenece este instante fue día de negociación?
+
+        Para velas de un día o más, esta es la pregunta correcta.
+        """
         ...
 
     def next_open(self, moment: datetime) -> datetime | None:
@@ -42,6 +55,9 @@ class Continuous24x7:
     __slots__ = ()
 
     def is_open(self, moment: datetime) -> bool:
+        return True
+
+    def is_session(self, moment: datetime) -> bool:
         return True
 
     def next_open(self, moment: datetime) -> datetime | None:
@@ -74,6 +90,20 @@ class ExchangeCalendarAdapter:
         if ts.tz is None:  # pragma: no cover - las Bar validadas siempre traen zona
             ts = ts.tz_localize("UTC")
         return bool(self._calendar.is_open_on_minute(ts.tz_convert("UTC")))
+
+    def is_session(self, moment: datetime) -> bool:
+        """¿Hubo negociación el día al que pertenece este instante?
+
+        Se compara solo la fecha, no la hora. Una vela diaria fechada a medianoche pertenece a su
+        día aunque a esa hora concreta el mercado estuviera cerrado.
+        """
+        import pandas as pd
+
+        ts = pd.Timestamp(moment)
+        if ts.tz is None:  # pragma: no cover - las Bar validadas siempre traen zona
+            ts = ts.tz_localize("UTC")
+        fecha = ts.tz_convert("UTC").normalize().tz_localize(None)
+        return bool(self._calendar.is_session(fecha))
 
     def next_open(self, moment: datetime) -> datetime | None:
         import pandas as pd
