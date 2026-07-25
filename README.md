@@ -60,6 +60,20 @@ uv run invest-ll-fetch AAPL --market equity --interval DAY_1 \
     --start 2020-01-01 --end 2026-01-01
 ```
 
+**Arrancar todo de una vez:**
+
+```powershell
+.\scripts\start.ps1              # Windows
+bash scripts/start.sh            # Linux / macOS
+```
+
+Comprueba el entorno, **te dice si el sistema puede enviar órdenes reales**, lista los históricos
+descargados y las decisiones ya generadas, y abre el panel. Con `-SoloCheck` / `--solo-check`
+comprueba sin arrancar nada.
+
+> No hay "frontend y backend" separados: el panel llama al motor en el mismo proceso, sin API por
+> medio. Un script que arrancara dos cosas arrancaría una sola dos veces.
+
 **Pedir una propuesta de cartera** (lo más simple que hay):
 
 ```bash
