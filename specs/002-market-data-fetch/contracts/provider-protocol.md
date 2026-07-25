@@ -86,12 +86,12 @@ sustituyen y la suite no espera de verdad.
 ```python
 @dataclass(frozen=True)
 class FetchResult:
-    path: Path                                  # el CSV listo para el motor
+    path: Path  # el CSV listo para el motor
     provenance: Provenance
     added_count: int
     discrepancies: tuple[Discrepancy, ...]
     warnings: tuple[QualityWarning, ...]
-    requests_made: int                          # cuántas peticiones costó
+    requests_made: int  # cuántas peticiones costó
 ```
 
 `requests_made` no es telemetría decorativa: es lo que hace verificable SC-005 —que ampliar un rango

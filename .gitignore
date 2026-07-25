@@ -25,6 +25,7 @@ build/
 # --- Datos de mercado y resultados (pesados, reproducibles) ---
 data/raw/
 data/cache/
+data/market/
 *.parquet
 *.duckdb
 *.sqlite

@@ -31,12 +31,12 @@ Paquete nuevo `src/invest_ll/fetch/`, hermano del motor. Tests en `tests/` en la
 
 **Purpose**: dependencias nuevas y bloqueo global de red en la suite.
 
-- [ ] T001 Añadir `ccxt` y `yfinance` a las dependencias en `pyproject.toml`
-- [ ] T002 Ejecutar `uv sync` y verificar con una ejecución real que `ccxt` y `yfinance` importan en Python 3.14; actualizar `uv.lock`
-- [ ] T003 Crear el esqueleto `src/invest_ll/fetch/` y `src/invest_ll/fetch/providers/` con sus `__init__.py`
-- [ ] T004 Configurar en `tests/conftest.py` un fixture autouse que **bloquea `socket.socket`** durante toda la suite (FR-024, SC-002)
-- [ ] T005 [P] Verificar que la suite existente de la feature 001 sigue en verde con la red bloqueada — si algo falla, la 001 tenía una dependencia de red que nadie había visto
-- [ ] T006 [P] Añadir `data/market/` a `.gitignore` si no queda ya cubierto por la entrada `data/`
+- [X] T001 Añadir `ccxt` y `yfinance` a las dependencias en `pyproject.toml`
+- [X] T002 Ejecutar `uv sync` y verificar con una ejecución real que `ccxt` y `yfinance` importan en Python 3.14; actualizar `uv.lock`
+- [X] T003 Crear el esqueleto `src/invest_ll/fetch/` y `src/invest_ll/fetch/providers/` con sus `__init__.py`
+- [X] T004 Configurar en `tests/conftest.py` un fixture autouse que **bloquea `socket.socket`** durante toda la suite (FR-024, SC-002)
+- [X] T005 [P] Verificar que la suite existente de la feature 001 sigue en verde con la red bloqueada — si algo falla, la 001 tenía una dependencia de red que nadie había visto
+- [X] T006 [P] Añadir `data/market/` a `.gitignore` si no queda ya cubierto por la entrada `data/`
 
 **Checkpoint**: la red está cortada en los tests y las dependencias nuevas funcionan.
 
@@ -50,23 +50,23 @@ Paquete nuevo `src/invest_ll/fetch/`, hermano del motor. Tests en `tests/` en la
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T007 [P] ★ Test de aislamiento del motor: análisis estático de los imports de `engine/`, `report/` y `strategy/` (ningún `socket`, `http`, `urllib`, `requests`, `httpx`, `ccxt`, `yfinance` ni `invest_ll.fetch`) **y** un backtest completo con `socket` bloqueado que debe terminar correctamente (FR-001..FR-003, SC-003), en `tests/unit/test_engine_isolation.py`
-- [ ] T008 [P] Test de `FetchRequest`: rango invertido o vacío se rechaza; marcas sin zona se rechazan, en `tests/unit/test_fetch_request.py`
-- [ ] T009 [P] Test del protocolo `MarketDataProvider`: un objeto con `fetch` y `capabilities` lo cumple sin heredar; el proveedor grabado devuelve velas ordenadas y sin duplicados, en `tests/unit/test_provider_protocol.py`
-- [ ] T010 [P] Test de `HistoryStore`: `load` devuelve `None` cuando no hay nada (no lanza); `save` escribe un CSV que el loader de la 001 carga sin conversión (FR-005), en `tests/unit/test_store.py`
-- [ ] T011 [P] Test de atomicidad: un fallo a mitad de la escritura no deja ningún fichero que el motor acepte como completo (FR-012), en `tests/unit/test_store_atomicity.py`
-- [ ] T012 [P] Test de reintentos: espera creciente, tres intentos, y agotados se conserva lo local (FR-014, FR-015). La espera va inyectada: el test no debe tardar, en `tests/unit/test_retry.py`
+- [X] T007 [P] ★ Test de aislamiento del motor: análisis estático de los imports de `engine/`, `report/` y `strategy/` (ningún `socket`, `http`, `urllib`, `requests`, `httpx`, `ccxt`, `yfinance` ni `invest_ll.fetch`) **y** un backtest completo con `socket` bloqueado que debe terminar correctamente (FR-001..FR-003, SC-003), en `tests/unit/test_engine_isolation.py`
+- [X] T008 [P] Test de `FetchRequest`: rango invertido o vacío se rechaza; marcas sin zona se rechazan, en `tests/unit/test_fetch_request.py`
+- [X] T009 [P] Test del protocolo `MarketDataProvider`: un objeto con `fetch` y `capabilities` lo cumple sin heredar; el proveedor grabado devuelve velas ordenadas y sin duplicados, en `tests/unit/test_provider_protocol.py`
+- [X] T010 [P] Test de `HistoryStore`: `load` devuelve `None` cuando no hay nada (no lanza); `save` escribe un CSV que el loader de la 001 carga sin conversión (FR-005), en `tests/unit/test_store.py`
+- [X] T011 [P] Test de atomicidad: un fallo a mitad de la escritura no deja ningún fichero que el motor acepte como completo (FR-012), en `tests/unit/test_store_atomicity.py`
+- [X] T012 [P] Test de reintentos: espera creciente, tres intentos, y agotados se conserva lo local (FR-014, FR-015). La espera va inyectada: el test no debe tardar, en `tests/unit/test_retry.py`
 
 ### Implementación
 
-- [ ] T013 [P] Definir los errores de la capa de datos (`UnknownSymbolError`, `UnsupportedIntervalError`, `NoDataError`, `ProviderUnavailableError`, `RateLimitError`) en `src/invest_ll/fetch/errors.py`
-- [ ] T014 [P] Implementar `FetchRequest` y `Market` con validación en `src/invest_ll/fetch/request.py`
-- [ ] T015 [P] Definir el protocolo `MarketDataProvider` y `ProviderCapabilities` en `src/invest_ll/fetch/protocol.py`
-- [ ] T016 [P] Implementar `Provenance` y `QualityWarning` (serializables a JSON) en `src/invest_ll/fetch/provenance.py`
-- [ ] T017 Implementar `HistoryStore` con escritura atómica vía fichero temporal en el mismo directorio y `os.replace()` (FR-012) en `src/invest_ll/fetch/store.py` (depende de T014, T016)
-- [ ] T018 [P] Implementar la espera escalonada inyectable en `src/invest_ll/fetch/retry.py`
-- [ ] T019 [P] Implementar `RecordedProvider` (respuestas fijas, sin red) en `src/invest_ll/fetch/providers/recorded.py`
-- [ ] T020 [P] Crear las respuestas grabadas de cripto y de bolsa en `tests/fixtures/recorded/`
+- [X] T013 [P] Definir los errores de la capa de datos (`UnknownSymbolError`, `UnsupportedIntervalError`, `NoDataError`, `ProviderUnavailableError`, `RateLimitError`) en `src/invest_ll/fetch/errors.py`
+- [X] T014 [P] Implementar `FetchRequest` y `Market` con validación en `src/invest_ll/fetch/request.py`
+- [X] T015 [P] Definir el protocolo `MarketDataProvider` y `ProviderCapabilities` en `src/invest_ll/fetch/protocol.py`
+- [X] T016 [P] Implementar `Provenance` y `QualityWarning` (serializables a JSON) en `src/invest_ll/fetch/provenance.py`
+- [X] T017 Implementar `HistoryStore` con escritura atómica vía fichero temporal en el mismo directorio y `os.replace()` (FR-012) en `src/invest_ll/fetch/store.py` (depende de T014, T016)
+- [X] T018 [P] Implementar la espera escalonada inyectable en `src/invest_ll/fetch/retry.py`
+- [X] T019 [P] Implementar `RecordedProvider` (respuestas fijas, sin red) en `src/invest_ll/fetch/providers/recorded.py`
+- [X] T020 [P] Crear las respuestas grabadas de cripto y de bolsa en `tests/fixtures/recorded/`
 
 **Checkpoint**: el aislamiento del motor está vigilado y el almacenamiento es seguro.
 

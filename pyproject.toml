@@ -8,10 +8,15 @@ dependencies = [
     "numpy>=2.1",
     "pandas>=2.2",
     "exchange-calendars>=4.6",
+    # Solo las usa src/invest_ll/fetch/. El motor no las conoce y hay un test que
+    # falla si eso deja de ser cierto (tests/unit/test_engine_isolation.py).
+    "ccxt>=4.4",
+    "yfinance>=0.2.50",
 ]
 
 [project.scripts]
 invest-ll = "invest_ll.cli:main"
+invest-ll-fetch = "invest_ll.cli_fetch:main"
 
 [dependency-groups]
 dev = [
@@ -71,4 +76,5 @@ addopts = "-q --strict-markers"
 markers = [
     "perf: pruebas de rendimiento (SC-001), lentas",
     "property: pruebas de invariantes con hypothesis",
+    "network: requiere red de verdad; excluido de la suite por defecto",
 ]
