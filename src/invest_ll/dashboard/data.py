@@ -223,3 +223,110 @@ def common_intervals(assets: Sequence[AvailableAsset]) -> list[Interval]:
     for activo in assets[1:]:
         comunes &= {activo.interval}
     return sorted(comunes, key=lambda i: i.duration)
+
+
+# Ventanas para la tabla de rendimiento, en sesiones bursátiles.
+VENTANAS: tuple[tuple[str, int], ...] = (
+    ("1 mes", 21),
+    ("3 meses", 63),
+    ("1 año", 252),
+    ("5 años", 1260),
+)
+
+NOMBRES = {
+    "GLD": "Oro",
+    "TLT": "Bonos EE.UU. largo plazo",
+    "SPY": "S&P 500",
+    "QQQ": "Nasdaq 100",
+    "XLK": "Tecnologia",
+    "XLF": "Finanzas",
+    "XLE": "Energia",
+    "XLV": "Salud",
+    "XLP": "Consumo basico",
+    "XLU": "Servicios publicos",
+    "AAPL": "Apple",
+    "BTC/USDT": "Bitcoin",
+}
+
+
+def _rendimiento(cierres: list[float], periodos: int) -> float | None:
+    """Variación sobre los últimos N periodos. `None` si no hay histórico suficiente.
+
+    Devolver `None` y no 0 es deliberado: un activo sin datos suficientes no ha rendido un 0%,
+    simplemente no se sabe. Confundir ambas cosas mete un activo inexistente en una comparación.
+    """
+    if len(cierres) <= periodos:
+        return None
+    anterior = cierres[-periodos - 1]
+    if anterior == 0:
+        return None
+    return cierres[-1] / anterior - 1
+
+
+def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]:
+    """Una fila por activo: rendimiento en varias ventanas y distancia a su máximo.
+
+    **La distancia al máximo es la columna que menos se mira y más importa.** Un activo que subió
+    un 40% en el año pero está un 30% por debajo de su pico no está "yendo bien": está
+    recuperándose de una caída que alguien sufrió.
+    """
+    filas: list[dict[str, object]] = []
+
+    for activo in assets:
+        try:
+            serie = activo.load()
+        except Exception:
+            continue
+
+        cierres = [b.close for b in serie.bars]
+        if not cierres:
+            continue
+
+        maximo = max(cierres)
+        fila: dict[str, object] = {
+            "activo": activo.symbol,
+            "que es": NOMBRES.get(activo.symbol, "—"),
+            "ultimo": round(cierres[-1], 2),
+        }
+        for etiqueta, periodos in VENTANAS:
+            rendimiento = _rendimiento(cierres, periodos)
+            fila[etiqueta] = None if rendimiento is None else round(rendimiento * 100, 1)
+
+        fila["desde maximo"] = round((cierres[-1] / maximo - 1) * 100, 1) if maximo else None
+        fila["desde"] = serie.bars[0].timestamp.date()
+        filas.append(fila)
+
+    return filas
+
+
+def normalised_series(
+    assets: Sequence[AvailableAsset], *, periods: int | None = None
+) -> list[dict[str, object]]:
+    """Todos los activos en base 100 al inicio del tramo, para poder compararlos.
+
+    Sin normalizar, una gráfica conjunta no dice nada: Bitcoin a 90.000 aplasta visualmente a
+    todo lo demás aunque el oro lo haya batido en el periodo.
+    """
+    puntos: list[dict[str, object]] = []
+
+    for activo in assets:
+        try:
+            serie = activo.load()
+        except Exception:
+            continue
+
+        barras = serie.bars[-periods:] if periods else serie.bars
+        if not barras or barras[0].close == 0:
+            continue
+
+        base = barras[0].close
+        puntos.extend(
+            {
+                "fecha": b.timestamp,
+                "activo": activo.symbol,
+                "valor": round(b.close / base * 100, 2),
+            }
+            for b in barras
+        )
+
+    return puntos

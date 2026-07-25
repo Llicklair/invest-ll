@@ -23,10 +23,13 @@ from decimal import Decimal
 import streamlit as st
 
 from invest_ll.dashboard.data import (
+    VENTANAS,
     AvailableAsset,
     discover_assets,
     equity_table,
+    market_overview,
     metrics_table,
+    normalised_series,
     suggest_compatible,
     trades_table,
 )
@@ -115,6 +118,60 @@ def mostrar_informe(report: BacktestReport) -> None:
         st.dataframe(metrics_table(report), use_container_width=True, hide_index=True)
     with st.expander(f"Registro de operaciones ({report.trade_count})"):
         st.dataframe(trades_table(report), use_container_width=True, hide_index=True)
+
+
+def pestana_panorama(activos: list[AvailableAsset]) -> None:
+    """Como va cada cosa. Sin recomendar nada.
+
+    Es deliberadamente aburrida comparada con un panel de mercado al uso: no hay indicadores de
+    "miedo y codicia" ni "temporada de altcoins". Esos indicadores existen para que operes mas, y
+    todo lo medido en este proyecto dice que operar mas pierde dinero.
+    """
+    st.header("Panorama")
+    st.caption(
+        "Como ha ido cada activo. Son datos historicos hasta la ultima descarga, "
+        "no precios en vivo."
+    )
+
+    filas = market_overview(activos)
+    if not filas:
+        st.info("No hay historicos que mostrar.")
+        return
+
+    st.subheader("Rendimiento por periodo")
+    st.dataframe(filas, use_container_width=True, hide_index=True)
+    st.caption(
+        "**La columna que mas importa es 'desde maximo'**: un activo que subio un 40% este anho "
+        "pero sigue un 30% por debajo de su pico no esta yendo bien, se esta recuperando de una "
+        "caida que alguien sufrio. Un hueco significa que no hay historico suficiente para esa "
+        "ventana, no que rindiera un 0%."
+    )
+
+    st.divider()
+    st.subheader("Comparacion en base 100")
+
+    etiquetas = ["Todo el historico", *[e for e, _ in VENTANAS]]
+    elegida = st.radio("Tramo", etiquetas, horizontal=True)
+    periodos = None if elegida == etiquetas[0] else dict(VENTANAS)[elegida]
+
+    seleccion = st.multiselect(
+        "Activos a comparar",
+        activos,
+        format_func=lambda a: a.symbol,
+        default=activos[: min(5, len(activos))],
+        key="panorama_activos",
+    )
+    if not seleccion:
+        st.info("Elige al menos un activo.")
+        return
+
+    puntos = normalised_series(seleccion, periods=periodos)
+    if puntos:
+        st.line_chart(puntos, x="fecha", y="valor", color="activo", height=380)
+        st.caption(
+            "Todos empiezan en 100 al inicio del tramo. Sin normalizar, Bitcoin a 90.000 "
+            "aplastaria visualmente al resto aunque el oro lo hubiera batido."
+        )
 
 
 def pestana_backtest(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
@@ -376,11 +433,17 @@ def main() -> None:
         "optimista."
     )
 
-    backtest, cartera, vivo = st.tabs(["Un activo", "Una cartera", "Estado actual"])
+    panorama, backtest, cartera, seguimiento, vivo = st.tabs(
+        ["Panorama", "Un activo", "Una cartera", "Estimado vs real", "Estado actual"]
+    )
+    with panorama:
+        pestana_panorama(activos)
     with backtest:
         pestana_backtest(activos, friction)
     with cartera:
         pestana_cartera(activos, friction)
+    with seguimiento:
+        pestana_seguimiento()
     with vivo:
         pestana_en_vivo(activos)
 
