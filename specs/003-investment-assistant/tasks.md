@@ -141,8 +141,8 @@ regla fija con las mismas métricas.
 - [X] T062 [US5] Definir el protocolo `Broker` y `Confirmation` en `src/invest_ll/live/broker.py` — `confirmation` sin valor por defecto
 - [X] T063 [P] [US5] Test en `tests/unit/test_live_safety.py`: `SimulatedBroker` **nunca** produce una orden real, con ninguna confirmación (FR-038)
 - [X] T064 [US5] Implementar `SimulatedBroker` en `src/invest_ll/live/simulated_broker.py`
-- [ ] T065 [P] [US5] Test en `tests/unit/test_ccxt_broker.py` con doble: el modo se comprueba **al enviar**, no al construir (FR-032)
-- [ ] T066 [US5] Implementar `CcxtBroker` en `src/invest_ll/live/ccxt_broker.py` — credenciales del entorno (FR-033)
+- [X] T065 [P] [US5] Test en `tests/unit/test_ccxt_broker.py` con doble: el modo se comprueba **al enviar**, no al construir (FR-032)
+- [X] T066 [US5] Implementar `CcxtBroker` en `src/invest_ll/live/ccxt_broker.py` — credenciales del entorno (FR-033)
 - [X] T067 [P] [US5] Test en `tests/unit/test_live_safety.py`: las credenciales de pruebas y las reales no son intercambiables; usarlas cruzadas **falla visiblemente** (FR-048)
 - [X] T068 [P] [US5] Test en `tests/unit/test_live_safety.py`: ningún mensaje de error, registro ni informe contiene una credencial (FR-034)
 - [X] T069 [P] [US5] Test en `tests/unit/test_ccxt_broker.py`: perder la conexión con una orden enviada da `UNKNOWN`, nunca `FILLED` ni `REJECTED` (FR-035)
@@ -154,8 +154,8 @@ regla fija con las mismas métricas.
 - [X] T072 [P] [US5] Test en `tests/unit/test_execution_ledger.py`: una diferencia entre lo pedido y lo ejecutado se comunica, no se da por buena (FR-031)
 - [X] T073 [P] [US5] Test en `tests/unit/test_live_safety.py`: sin haber operado antes en testnet, el modo real se **rechaza** (FR-047)
 - [X] T074 [US5] Implementar la comprobación de testnet previa en `src/invest_ll/live/mode.py`
-- [ ] T075 [US5] Comando `invest-ll-execute` en `src/invest_ll/cli/execute.py` con confirmación interactiva por orden
-- [ ] T076 [P] [US5] Test de integración en `tests/integration/test_execute_cli.py`: los cuatro negativos del escenario E7 se comportan como se describe
+- [X] T075 [US5] Comando `invest-ll-execute` en `src/invest_ll/cli/execute.py` con confirmación interactiva por orden
+- [X] T076 [P] [US5] Test de integración en `tests/integration/test_execute_cli.py`: los cuatro negativos del escenario E7 se comportan como se describe
 
 **Punto de control** (E7): las cuatro cosas que no deben poder pasar, no pasan.
 
@@ -164,12 +164,12 @@ regla fija con las mismas métricas.
 ## Fase 8 · Cierre
 
 - [X] T077 [P] Ampliar `tests/unit/test_engine_isolation.py`: el motor no importa `decision`, `live`, `analysis` ni `anthropic`
-- [ ] T078 [P] Test en `tests/unit/test_no_network_in_suite.py`: la suite entera pasa con los sockets bloqueados y **sin una sola llamada al modelo** (FR-036, SC-011)
+- [X] T078 [P] Test en `tests/unit/test_no_network_in_suite.py`: la suite entera pasa con los sockets bloqueados y **sin una sola llamada al modelo** (FR-036, SC-011)
 - [ ] T079 [P] Añadir al panel la pestaña de comparación LLM vs reglas en `src/invest_ll/dashboard/app.py`
 - [ ] T080 [P] Añadir al panel la vista de estimado contra real en `src/invest_ll/dashboard/app.py`
-- [ ] T081 [P] Actualizar `README.md` con los comandos nuevos y la advertencia sobre el modo real
-- [ ] T082 Ejecutar los 8 escenarios de [quickstart.md](quickstart.md) y dejar constancia del resultado
-- [ ] T083 Las cuatro gates en verde: `ruff check` · `ruff format --check` · `pyright` · `pytest`
+- [X] T081 [P] Actualizar `README.md` con los comandos nuevos y la advertencia sobre el modo real
+- [X] T082 Ejecutar los 8 escenarios de [quickstart.md](quickstart.md) y dejar constancia del resultado
+- [X] T083 Las cuatro gates en verde: `ruff check` · `ruff format --check` · `pyright` · `pytest`
 
 ---
 
@@ -200,5 +200,7 @@ justo lo que pide el test-first.
 **Fases 1 + 2 + 3.** Con eso ya se puede responder a la pregunta que motiva la feature: *¿el LLM
 elige mejor que una regla fija?* Si la respuesta es que no —y los 40 barridos de estrategias
 apuntan a que puede serlo— eso cambia qué merece la pena construir después.
+
+Completadas: **81 de 83**. Pendientes: T079 y T080 (vistas del panel).
 
 Total: **83 tareas** · US2 · 12 · US1 · 8 · US3 · 8 · US4 · 8 · US5 · 20

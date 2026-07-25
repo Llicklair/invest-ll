@@ -60,6 +60,31 @@ uv run invest-ll-fetch AAPL --market equity --interval DAY_1 \
     --start 2020-01-01 --end 2026-01-01
 ```
 
+**Pedir una propuesta de cartera** (lo más simple que hay):
+
+```bash
+uv run invest-ll-propose data/market/yfinance/*/DAY_1.csv --amount 500 --frequency monthly
+```
+
+Solo pide cuánto y cada cuánto. Devuelve una cartera concreta, por qué está cada activo, y la
+simulación de qué habría pasado.
+
+**Comparar el LLM contra reglas fijas:**
+
+```bash
+uv run invest-ll-compare data/market/yfinance/*/DAY_1.csv     --strategies llm,momentum --commission 0.001 --slippage 0.0005     --recorded decisions/mi-experimento
+```
+
+Las mismas métricas para todas. Si el LLM elige mejor, se ve en los números; si no, también.
+
+**Ver qué hay detrás de un activo:**
+
+```bash
+uv run invest-ll-analyze AAPL GLD
+```
+
+Separa los datos verificables (con su fuente y su fecha) de la interpretación.
+
 **Abrir el panel interactivo:**
 
 ```bash
@@ -115,6 +140,26 @@ uv run pyright               # tipos
 
 Las cuatro gates deben pasar antes de integrar cualquier cambio. Los baselines y snapshots **no**
 se actualizan para hacer pasar un test.
+
+## Dinero real
+
+**El sistema arranca siempre en modo simulación.** No es una opción por defecto que se pueda
+cambiar en un fichero de configuración: es lo que se obtiene sin configurar nada.
+
+Para operar de verdad hacen falta **cuatro cosas a la vez**, y ninguna basta por sí sola:
+
+1. `INVEST_LL_MODE=real` — activación explícita
+2. `INVEST_LL_LIVE_KEY` y `INVEST_LL_LIVE_SECRET` — credenciales **distintas** de las de pruebas
+3. `INVEST_LL_TESTNET_VERIFIED=1` — haber operado antes en la red de pruebas
+4. Confirmación **de cada orden concreta** en el momento de enviarla
+
+Tener las credenciales sin pedir el modo real no lo activa. Un error tipográfico en el modo
+(`reall`) falla en lugar de caer en real. Y si la credencial real coincide con la de pruebas, se
+rechaza: si son la misma, no hay separación entre modos.
+
+Las claves se leen del entorno y **nunca** se guardan en el repositorio.
+
+---
 
 Flujo de trabajo: [Spec Kit](https://github.com/github/spec-kit) — constitution → spec → clarify →
 plan → tasks → implement.
