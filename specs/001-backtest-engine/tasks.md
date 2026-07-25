@@ -183,13 +183,13 @@ proporcional al número de operaciones.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T053 [P] Property tests de invariantes económicos: la caja nunca es negativa, el drawdown máximo nunca es positivo, la suma de `net_pnl` reconstruye `net_result` (SC-007), en `tests/property/test_economic_invariants.py`
-- [ ] T054 [P] Test de rendimiento: backtest sobre ~100.000 periodos en menos de 60 s (SC-001) en `tests/perf/test_throughput.py`
-- [ ] T055 [P] Implementar la CLI de inspección (`python -m invest_ll.backtest`) en `src/invest_ll/cli.py`
-- [ ] T056 [P] Escribir `README.md` con el uso del motor y el aviso de que el win rate no es criterio de éxito
-- [ ] T057 Ejecutar las ocho validaciones de [quickstart.md](./quickstart.md) de principio a fin y dejar constancia del resultado
-- [ ] T058 Ejecutar la cadena completa de gates (`ruff` → `pyright` → `pytest`) sin regresión
-- [ ] T059 Crear el workflow de CI en `.github/workflows/ci.yml` que ejecuta las cuatro gates en cada push y PR
+- [X] T053 [P] Property tests de invariantes económicos: la caja nunca es negativa, el drawdown máximo nunca es positivo, la suma de `net_pnl` reconstruye `net_result` (SC-007), en `tests/property/test_economic_invariants.py`
+- [X] T054 [P] Test de rendimiento: backtest sobre ~100.000 periodos en menos de 60 s (SC-001) en `tests/perf/test_throughput.py`
+- [X] T055 [P] Implementar la CLI de inspección (`python -m invest_ll.backtest`) en `src/invest_ll/cli.py`
+- [X] T056 [P] Escribir `README.md` con el uso del motor y el aviso de que el win rate no es criterio de éxito
+- [X] T057 Ejecutar las ocho validaciones de [quickstart.md](./quickstart.md) de principio a fin y dejar constancia del resultado
+- [X] T058 Ejecutar la cadena completa de gates (`ruff` → `pyright` → `pytest`) sin regresión
+- [X] T059 Crear el workflow de CI en `.github/workflows/ci.yml` que ejecuta las cuatro gates en cada push y PR
 - [ ] T060 Activar la branch protection de `main` con el check de CI de T059 y revisión requerida ≥1 — **la ejecuta Marcos en su terminal**, cierra el `TODO(BRANCH_PROTECTION)` de la constitución
 
 ---

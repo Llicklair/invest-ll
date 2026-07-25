@@ -39,7 +39,25 @@ Recogidos en [la constitución del proyecto](.specify/memory/constitution.md):
 
 | Feature | Estado | Descripción |
 |---|---|---|
-| [001 · Motor de backtesting](specs/001-backtest-engine/) | En construcción | Mide una estrategia sobre el pasado y emite un veredicto honesto |
+| [001 · Motor de backtesting](specs/001-backtest-engine/) | Funcional | Mide una estrategia sobre el pasado y emite un veredicto honesto |
+
+Soporta cripto (mercado continuo) y bolsa (con horario de sesión y festivos) sobre el mismo
+motor, con cualquier granularidad de vela. Incluye dos estrategias de referencia: cruce de medias
+móviles y ruptura de máximos.
+
+## Uso
+
+```bash
+uv run invest-ll datos/btc.csv --symbol BTC --interval DAY_1 \
+    --strategy ma-cross --short 10 --long 30 \
+    --commission 0.001 --slippage 0.0005 --fraction 0.5
+```
+
+`--commission` y `--slippage` son **obligatorios**. No se puede lanzar un backtest sin declarar
+los costes: una simulación sin fricción da resultados que no existen.
+
+Códigos de salida: `0` resultado concluyente · `3` no concluyente (pocas operaciones) · `1` error
+de configuración · `2` fichero no encontrado.
 
 ---
 

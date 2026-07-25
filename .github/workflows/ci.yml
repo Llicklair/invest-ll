@@ -1,0 +1,46 @@
+name: CI
+
+# Las gates de la constitucion v1.0.0, ejecutadas FUERA del perimetro del agente.
+# Un hook local puede saltarselo un subagente; esto no.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Instalar dependencias
+        run: uv sync --frozen
+
+      - name: Verificar que las dependencias importan
+        # Instalado no significa funcional.
+        run: uv run python -c "import numpy, pandas, exchange_calendars; print('deps OK')"
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Formato
+        run: uv run ruff format --check .
+
+      - name: Tipos
+        run: uv run pyright
+
+      - name: Suite completa
+        # Incluye los property tests. Los de rendimiento se excluyen: miden la maquina, no el
+        # codigo, y un runner compartido daria falsos rojos.
+        run: uv run pytest -q -m "not perf"
+
+      - name: Rendimiento
+        # Informativo: no bloquea el merge, pero deja constancia si SC-001 se degrada.
+        continue-on-error: true
+        run: uv run pytest -q -m perf
