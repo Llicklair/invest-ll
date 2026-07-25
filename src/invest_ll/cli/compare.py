@@ -133,6 +133,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Carpeta de decisiones grabadas. Sin ella, el LLM no se puede evaluar sin red.",
     )
     parser.add_argument("--model", default="claude-opus-5")
+    parser.add_argument(
+        "--stop-loss",
+        type=D,
+        help=(
+            "Salir si la posicion cae esta fraccion desde la entrada (0.10 = 10%%). "
+            "Sin esto no hay ninguna salida por perdida: se aguanta hasta la siguiente decision."
+        ),
+    )
     add_json_flag(parser)
 
     args = parser.parse_args(argv)
@@ -147,7 +155,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return salida.error(str(error), SALIDA_ERROR)
 
     friccion = FrictionConfig(commission_rate=args.commission, slippage_rate=args.slippage)
-    riesgo = RiskConfig(position_fraction=D(1))
+    riesgo = RiskConfig(position_fraction=D(1), stop_loss_pct=args.stop_loss)
 
     informes: dict[str, BacktestReport] = {}
     llm_incluido = False

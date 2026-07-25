@@ -41,6 +41,23 @@ class _Posicion:
     quantity: Decimal
     entry_price: Decimal
     entry_order: object
+    stop: Decimal | None = None
+
+
+def _salta_el_stop(posicion: _Posicion, bajo: Decimal, apertura: Decimal) -> Decimal | None:
+    """El precio al que se sale, o `None` si el stop no se toca.
+
+    Dos reglas heredadas del motor de un activo, ambas pesimistas a propósito:
+
+    1. Se mira el **mínimo** de la vela: si el precio llegó a tocar el nivel, se ejecuta. No se
+       supone que el rebote llegó antes.
+    2. **Si la vela abre ya por debajo del nivel, se vende en la apertura, no en el nivel.** Un
+       stop no protege de un hueco: cuando el mercado abre un 20% más abajo, vendes ahí. Suponer
+       lo contrario haría que el stop pareciera una garantía, y no lo es.
+    """
+    if posicion.stop is None or bajo > posicion.stop:
+        return None
+    return min(posicion.stop, apertura)
 
 
 def run_rotation(
@@ -63,8 +80,46 @@ def run_rotation(
     marcas: list[datetime] = []
     ultimo = len(universe) - 1
 
+    # Activo del que acaba de saltar el stop. Sin esto, la estrategia sigue diciendo el mismo
+    # nombre en el periodo siguiente y se vuelve a entrar en lo que se acaba de cortar: el stop
+    # no protegeria de nada y ademas costaria dos comisiones. Se levanta el veto en cuanto la
+    # estrategia cambia de idea, no por tiempo — el criterio de salir es el mismo de volver.
+    vetado: str | None = None
+
     for i in range(len(universe)):
         momento = universe.timestamps[i]
+
+        # El stop se mira ANTES de valorar la cartera: si salta en esta vela, el patrimonio de
+        # este periodo es el de haber salido, no el del cierre que nunca llegamos a tener.
+        if posicion is not None:
+            vela = universe.bar(posicion.symbol, i)
+            corte = _salta_el_stop(posicion, Decimal(str(vela.low)), Decimal(str(vela.open)))
+            if corte is not None:
+                orden_stop = build_order(
+                    signal_timestamp=momento,
+                    execution_timestamp=momento,
+                    side=OrderSide.SELL,
+                    reference_price=corte,
+                    quantity=posicion.quantity,
+                    commission_rate=friction.commission_rate,
+                    slippage_rate=friction.slippage_rate,
+                )
+                cash += orden_stop.notional - orden_stop.commission
+                entrada = posicion.entry_order
+                trades.append(
+                    Trade(
+                        entry_order=entrada,  # type: ignore[arg-type]
+                        exit_order=orden_stop,
+                        exit_reason=ExitReason.STOP_LOSS,
+                        gross_pnl=MOTOR.multiply(
+                            corte - entrada.reference_price,  # type: ignore[attr-defined]
+                            posicion.quantity,
+                        ),
+                        costs=entrada.costs + orden_stop.costs,  # type: ignore[attr-defined]
+                    )
+                )
+                vetado = posicion.symbol
+                posicion = None
 
         valor = cash
         if posicion is not None:
@@ -75,6 +130,12 @@ def run_rotation(
         marcas.append(momento)
 
         elegido = strategy.choose(UniverseView(universe, cursor=i))
+
+        if elegido != vetado:
+            vetado = None
+        elif elegido is not None:
+            # Sigue apuntando a lo que acabamos de cortar: fuera hasta que cambie de idea.
+            continue
 
         actual = posicion.symbol if posicion is not None else None
         if elegido == actual or i == ultimo:
@@ -134,11 +195,18 @@ def run_rotation(
                 desembolso = orden.notional + orden.commission
                 if desembolso <= cash:
                     cash -= desembolso
+                    # El stop se fija sobre el precio REALMENTE pagado (con slippage), no sobre
+                    # el de referencia: es de donde se cuenta lo que puedes perder.
                     posicion = _Posicion(
                         symbol=elegido,
                         quantity=cantidad,
                         entry_price=orden.fill_price,
                         entry_order=orden,
+                        stop=(
+                            MOTOR.multiply(orden.fill_price, 1 - risk.stop_loss_pct)
+                            if risk.stop_loss_pct is not None
+                            else None
+                        ),
                     )
 
     # Liquidar lo que quede abierto al final, igual que en el motor de un activo.
