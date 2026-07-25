@@ -20,6 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.engine.benchmark import BuyAndHold
     from invest_ll.engine.config import FrictionConfig, RiskConfig
     from invest_ll.engine.execution import Trade
+    from invest_ll.report.consistency import Consistency
 
 # Por debajo de esta cifra, el resultado no distingue habilidad de suerte.
 DEFAULT_MIN_TRADES = 30
@@ -47,6 +48,7 @@ class BacktestReport:
     final_cash: Decimal = Decimal(0)
     rejected_orders: tuple[Order, ...] = ()
     buy_and_hold: BuyAndHold | None = None
+    consistency: Consistency | None = None
 
     @property
     def excess_return(self) -> Decimal:
@@ -127,6 +129,7 @@ class BacktestReport:
         ]
 
         lineas += self._render_benchmark()
+        lineas += self._render_consistency()
 
         desglose = self.exits_by_reason()
         if self.trade_count:
@@ -188,6 +191,35 @@ class BacktestReport:
 
         return lineas
 
+    def _render_consistency(self) -> list[str]:
+        """Como de regular fue el camino.
+
+        El porcentaje de meses en verde NUNCA aparece solo: va pegado al peor mes y a la
+        asimetria. Un 90% de meses positivos con un mes que se come veinte es el perfil de las
+        estrategias que arruinan a quien las usa, y leido a solas parece excelente.
+        """
+        c = self.consistency
+        if c is None or c.periods == 0:
+            return []
+
+        lineas = [
+            "",
+            "  Regularidad del camino",
+            f"    meses en verde    {c.positive_periods}/{c.periods}  ({c.positive_ratio:.0%})",
+            f"    mejor mes         {c.best_period:>12.2f}",
+            f"    peor mes          {c.worst_period:>12.2f}",
+            f"    racha en rojo     {c.longest_losing_streak} mes(es) seguidos",
+        ]
+
+        if c.positive_ratio >= 0.7 and c.asymmetry > 3:
+            lineas += [
+                f"    [!] {c.positive_ratio:.0%} de meses en verde, pero el peor mes se come",
+                f"        {c.asymmetry:.1f} meses buenos. Ese perfil aguanta anos y luego lo",
+                "        devuelve de golpe: mira la asimetria, no el porcentaje.",
+            ]
+
+        return lineas
+
     def __str__(self) -> str:
         return self.render()
 
@@ -204,6 +236,7 @@ def build_report(
     final_cash: Decimal = Decimal(0),
     rejected_orders: Sequence[Order] = (),
     benchmark: BuyAndHold | None = None,
+    consistency: Consistency | None = None,
 ) -> BacktestReport:
     """Ensambla el informe a partir del registro de operaciones."""
     from invest_ll.report.metrics import expectancy, max_drawdown, win_rate
@@ -226,4 +259,5 @@ def build_report(
         final_cash=final_cash,
         rejected_orders=tuple(rejected_orders),
         buy_and_hold=benchmark,
+        consistency=consistency,
     )

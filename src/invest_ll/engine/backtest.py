@@ -38,6 +38,7 @@ from invest_ll.engine.execution import (
 )
 from invest_ll.engine.portfolio import PortfolioState, Position
 from invest_ll.engine.view import MarketView
+from invest_ll.report.consistency import monthly_consistency
 from invest_ll.report.report import DEFAULT_MIN_TRADES, build_report
 from invest_ll.strategy.protocol import SignalKind
 
@@ -169,6 +170,7 @@ def run_backtest(
 
     return build_report(
         benchmark=buy_and_hold(series, capital=initial_capital, friction=friction),
+        consistency=monthly_consistency(portfolio.equity_curve, portfolio.equity_timestamps),
         trades=trades,
         equity_curve=portfolio.equity_curve,
         friction=friction,
