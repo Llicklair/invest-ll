@@ -42,6 +42,8 @@ from invest_ll.strategy.breakout import BreakoutHighs
 from invest_ll.strategy.moving_average import MovingAverageCrossover
 from invest_ll.strategy.price_vs_average import PriceVsAverage
 from invest_ll.strategy.rotation import RelativeMomentum
+from invest_ll.tracking.forecast import build_track_record, pending
+from invest_ll.tracking.store import ForecastStore
 
 D = Decimal
 
@@ -257,6 +259,55 @@ def pestana_cartera(activos: list[AvailableAsset], friction: FrictionConfig) -> 
             st.error(str(error))
             return
         mostrar_informe(informe)
+
+
+def pestana_seguimiento() -> None:
+    """Lo estimado frente a lo que paso.
+
+    Es la unica evidencia sobre el LLM que no esta contaminada: un backtest sobre el pasado no
+    vale porque el modelo sabe lo que ocurrio despues.
+    """
+    st.header("Lo estimado frente a lo que paso")
+    st.caption(
+        "Un backtest del LLM sobre el pasado no demuestra nada: el modelo fue entrenado con "
+        "datos posteriores al periodo simulado. Esto si."
+    )
+
+    almacen = ForecastStore()
+    historial = build_track_record(almacen)
+    sin_evaluar = pending(almacen)
+
+    if historial.count == 0 and not sin_evaluar:
+        st.info(
+            "Todavia no hay ninguna estimacion registrada. Es lo normal al principio: "
+            "hay que emitir una y esperar a que venza su horizonte."
+        )
+        return
+
+    cols = st.columns(3)
+    cols[0].metric("Evaluadas", historial.count)
+    cols[1].metric("Pendientes", len(sin_evaluar))
+    cols[2].metric("Sobreestimaciones", f"{historial.overestimates}/{historial.count}")
+
+    if historial.count:
+        st.warning(f"Veredicto: el sistema {historial.tendency}.")
+        st.dataframe(
+            [
+                {
+                    "emitida": e.forecast.issued_at.date(),
+                    "estimado": float(e.forecast.expected_value),
+                    "real": float(e.outcome.actual_value),
+                    "error": float(e.error),
+                }
+                for e in historial.evaluations
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption(
+            "Los fallos siguen en la tabla a proposito. Un historial que solo guarda los "
+            "aciertos no mide nada."
+        )
 
 
 def pestana_en_vivo(activos: list[AvailableAsset]) -> None:

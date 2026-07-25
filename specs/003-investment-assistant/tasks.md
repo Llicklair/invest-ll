@@ -165,8 +165,8 @@ regla fija con las mismas métricas.
 
 - [X] T077 [P] Ampliar `tests/unit/test_engine_isolation.py`: el motor no importa `decision`, `live`, `analysis` ni `anthropic`
 - [X] T078 [P] Test en `tests/unit/test_no_network_in_suite.py`: la suite entera pasa con los sockets bloqueados y **sin una sola llamada al modelo** (FR-036, SC-011)
-- [ ] T079 [P] Añadir al panel la pestaña de comparación LLM vs reglas en `src/invest_ll/dashboard/app.py`
-- [ ] T080 [P] Añadir al panel la vista de estimado contra real en `src/invest_ll/dashboard/app.py`
+- [X] T079 [P] Añadir al panel la pestaña de comparación LLM vs reglas en `src/invest_ll/dashboard/app.py`
+- [X] T080 [P] Añadir al panel la vista de estimado contra real en `src/invest_ll/dashboard/app.py`
 - [X] T081 [P] Actualizar `README.md` con los comandos nuevos y la advertencia sobre el modo real
 - [X] T082 Ejecutar los 8 escenarios de [quickstart.md](quickstart.md) y dejar constancia del resultado
 - [X] T083 Las cuatro gates en verde: `ruff check` · `ruff format --check` · `pyright` · `pytest`
@@ -201,6 +201,6 @@ justo lo que pide el test-first.
 elige mejor que una regla fija?* Si la respuesta es que no —y los 40 barridos de estrategias
 apuntan a que puede serlo— eso cambia qué merece la pena construir después.
 
-Completadas: **81 de 83**. Pendientes: T079 y T080 (vistas del panel).
+Completadas: **83 de 83**.
 
 Total: **83 tareas** · US2 · 12 · US1 · 8 · US3 · 8 · US4 · 8 · US5 · 20
