@@ -145,14 +145,14 @@ ambos informes son comparables campo a campo.
 
 ### Tests para US3 (escribir primero, deben fallar)
 
-- [ ] T042 [P] [US3] Test de intercambio: dos estrategias distintas producen informes de la misma estructura sin cambios en el motor (SC-005), en `tests/integration/test_strategy_swap.py`
-- [ ] T043 [P] [US3] Test multi-mercado: la misma estrategia, sin modificar, sobre serie cripto 24/7 y serie bursátil con sesión; ningún cierre legítimo se reporta como hueco y ninguna orden se ejecuta con el mercado cerrado (FR-022, SC-009, SC-010), en `tests/integration/test_calendars.py`
+- [X] T042 [P] [US3] Test de intercambio: dos estrategias distintas producen informes de la misma estructura sin cambios en el motor (SC-005), en `tests/integration/test_strategy_swap.py`
+- [X] T043 [P] [US3] Test multi-mercado: la misma estrategia, sin modificar, sobre serie cripto 24/7 y serie bursátil con sesión; ningún cierre legítimo se reporta como hueco y ninguna orden se ejecuta con el mercado cerrado (FR-022, SC-009, SC-010), en `tests/integration/test_calendars.py`
 
 ### Implementación para US3
 
-- [ ] T044 [P] [US3] Implementar una segunda estrategia de referencia con mecanismo distinto al cruce de medias en `src/invest_ll/strategy/`
-- [ ] T045 [US3] Implementar el diferimiento de señales emitidas con el mercado cerrado a la siguiente apertura (FR-022) en `src/invest_ll/engine/backtest.py`
-- [ ] T046 [US3] Implementar la aplicación del gap de apertura a las posiciones mantenidas durante el cierre (FR-023) en `src/invest_ll/engine/execution.py`
+- [X] T044 [P] [US3] Implementar una segunda estrategia de referencia con mecanismo distinto al cruce de medias en `src/invest_ll/strategy/`
+- [X] T045 [US3] Implementar el diferimiento de señales emitidas con el mercado cerrado a la siguiente apertura (FR-022) en `src/invest_ll/engine/backtest.py`
+- [X] T046 [US3] Implementar la aplicación del gap de apertura a las posiciones mantenidas durante el cierre (FR-023) en `src/invest_ll/engine/execution.py`
 
 **Checkpoint**: el motor es una herramienta de decisión, no solo de medición.
 
@@ -167,15 +167,15 @@ proporcional al número de operaciones.
 
 ### Tests para US4 (escribir primero, deben fallar)
 
-- [ ] T047 [P] [US4] Test de sensibilidad a la fricción: mayor comisión → peor resultado neto, proporcional al número de operaciones; los parámetros aplicados aparecen en el informe, en `tests/unit/test_friction_impact.py`
-- [ ] T048 [P] [US4] Test de stop/take: nivel tocado dentro del periodo se ejecuta; con stop y take ambos alcanzables en la misma vela se asume el **stop** (FR-029); apertura que atraviesa el stop ejecuta al precio de apertura real, no al nivel (FR-030), en `tests/unit/test_protective_exits.py`
-- [ ] T049 [P] [US4] Test de clasificación: el informe distingue cierres por señal, por stop-loss y por take-profit (FR-031), en `tests/unit/test_exit_reasons.py`
+- [X] T047 [P] [US4] Test de sensibilidad a la fricción: mayor comisión → peor resultado neto, proporcional al número de operaciones; los parámetros aplicados aparecen en el informe, en `tests/unit/test_friction_impact.py`
+- [X] T048 [P] [US4] Test de stop/take: nivel tocado dentro del periodo se ejecuta; con stop y take ambos alcanzables en la misma vela se asume el **stop** (FR-029); apertura que atraviesa el stop ejecuta al precio de apertura real, no al nivel (FR-030), en `tests/unit/test_protective_exits.py`
+- [X] T049 [P] [US4] Test de clasificación: el informe distingue cierres por señal, por stop-loss y por take-profit (FR-031), en `tests/unit/test_exit_reasons.py`
 
 ### Implementación para US4
 
-- [ ] T050 [US4] Implementar stop-loss y take-profit gestionados por el motor con convención pesimista y gap real (FR-028..FR-030) en `src/invest_ll/engine/execution.py`
-- [ ] T051 [US4] Añadir `exit_reason` a `Trade` y su desglose al informe (FR-031) en `src/invest_ll/report/report.py`
-- [ ] T052 [US4] Implementar órdenes rechazadas y ejecuciones parciales como estados de primera clase (FR-009) en `src/invest_ll/engine/execution.py`
+- [X] T050 [US4] Implementar stop-loss y take-profit gestionados por el motor con convención pesimista y gap real (FR-028..FR-030) en `src/invest_ll/engine/execution.py`
+- [X] T051 [US4] Añadir `exit_reason` a `Trade` y su desglose al informe (FR-031) en `src/invest_ll/report/report.py`
+- [X] T052 [US4] Implementar órdenes rechazadas y ejecuciones parciales como estados de primera clase (FR-009) en `src/invest_ll/engine/execution.py`
 
 **Checkpoint**: las cuatro historias funcionan de forma independiente.
 

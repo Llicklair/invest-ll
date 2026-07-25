@@ -43,6 +43,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
     from datetime import datetime
 
+    from invest_ll.data.bar import Bar
     from invest_ll.data.loader import DataWarning
     from invest_ll.data.series import PriceSeries
     from invest_ll.engine.config import FrictionConfig, RiskConfig
@@ -80,6 +81,26 @@ def run_backtest(
 
     for i in range(len(series)):
         bar = series.bars[i]
+
+        # Las salidas de protección se comprueban ANTES de pedir decisión a la estrategia: un
+        # stop es una orden que ya está puesta en el mercado y salta sola cuando el precio la
+        # toca, sin que nadie tenga que decidir nada. No es look-ahead: se resuelve dentro del
+        # rango de la propia vela, no con datos posteriores.
+        if portfolio.is_open:
+            proteccion = _check_protective_exit(portfolio, bar)
+            if proteccion is not None:
+                reason, precio = proteccion
+                trades.append(
+                    _close_position(
+                        portfolio,
+                        signal_timestamp=bar.timestamp,
+                        execution_timestamp=bar.timestamp,
+                        reference=precio,
+                        friction=friction,
+                        reason=reason,
+                    )
+                )
+
         portfolio.record_equity(bar.timestamp, Decimal(str(bar.close)))
 
         signal = strategy.decide(MarketView(series, cursor=i))
@@ -91,11 +112,14 @@ def run_backtest(
         if i == last_index:
             continue
 
-        next_bar = series.bars[i + 1]
-        if not series.calendar.is_open(next_bar.timestamp):
-            # FR-022: el mercado está cerrado; en v1 la señal simplemente no se ejecuta.
+        # FR-022: la orden va al siguiente periodo con el mercado abierto. Descartar la señal
+        # sin más borraría operaciones que en la realidad sí habrían ocurrido a la apertura
+        # siguiente; ejecutarla con el mercado cerrado sería inventarlas.
+        next_index = _next_open_index(series, i + 1)
+        if next_index is None:
             continue
 
+        next_bar = series.bars[next_index]
         reference = Decimal(str(next_bar.open))
 
         if signal.kind is SignalKind.ENTER_LONG and not portfolio.is_open:
@@ -149,6 +173,55 @@ def run_backtest(
         final_cash=portfolio.cash,
         rejected_orders=rejected,
     )
+
+
+def _check_protective_exit(
+    portfolio: PortfolioState, bar: Bar
+) -> tuple[ExitReason, Decimal] | None:
+    """¿Salta el stop o el take dentro de esta vela? (FR-029, FR-030).
+
+    Dos reglas, ambas deliberadamente conservadoras:
+
+    1. **Si el stop y el take caben los dos en la misma vela, gana el stop.** No sabemos en qué
+       orden se movió el precio dentro del periodo; quedarnos con la versión buena de una
+       historia que desconocemos es justo la clase de optimismo que arruina un backtest.
+    2. **Si la vela abre ya atravesando el nivel, se ejecuta a la apertura, no al nivel.** Un
+       stop no protege de un hueco: cuando el mercado abre 20 puntos por debajo, vendes ahí, no
+       donde te habría gustado.
+    """
+    position = portfolio.position
+    if position is None:  # pragma: no cover - el llamante ya lo comprueba
+        return None
+
+    apertura = Decimal(str(bar.open))
+    minimo = Decimal(str(bar.low))
+    maximo = Decimal(str(bar.high))
+
+    stop = position.stop_loss
+    take = position.take_profit
+
+    if stop is not None and minimo <= stop:
+        # Si abrió por debajo del stop, el hueco ya se comió la protección.
+        return ExitReason.STOP_LOSS, min(stop, apertura)
+
+    if take is not None and maximo >= take:
+        # Simétrico: si abrió por encima del objetivo, el precio real fue mejor.
+        return ExitReason.TAKE_PROFIT, max(take, apertura)
+
+    return None
+
+
+def _next_open_index(series: PriceSeries, start: int) -> int | None:
+    """Primer periodo desde `start` con el mercado abierto, o `None` si no queda ninguno.
+
+    En un mercado continuo devuelve `start` siempre. En bolsa salta la noche y los festivos: una
+    señal emitida al cierre de la sesión se ejecuta a la apertura de la siguiente, que es lo que
+    ocurriría de verdad.
+    """
+    for index in range(start, len(series)):
+        if series.calendar.is_open(series.bars[index].timestamp):
+            return index
+    return None
 
 
 def _open_position(

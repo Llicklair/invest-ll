@@ -109,7 +109,18 @@ class BacktestReport:
             f"  Riesgo aplicado     {self.risk.describe()}",
         ]
 
-        liquidadas = self.exits_by_reason()[ExitReason.END_OF_SERIES]
+        desglose = self.exits_by_reason()
+        if self.trade_count:
+            lineas += [
+                "",
+                "  Cierres por motivo",
+                f"    senal          {desglose[ExitReason.SIGNAL]:>6}",
+                f"    stop-loss      {desglose[ExitReason.STOP_LOSS]:>6}",
+                f"    take-profit    {desglose[ExitReason.TAKE_PROFIT]:>6}",
+                f"    fin de serie   {desglose[ExitReason.END_OF_SERIES]:>6}",
+            ]
+
+        liquidadas = desglose[ExitReason.END_OF_SERIES]
         if liquidadas:
             lineas += [
                 "",
