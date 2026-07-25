@@ -21,6 +21,7 @@ from __future__ import annotations
 import subprocess
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -29,6 +30,7 @@ from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
 from invest_ll.alerts.models import Nivel, Umbrales
 from invest_ll.chat.context import build_context
 from invest_ll.chat.session import ChatSession, ChatUnavailableError
+from invest_ll.cli.compare import ADVERTENCIA_CONTAMINACION
 from invest_ll.dashboard.data import (
     VENTANAS,
     AvailableAsset,
@@ -42,6 +44,8 @@ from invest_ll.dashboard.data import (
     trades_table,
 )
 from invest_ll.data.universe import build_universe
+from invest_ll.decision.cache import DecisionStore
+from invest_ll.decision.provider import RecordedProvider
 from invest_ll.engine.backtest import run_backtest
 from invest_ll.engine.config import FrictionConfig, RiskConfig
 from invest_ll.engine.dca import run_dca
@@ -56,6 +60,7 @@ from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
 from invest_ll.strategy.breakout import BreakoutHighs
+from invest_ll.strategy.llm import LLMStrategy
 from invest_ll.strategy.moving_average import MovingAverageCrossover
 from invest_ll.strategy.price_vs_average import PriceVsAverage
 from invest_ll.strategy.rotation import RelativeMomentum
@@ -134,28 +139,8 @@ def mostrar_informe(report: BacktestReport) -> None:
         st.dataframe(trades_table(report), use_container_width=True, hide_index=True)
 
 
-def seccion_panorama(activos: list[AvailableAsset]) -> None:
-    """Como va cada cosa. Sin recomendar nada.
-
-    Es deliberadamente aburrida comparada con un panel de mercado al uso: no hay indicadores de
-    "miedo y codicia" ni "temporada de altcoins". Esos indicadores existen para que operes mas, y
-    todo lo medido en este proyecto dice que operar mas pierde dinero.
-    """
-    st.caption(
-        "Como ha ido cada activo. Son datos historicos hasta la ultima descarga, "
-        "no precios en vivo."
-    )
-
-    filas = market_overview(activos)
-    if not filas:
-        st.info("No hay historicos que mostrar.")
-        return
-
-    st.subheader("Rendimiento por periodo")
-
-    # La forma de CoinMarketCap sin sus anzuelos: color SOLO en las variaciones (la tinta
-    # codifica una unica cosa: direccion), una sparkline por fila como unica imagen, y
-    # ordenacion pinchando la cabecera. Ni 1h%, ni tendencias, ni ganadores del dia.
+def _tabla_mercado(filas: list[dict[str, object]], clave: str) -> str | None:
+    """Una mesa densa con seleccion de fila: devuelve el activo pinchado, o `None`."""
     df = pd.DataFrame(filas)
     variaciones = [
         c for c in ("1 dia", "1 semana", "1 mes", "3 meses", "YTD", "1 año", "5 años") if c in df
@@ -174,10 +159,13 @@ def seccion_panorama(activos: list[AvailableAsset]) -> None:
         .format("{:+.1f}%", subset=[*variaciones, "desde maximo"], na_rep="—")
         .format("{:,.2f}", subset=["ultimo"])
     )
-    st.dataframe(
+    evento = st.dataframe(
         estilo,
         use_container_width=True,
         hide_index=True,
+        key=clave,
+        on_select="rerun",
+        selection_mode="single-row",
         column_order=[
             "activo",
             "que es",
@@ -199,12 +187,89 @@ def seccion_panorama(activos: list[AvailableAsset]) -> None:
             "datos hasta": st.column_config.DateColumn("datos hasta"),
         },
     )
+    seleccionadas = evento.get("selection", {}).get("rows", [])
+    if seleccionadas:
+        return str(df.iloc[seleccionadas[0]]["activo"])
+    return None
+
+
+def _grafica_activo(simbolo: str, activos: list[AvailableAsset]) -> None:
+    """La grafica del activo pinchado, con su tramo y la fecha de los datos a la vista."""
+    activo = next((a for a in activos if a.symbol == simbolo), None)
+    if activo is None:
+        return
+    try:
+        serie = activo.load()
+    except (InvestLLError, ValueError) as error:
+        st.error(f"No se pudo cargar {simbolo}: {error}")
+        return
+
+    st.subheader(f"Grafica: {simbolo}")
+    tramo = st.radio(
+        "Tramo",
+        ["3 meses", "1 año", "5 años", "Todo"],
+        horizontal=True,
+        key=f"tramo_{simbolo}",
+    )
+    sesiones = {"3 meses": 63, "1 año": 252, "5 años": 1260}.get(str(tramo))
+    barras = serie.bars[-sesiones:] if sesiones else serie.bars
+    st.line_chart(
+        [{"fecha": b.timestamp, "precio": b.close} for b in barras],
+        x="fecha",
+        y="precio",
+        height=340,
+    )
+    st.caption(
+        f"{len(barras)} sesiones, hasta el {serie.bars[-1].timestamp.date()}. "
+        "Datos historicos descargados, no precios en vivo."
+    )
+
+
+def seccion_panorama(activos: list[AvailableAsset]) -> None:
+    """Como va cada cosa. Sin recomendar nada.
+
+    Es deliberadamente aburrida comparada con un panel de mercado al uso: no hay indicadores de
+    "miedo y codicia" ni "temporada de altcoins". Esos indicadores existen para que operes mas, y
+    todo lo medido en este proyecto dice que operar mas pierde dinero.
+    """
+    st.caption(
+        "Como ha ido cada activo. Son datos historicos hasta la ultima descarga, "
+        "no precios en vivo."
+    )
+
+    filas = market_overview(activos)
+    if not filas:
+        st.info("No hay historicos que mostrar.")
+        return
+
+    st.subheader("Rendimiento por periodo")
+
+    # La forma de CoinMarketCap sin sus anzuelos, en dos mesas: bolsa y cripto. Color solo en
+    # las variaciones, una sparkline por fila, ordenacion pinchando la cabecera -- y al pinchar
+    # una FILA, la grafica del activo. Ni 1h%, ni tendencias, ni ganadores del dia.
+    es_cripto = {a.symbol: a.is_crypto for a in activos}
+    bolsa = [f for f in filas if not es_cripto.get(str(f["activo"]), False)]
+    cripto = [f for f in filas if es_cripto.get(str(f["activo"]), False)]
+
+    elegido: str | None = None
+    if bolsa:
+        st.markdown(f"**Bolsa** — {len(bolsa)} activo(s)")
+        elegido = _tabla_mercado(bolsa, "tabla_bolsa") or elegido
+    if cripto:
+        st.markdown(f"**Cripto** — {len(cripto)} activo(s)")
+        elegido = _tabla_mercado(cripto, "tabla_cripto") or elegido
+
     st.caption(
         "**La columna que mas importa es 'desde maximo'**: un activo que subio un 40% este anho "
         "pero sigue un 30% por debajo de su pico no esta yendo bien, se esta recuperando de una "
         "caida que alguien sufrio. Un hueco significa que no hay historico suficiente para esa "
-        "ventana, no que rindiera un 0%. Pincha una cabecera para ordenar por esa columna."
+        "ventana, no que rindiera un 0%. Pincha una cabecera para ordenar, y una fila para ver "
+        "su grafica."
     )
+
+    if elegido is not None:
+        st.divider()
+        _grafica_activo(elegido, activos)
 
     st.divider()
     st.subheader("Comparacion en base 100")
@@ -427,10 +492,11 @@ def pestana_seguimiento() -> None:
 
 
 def seccion_propuesta(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
-    """El botón NO ejecuta nada: produce una propuesta simulada y el comando exacto.
+    """Simula y, si quieres, REGISTRA la decision en tu ledger con un boton.
 
-    Freqtrade u OctoBot, una vez armados, operan solos; aquí la confirmación humana por orden es
-    el Principio I y el panel es de solo lectura respecto al dinero.
+    Registrar es contabilidad: anota las compras en Mi cartera al ultimo cierre descargado. No
+    compra nada en ningun mercado — la unica puerta al dinero real sigue siendo
+    `invest-ll-execute`, con su confirmacion escribiendo la cantidad.
     """
     pausa = TriggerStore().halted()
     if pausa:
@@ -465,30 +531,181 @@ def seccion_propuesta(activos: list[AvailableAsset], friction: FrictionConfig) -
             st.error(f"No se pudo proponer: {error}")
             return
 
-        st.text(propuesta.render())
-        st.caption("Esto es una simulacion sobre el pasado, no una recomendacion ni una prevision.")
-
-        st.subheader("Para ejecutarla de verdad")
-        lineas: list[str] = []
+        compras: list[dict[str, object]] = []
         for h in propuesta.holdings:
             cierre = ultimo_cierre(h.symbol)
-            if cierre is None:
-                lineas.append(f"# {h.symbol}: sin precio descargado, calcula la cantidad a mano")
-                continue
-            precio, fecha = cierre
-            cantidad = (h.amount_per_contribution / precio).quantize(D("0.0001"))
-            lineas.append(
-                f"# {h.symbol}: {h.amount_per_contribution:,.0f} a ~{precio:,.2f} "
-                f"(cierre del {fecha.date()})"
+            precio, fecha = cierre if cierre is not None else (None, None)
+            compras.append(
+                {
+                    "symbol": h.symbol,
+                    "importe": str(h.amount_per_contribution),
+                    "precio": str(precio) if precio is not None else None,
+                    "fecha": fecha.date().isoformat() if fecha is not None else None,
+                    "cantidad": (
+                        str((h.amount_per_contribution / precio).quantize(D("0.0001")))
+                        if precio
+                        else None
+                    ),
+                }
             )
+        st.session_state["propuesta_actual"] = {"texto": propuesta.render(), "compras": compras}
+
+    guardada = st.session_state.get("propuesta_actual")
+    if not guardada:
+        return
+
+    st.text(guardada["texto"])
+    st.caption("Esto es una simulacion sobre el pasado, no una recomendacion ni una prevision.")
+
+    st.subheader("Llevarla a tu cartera")
+    st.dataframe(
+        [
+            {
+                "activo": c["symbol"],
+                "importe": c["importe"],
+                "cantidad": c["cantidad"] or "sin precio",
+                "precio de referencia": c["precio"] or "—",
+                "cierre del": c["fecha"] or "—",
+            }
+            for c in guardada["compras"]
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    if st.button("Registrar estas compras en Mi cartera"):
+        registradas = 0
+        problemas: list[str] = []
+        for c in guardada["compras"]:
+            if not c["cantidad"]:
+                problemas.append(f"{c['symbol']}: sin precio descargado, registralo a mano")
+                continue
+            try:
+                ActivityStore().append(
+                    Activity(
+                        timestamp=datetime.now(UTC),
+                        type=ActivityType.BUY,
+                        symbol=str(c["symbol"]),
+                        quantity=D(str(c["cantidad"])),
+                        unit_price=D(str(c["precio"])),
+                        source="propuesta",
+                    )
+                )
+                registradas += 1
+            except (InvestLLError, ValueError) as error:
+                problemas.append(f"{c['symbol']}: {error}")
+        for problema in problemas:
+            st.error(problema)
+        if registradas:
+            del st.session_state["propuesta_actual"]
+            st.success(
+                f"Registradas {registradas} compra(s) en el ledger: ya estan en Mi cartera. "
+                "Es contabilidad tuya, al ultimo cierre descargado — NO se ha comprado nada en "
+                "ningun mercado. Para dinero real: invest-ll-execute."
+            )
+
+    st.caption(
+        "Registrar anota la decision en tu ledger; no envia ninguna orden. La unica puerta al "
+        "dinero real es invest-ll-execute, con su confirmacion."
+    )
+    with st.expander("Los comandos equivalentes (para ejecutar de verdad, fuera del panel)"):
+        lineas: list[str] = []
+        for c in guardada["compras"]:
+            if not c["cantidad"]:
+                lineas.append(f"# {c['symbol']}: sin precio descargado, calcula la cantidad a mano")
+                continue
             lineas.append(
-                f"uv run invest-ll-execute --symbol {h.symbol} --side buy --quantity {cantidad}"
+                f"uv run invest-ll-execute --symbol {c['symbol']} --side buy "
+                f"--quantity {c['cantidad']}"
             )
         st.code("\n".join(lineas), language="bash")
-        st.caption(
-            "Cada comando pide confirmar escribiendo la cantidad exacta. Sin las variables de "
-            "entorno del modo real, no sale nada: lo dice el propio comando."
+
+
+def seccion_llm(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
+    """Reproduce el experimento real del LLM sin gastar cuota: decisiones grabadas.
+
+    Generar decisiones NUEVAS gasta cuota y sigue en `invest-ll-generate`; repetir el
+    experimento con lo grabado es gratis, que es justo lo que lo hace repetible.
+    """
+    st.subheader("El LLM decide (decisiones grabadas)")
+    st.caption(
+        "84 decisiones reales de claude-opus-4-6 sobre 21 anhos (GLD/TLT/XLE/XLF), grabadas en "
+        "decisions/llm-trimestral. Compararlas no consulta a nadie ni gasta nada."
+    )
+
+    almacen_dir = Path("decisions/llm-trimestral")
+    if not almacen_dir.exists():
+        st.info(
+            "No hay decisiones grabadas en decisions/llm-trimestral. "
+            "Generalas con invest-ll-generate (gasta cuota; se hace una sola vez)."
         )
+        return
+
+    simbolos_exp = ("GLD", "TLT", "XLE", "XLF")
+    unicos = {a.symbol: a for a in activos if a.symbol in simbolos_exp and not a.is_crypto}
+    if len(unicos) < len(simbolos_exp):
+        st.info("Faltan historicos de GLD/TLT/XLE/XLF para reproducir el experimento.")
+        return
+
+    if st.button("Comparar LLM vs momentum vs no hacer nada"):
+        with st.spinner("Reproduciendo 21 anhos de decisiones..."):
+            try:
+                universo = build_universe([unicos[s].load() for s in simbolos_exp])
+                riesgo = RiskConfig(position_fraction=D(1))
+                proveedor = RecordedProvider(DecisionStore(almacen_dir), model="claude-opus-4-6")
+                informe_llm = run_rotation(
+                    universo,
+                    LLMStrategy(proveedor, every_periods=63),
+                    initial_capital=D(10000),
+                    friction=friction,
+                    risk=riesgo,
+                )
+                informe_mom = run_rotation(
+                    universo,
+                    RelativeMomentum(lookback=60),
+                    initial_capital=D(10000),
+                    friction=friction,
+                    risk=riesgo,
+                )
+            except InvestLLError as error:
+                st.error(f"No se pudo reproducir: {error}")
+                return
+
+        filas = [
+            {
+                "estrategia": "LLM (grabado)",
+                "resultado": float(informe_llm.net_result),
+                "drawdown": float(informe_llm.max_drawdown),
+                "operaciones": informe_llm.trade_count,
+                "costes": float(informe_llm.total_costs),
+            },
+            {
+                "estrategia": "momentum",
+                "resultado": float(informe_mom.net_result),
+                "drawdown": float(informe_mom.max_drawdown),
+                "operaciones": informe_mom.trade_count,
+                "costes": float(informe_mom.total_costs),
+            },
+        ]
+        bh = informe_llm.buy_and_hold
+        if bh is not None:
+            filas.append(
+                {
+                    "estrategia": "comprar y mantener",
+                    "resultado": float(bh.net_result),
+                    "drawdown": float(bh.max_drawdown),
+                    "operaciones": 1,
+                    "costes": float(bh.costs),
+                }
+            )
+        st.dataframe(filas, use_container_width=True, hide_index=True)
+
+        if not (informe_llm.beats_market or informe_mom.beats_market):
+            st.error(
+                "Ninguna bate a comprar y mantener. Todo el riesgo asumido y las comisiones "
+                "pagadas quedaron por debajo de no hacer nada."
+            )
+        st.warning(ADVERTENCIA_CONTAMINACION)
 
 
 def pestana_mercado(activos: list[AvailableAsset]) -> None:
@@ -517,6 +734,7 @@ def pestana_simular(activos: list[AvailableAsset], friction: FrictionConfig) -> 
             "Propuesta simple",
             "Aportaciones periodicas a una cartera",
             "Una estrategia sobre un activo",
+            "El LLM decide (grabado)",
         ],
         horizontal=True,
     )
@@ -525,25 +743,29 @@ def pestana_simular(activos: list[AvailableAsset], friction: FrictionConfig) -> 
         seccion_propuesta(activos, friction)
     elif modo == "Aportaciones periodicas a una cartera":
         seccion_una_cartera(activos, friction)
-    else:
+    elif modo == "Una estrategia sobre un activo":
         seccion_un_activo(activos, friction)
+    else:
+        seccion_llm(activos, friction)
 
     st.divider()
     st.subheader("Las cuatro vias de invertir")
     st.markdown(
-        "| Via | Como |\n"
+        "| Via | Donde, en esta pagina |\n"
         "|---|---|\n"
-        "| **Boton simple** | Propuesta simple, aqui arriba: simulacion + comandos listos |\n"
-        "| **Bot determinista** | Rotacion momentum (Aportaciones / Un activo); "
-        "se evalua con las mismas metricas |\n"
-        "| **LLM dentro (CLI)** | `invest-ll-generate` decide, `invest-ll-compare` lo mide "
-        "contra momentum y contra no hacer nada |\n"
-        "| **LLM desde fuera** | Cualquier agente puede leer los nueve comandos con `--json`; "
-        "las advertencias viajan en el JSON |\n"
+        "| **Boton simple** | Propuesta simple: simula y **registra en Mi cartera con un "
+        "boton** |\n"
+        "| **Bot determinista** | Rotacion momentum: Aportaciones / Un activo, aqui arriba |\n"
+        "| **LLM** | 'El LLM decide (grabado)': reproduce el experimento real sin gastar "
+        "cuota, y la pestana Chat para preguntarle |\n"
+        "| **LLM desde fuera** | Un agente externo maneja los diez comandos con `--json`; "
+        "las advertencias viajan dentro del JSON |\n"
     )
     st.caption(
-        "Lo medido hasta hoy (21 anhos, 4 activos): cuanto menos se opera, mejor -- 423 "
-        "operaciones dieron 2.890; una sola dio 37.773. Ver docs/experimento-llm-2026-07.md."
+        "Lo unico que no vive en el panel es el dinero real: eso es invest-ll-execute, con su "
+        "confirmacion. Lo medido hasta hoy (21 anhos, 4 activos): cuanto menos se opera, mejor "
+        "-- 423 operaciones dieron 2.890; una sola dio 37.773. Ver "
+        "docs/experimento-llm-2026-07.md."
     )
 
 
