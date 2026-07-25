@@ -68,10 +68,10 @@ regla fija con las mismas métricas.
 - [X] T026 [P] [US2] Test en `tests/unit/test_llm_lookahead.py`: `LLMStrategy` no puede acceder a datos futuros — el mismo test que ya protege a las reglas fijas, aplicado al LLM (FR-009, Principio II)
 - [X] T027 [P] [US2] Test en `tests/unit/test_llm_reasoning.py`: el razonamiento de cada decisión queda registrado y es recuperable (FR-012)
 - [X] T028 [US2] Implementar el registro del razonamiento junto a la decisión en `src/invest_ll/decision/cache.py`
-- [ ] T029 [P] [US2] Test en `tests/unit/test_llm_no_prediction_claims.py`: ningún texto generado afirma capacidad de predicción; se comprueba contra una lista de expresiones prohibidas (FR-013)
-- [ ] T030 [US2] Añadir la advertencia de contaminación de conocimiento al informe del LLM en `src/invest_ll/report/report.py` (FR-010) — el modelo sabe qué pasó después del periodo simulado y eso no tiene arreglo
-- [ ] T031 [US2] Comando `invest-ll-compare` en `src/invest_ll/cli/compare.py`: varias estrategias, mismo universo, mismo split, tabla comparativa
-- [ ] T032 [P] [US2] Test del comando en `tests/integration/test_compare_cli.py` con proveedor grabado, sin red
+- [X] T029 [P] [US2] Test en `tests/unit/test_llm_no_prediction_claims.py`: ningún texto generado afirma capacidad de predicción; se comprueba contra una lista de expresiones prohibidas (FR-013)
+- [X] T030 [US2] Añadir la advertencia de contaminación de conocimiento al informe del LLM en `src/invest_ll/report/report.py` (FR-010) — el modelo sabe qué pasó después del periodo simulado y eso no tiene arreglo
+- [X] T031 [US2] Comando `invest-ll-compare` en `src/invest_ll/cli/compare.py`: varias estrategias, mismo universo, mismo split, tabla comparativa
+- [X] T032 [P] [US2] Test del comando en `tests/integration/test_compare_cli.py` con proveedor grabado, sin red
 
 **Punto de control** (escenarios E1 y E2 del quickstart): se puede ejecutar la comparación y repetirla obteniendo lo mismo sin gastar una llamada.
 
