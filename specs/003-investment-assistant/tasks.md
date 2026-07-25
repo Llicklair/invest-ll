@@ -79,14 +79,14 @@ regla fija con las mismas métricas.
 
 ## Fase 4 · US1 · Pedir una propuesta y ver qué habría pasado (P1)
 
-- [ ] T033 [P] [US1] Test en `tests/unit/test_proposal.py`: con importe y periodicidad devuelve una cartera concreta con cantidades (FR-001)
-- [ ] T034 [US1] Implementar `propose_portfolio()` en `src/invest_ll/proposal/builder.py`
-- [ ] T035 [P] [US1] Test en `tests/unit/test_proposal.py`: toda propuesta trae su simulación con las seis métricas y la comparación contra no hacer nada (FR-002, FR-003)
-- [ ] T036 [US1] Conectar la propuesta con `run_dca()` y `analyze_portfolio()` — reutiliza lo que ya existe
-- [ ] T037 [P] [US1] Test en `tests/unit/test_proposal_explanations.py`: cada activo trae su explicación en lenguaje llano (FR-004)
-- [ ] T038 [P] [US1] Test en `tests/unit/test_proposal.py`: no se exige elegir estrategia ni parámetros (FR-005) — la firma solo pide importe y periodicidad
-- [ ] T039 [US1] Comando `invest-ll-propose` en `src/invest_ll/cli/propose.py`
-- [ ] T040 [P] [US1] Test del comando en `tests/integration/test_propose_cli.py`
+- [X] T033 [P] [US1] Test en `tests/unit/test_proposal.py`: con importe y periodicidad devuelve una cartera concreta con cantidades (FR-001)
+- [X] T034 [US1] Implementar `propose_portfolio()` en `src/invest_ll/proposal/builder.py`
+- [X] T035 [P] [US1] Test en `tests/unit/test_proposal.py`: toda propuesta trae su simulación con las seis métricas y la comparación contra no hacer nada (FR-002, FR-003)
+- [X] T036 [US1] Conectar la propuesta con `run_dca()` y `analyze_portfolio()` — reutiliza lo que ya existe
+- [X] T037 [P] [US1] Test en `tests/unit/test_proposal_explanations.py`: cada activo trae su explicación en lenguaje llano (FR-004)
+- [X] T038 [P] [US1] Test en `tests/unit/test_proposal.py`: no se exige elegir estrategia ni parámetros (FR-005) — la firma solo pide importe y periodicidad
+- [X] T039 [US1] Comando `invest-ll-propose` en `src/invest_ll/cli/propose.py`
+- [X] T040 [P] [US1] Test del comando en `tests/integration/test_propose_cli.py`
 
 **Punto de control** (E4): `invest-ll-propose --amount 500 --frequency monthly` da una cartera con su simulación.
 
