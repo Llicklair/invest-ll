@@ -13,6 +13,8 @@ dependencies = [
     "ccxt>=4.4",
     "yfinance>=0.2.50",
     # Panel interactivo. Solo lo usa src/invest_ll/dashboard/; el motor no lo conoce.
+    # LLM como estrategia. Solo lo usa src/invest_ll/decision/; el motor no lo conoce.
+    "anthropic>=0.60",
     "streamlit>=1.40",
     "altair>=5.4",
 ]

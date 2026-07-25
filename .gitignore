@@ -36,3 +36,8 @@ backtests/results/
 Thumbs.db
 .idea/
 .vscode/
+
+# Decisiones cacheadas del LLM y registro de ordenes: datos locales, no codigo.
+decisions/
+ledger/
+forecasts/

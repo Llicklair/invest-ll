@@ -141,3 +141,31 @@ def test_un_backtest_completo_funciona_con_la_red_cortada() -> None:
 
     assert report.trade_count >= 0
     assert report.render()
+
+
+def test_el_motor_no_conoce_la_capa_de_decision() -> None:
+    """El LLM es un consumidor del motor, no una parte suya.
+
+    Si engine/ importara decision/, el motor pasaria a depender de la red por transitividad y la
+    garantia que protege al backtester desde la feature 001 se caeria en silencio.
+    """
+    import ast
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[2] / "src" / "invest_ll"
+    prohibidos = ("invest_ll.decision", "invest_ll.live", "invest_ll.analysis", "anthropic")
+
+    for fichero in (raiz / "engine").rglob("*.py"):
+        arbol = ast.parse(fichero.read_text(encoding="utf-8"), filename=str(fichero))
+        for nodo in ast.walk(arbol):
+            nombres: list[str] = []
+            if isinstance(nodo, ast.Import):
+                nombres = [a.name for a in nodo.names]
+            elif isinstance(nodo, ast.ImportFrom) and nodo.module:
+                nombres = [nodo.module]
+            for nombre in nombres:
+                for prohibido in prohibidos:
+                    assert not nombre.startswith(prohibido), (
+                        f"{fichero.name} importa {nombre}: el motor no puede conocer "
+                        "la capa que sale a la red"
+                    )
