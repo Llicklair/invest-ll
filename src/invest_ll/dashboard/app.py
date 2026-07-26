@@ -43,6 +43,7 @@ from invest_ll.dashboard.data import (
     suggest_compatible,
     trades_table,
 )
+from invest_ll.dashboard.ordenes import enviar_orden, motivo_para_no_enviar
 from invest_ll.data.universe import build_universe
 from invest_ll.decision.cache import DecisionStore
 from invest_ll.decision.provider import RecordedProvider
@@ -53,6 +54,10 @@ from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
 from invest_ll.fetch.catalog import EQUITY_CATALOG
 from invest_ll.fetch.live import LiveDataError, crypto_tickers, equity_quotes
+from invest_ll.live.broker import OrderStatus, Side
+from invest_ll.live.factory import construir_broker
+from invest_ll.live.ledger import ExecutionLedger
+from invest_ll.live.mode import Real, resolve_mode
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.models import Activity, ActivityType
 from invest_ll.portfolio.quotes import ultimo_cierre
@@ -737,8 +742,8 @@ def seccion_propuesta(activos: list[AvailableAsset], friction: FrictionConfig) -
             )
 
     st.caption(
-        "Registrar anota la decision en tu ledger; no envia ninguna orden. La unica puerta al "
-        "dinero real es invest-ll-execute, con su confirmacion."
+        "Registrar anota la decision en tu ledger; no envia ninguna orden. Enviar de verdad exige "
+        "confirmar cada orden por separado, aqui o en invest-ll-execute."
     )
     with st.expander("Los comandos equivalentes (para ejecutar de verdad, fuera del panel)"):
         lineas: list[str] = []
@@ -751,6 +756,95 @@ def seccion_propuesta(activos: list[AvailableAsset], friction: FrictionConfig) -
                 f"--quantity {c['cantidad']}"
             )
         st.code("\n".join(lineas), language="bash")
+
+    seccion_enviar_orden(
+        [c["symbol"] for c in guardada["compras"] if c["cantidad"]], clave="propuesta"
+    )
+
+
+def seccion_enviar_orden(sugeridos: list[str] | None = None, *, clave: str = "propuesta") -> None:
+    """Enviar UNA orden desde el panel, con la misma confirmacion que el terminal.
+
+    El boton no envia por si solo: se habilita al escribir la cantidad exacta, igual que
+    `invest-ll-execute` pide teclearla. Un clic distraido no mueve dinero.
+
+    La decision de si se puede enviar vive en `dashboard/ordenes.py`, comprobada por tests sin
+    levantar Streamlit; aqui solo se pinta.
+    """
+    modo = resolve_mode()
+
+    st.markdown("---")
+    st.subheader("Enviar una orden")
+
+    if not modo.sends_real_orders:
+        st.caption(
+            "Modo simulacion: el panel no puede enviar nada. Para operar en la red de pruebas, "
+            "arranca el panel con INVEST_LL_MODE=testnet y sus credenciales."
+        )
+        return
+
+    if isinstance(modo, Real):
+        st.error(
+            "MODO REAL: lo que envies desde aqui mueve DINERO DE VERDAD. "
+            "Cada orden sigue pidiendo su confirmacion."
+        )
+    else:
+        st.warning(
+            "Red de pruebas: las ordenes salen de verdad al exchange, con dinero ficticio. "
+            "Los precios de la red de pruebas no son los del mercado real."
+        )
+
+    opciones = sugeridos or ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
+    col_par, col_lado, col_cant = st.columns([2, 1, 1])
+    with col_par:
+        par = st.selectbox("Par", opciones, key=f"envio_par_{clave}")
+    with col_lado:
+        lado = st.selectbox("Lado", [s.value for s in Side], key=f"envio_lado_{clave}")
+    with col_cant:
+        cantidad = st.number_input(
+            "Cantidad", min_value=0.0, value=0.001, step=0.001, format="%.6f", key=f"envio_cantidad_{clave}"
+        )
+
+    cantidad_decimal = Decimal(str(cantidad))
+    escrito = st.text_input(
+        f"Escribe la cantidad exacta ({cantidad_decimal}) para confirmar",
+        key=f"envio_confirmacion_{clave}",
+        help="Se escribe el numero, no un si: obliga a mirar lo que se va a mover.",
+    )
+
+    motivo = motivo_para_no_enviar(modo, cantidad=cantidad_decimal, escrito=escrito)
+    if motivo:
+        st.caption(motivo)
+
+    if st.button(
+        f"Enviar {lado.upper()} {cantidad_decimal} {par}",
+        disabled=motivo is not None,
+        key=f"envio_boton_{clave}",
+    ):
+        try:
+            resultado = enviar_orden(
+                construir_broker(modo),
+                symbol=par,
+                side=Side(lado),
+                cantidad=cantidad_decimal,
+                escrito=escrito,
+                ahora=datetime.now(UTC),
+                ledger=ExecutionLedger(),
+            )
+        except (InvestLLError, ValueError) as error:
+            st.error(str(error))
+            return
+
+        if resultado.status is OrderStatus.UNKNOWN:
+            st.error(resultado.describe())
+        elif resultado.needs_attention:
+            st.warning(resultado.describe())
+        else:
+            st.info(resultado.describe())
+        st.caption(
+            f"Registrada en {ExecutionLedger().path} con el modo '{modo.name}' dentro. "
+            "Ese campo es lo que permite demostrar despues en que modo salio."
+        )
 
 
 def seccion_llm(activos: list[AvailableAsset], friction: FrictionConfig) -> None:
@@ -968,6 +1062,8 @@ def pestana_mi_cartera() -> None:
             "```\nuv run invest-ll-portfolio add buy --symbol GLD --quantity 10 "
             "--price 240.5 --fee 2\nuv run invest-ll-portfolio import movimientos.csv\n```"
         )
+        # La cartera vacia es precisamente cuando hace falta poder mandar la primera orden.
+        seccion_enviar_orden(clave="cartera")
         return
 
     for aviso in cartera.warnings:
@@ -1032,9 +1128,11 @@ def pestana_mi_cartera() -> None:
 
     st.divider()
     st.caption(
-        "El panel solo lee. Los movimientos se registran con `invest-ll-portfolio` "
-        "(add / cash / import), y las ordenes reales pasan siempre por `invest-ll-execute`."
+        "Los movimientos ya hechos se registran con `invest-ll-portfolio` (add / cash / import). "
+        "Para enviar una orden al mercado, abajo o `invest-ll-execute`: las dos piden confirmarla."
     )
+
+    seccion_enviar_orden(clave="cartera")
 
 
 def pestana_alertas(activos: list[AvailableAsset]) -> None:
@@ -1262,9 +1360,28 @@ def seccion_datos(activos: list[AvailableAsset]) -> None:
 def main() -> None:
     st.set_page_config(page_title="INVEST LL", layout="wide")
     st.title("INVEST LL")
+
+    # El modo va en la cabecera, no escondido en una pestana: es lo primero que hay que saber al
+    # mirar cualquier cifra. Anunciar "no ejecuta ordenes reales" cuando si puede seria la clase
+    # de mentira que este proyecto existe para no contar.
+    modo_actual = resolve_mode()
+    if isinstance(modo_actual, Real):
+        st.error(
+            "MODO REAL: este panel PUEDE enviar ordenes con dinero de verdad. "
+            "Cada una sigue pidiendo su confirmacion."
+        )
+    elif modo_actual.sends_real_orders:
+        st.warning(
+            "MODO PRUEBAS: las ordenes salen de verdad al exchange, con dinero ficticio."
+        )
     st.caption(
-        "Simulacion sobre datos historicos. No ejecuta ninguna orden real. "
-        "Recuerda: el win rate no es criterio de exito."
+        "Simulacion sobre datos historicos. "
+        + (
+            "Las ordenes se envian desde Mi cartera, con confirmacion. "
+            if modo_actual.sends_real_orders
+            else "No ejecuta ninguna orden real. "
+        )
+        + "Recuerda: el win rate no es criterio de exito."
     )
 
     activos = discover_assets()

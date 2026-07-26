@@ -32,10 +32,10 @@ from invest_ll.live.broker import (
     Confirmation,
     OrderRequest,
     Side,
-    SimulatedBroker,
 )
+from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
-from invest_ll.live.mode import Real, Simulation, resolve_mode
+from invest_ll.live.mode import OperatingMode, Real, Simulation, resolve_mode
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
@@ -103,13 +103,9 @@ def _pedir_confirmacion(request: OrderRequest, *, real: bool, salida: Salida) ->
     return True
 
 
-def _construir_broker(modo: object, exchange_id: str) -> Broker:
-    if isinstance(modo, Simulation):
-        return SimulatedBroker()
-
-    from invest_ll.live.ccxt_broker import CcxtBroker, build_exchange
-
-    return CcxtBroker(build_exchange(modo, exchange_id=exchange_id), mode=modo)  # type: ignore[arg-type]
+def _construir_broker(modo: OperatingMode, exchange_id: str) -> Broker:
+    """Delega en la fabrica compartida: el panel construye el broker con la misma regla."""
+    return construir_broker(modo, exchange_id=exchange_id)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
