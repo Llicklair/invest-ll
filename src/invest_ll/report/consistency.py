@@ -13,7 +13,7 @@ pierdes.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -54,6 +54,30 @@ class Consistency:
         return abs(self.worst_period) / abs(self.best_period)
 
 
+def _mes(momento: datetime) -> tuple[int, int]:
+    return (momento.year, momento.month)
+
+
+def _semana(momento: datetime) -> tuple[int, int]:
+    """Año y semana ISO. El año ISO no siempre coincide con el del calendario.
+
+    Se usa el par completo y no solo el número: la semana 1 de 2026 empieza el 29 de diciembre de
+    2025, así que agrupar por número suelto juntaría semanas separadas por un año entero.
+    """
+    natural = momento.isocalendar()
+    return (natural.year, natural.week)
+
+
+def _sin_datos() -> Consistency:
+    return Consistency(
+        periods=0,
+        positive_periods=0,
+        best_period=Decimal(0),
+        worst_period=Decimal(0),
+        longest_losing_streak=0,
+    )
+
+
 def monthly_consistency(
     equity_curve: Sequence[Decimal], timestamps: Sequence[datetime]
 ) -> Consistency:
@@ -62,40 +86,56 @@ def monthly_consistency(
     Se agrupa por mes natural en lugar de por bloques de N días porque es como el operador vive
     el resultado: mirando el saldo a fin de mes.
     """
-    if len(equity_curve) < 2 or len(equity_curve) != len(timestamps):
-        return Consistency(
-            periods=0,
-            positive_periods=0,
-            best_period=Decimal(0),
-            worst_period=Decimal(0),
-            longest_losing_streak=0,
-        )
+    return _consistency_por(equity_curve, timestamps, clave=_mes)
 
-    # Último valor de cada mes, en orden.
+
+def weekly_consistency(
+    equity_curve: Sequence[Decimal], timestamps: Sequence[datetime]
+) -> Consistency:
+    """Analiza la curva de patrimonio semana a semana.
+
+    Sirve para responder con datos a «pruebo una semana y veo»: una semana suelta es ruido, pero la
+    distribución de **todas** las semanas dice cuántas acaban en verde y cuánto pesa la peor.
+
+    Al ser periodos más cortos que el mes, el porcentaje en verde suele bajar y la asimetría se ve
+    mejor: cuanto más se acorta la ventana, más manda el ruido y menos la estrategia.
+    """
+    return _consistency_por(equity_curve, timestamps, clave=_semana)
+
+
+def _consistency_por(
+    equity_curve: Sequence[Decimal],
+    timestamps: Sequence[datetime],
+    *,
+    clave: Callable[[datetime], tuple[int, int]],
+) -> Consistency:
+    """Agrupa la curva por el periodo que devuelva `clave` y mide la regularidad.
+
+    La granularidad se inyecta en lugar de duplicar el recorrido: mes y semana solo se diferencian
+    en dónde ponen la frontera, y una segunda copia del cálculo acabaría divergiendo de la primera.
+    """
+    if len(equity_curve) < 2 or len(equity_curve) != len(timestamps):
+        return _sin_datos()
+
+    # Último valor de cada periodo, en orden.
     cierres: list[Decimal] = []
-    mes_actual = (timestamps[0].year, timestamps[0].month)
+    periodo_actual = clave(timestamps[0])
     ultimo = equity_curve[0]
 
     for valor, momento in zip(equity_curve, timestamps, strict=True):
-        mes = (momento.year, momento.month)
-        if mes != mes_actual:
+        periodo = clave(momento)
+        if periodo != periodo_actual:
             cierres.append(ultimo)
-            mes_actual = mes
+            periodo_actual = periodo
         ultimo = valor
     cierres.append(ultimo)
 
     if len(cierres) < 2:
-        return Consistency(
-            periods=0,
-            positive_periods=0,
-            best_period=Decimal(0),
-            worst_period=Decimal(0),
-            longest_losing_streak=0,
-        )
+        return _sin_datos()
 
-    # Las variaciones van entre cierres de meses consecutivos. El primer mes se queda fuera a
+    # Las variaciones van entre cierres de periodos consecutivos. El primero se queda fuera a
     # propósito: no se conoce con qué saldo empezó, y meterlo comparándolo consigo mismo añadiría
-    # un mes falso con resultado cero que ensucia el porcentaje.
+    # un periodo falso con resultado cero que ensucia el porcentaje.
     variaciones = [posterior - anterior for anterior, posterior in pairwise(cierres)]
 
     positivos = sum(1 for v in variaciones if v > 0)
