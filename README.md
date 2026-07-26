@@ -1,12 +1,24 @@
 # INVEST LL
 
-Sistema de inversión automática en bolsa y criptomonedas. Opera sin intervención humana por
-operación, y por eso se construye con una regla por delante de todas: **el sistema no puede
-mentirte sobre sus propios resultados**.
+Sistema de inversión en bolsa y criptomonedas que decide solo y te propone la operación exacta,
+construido con una regla por delante de todas: **el sistema no puede mentirte sobre sus propios
+resultados**.
 
-**Estado**: v1 en desarrollo. Solo simulación — no ejecuta órdenes con dinero real.
+**Enviar la orden sigue siendo tuyo.** Las estrategias se ejecutan sin que intervengas, pero cada
+orden que sale al mercado te pide confirmarla escribiendo la cantidad a mano. No es un descuido de
+la v1: es el Principio I, y solo desaparecería con una decisión explícita de dejar que el sistema
+mueva dinero sin preguntar.
 
-**Arrancar**: doble clic en `levantar.cmd` (o `.\scripts\start.ps1` desde una terminal). Comprueba el entorno, cierra paneles viejos y abre el panel en http://localhost:8601.
+**Estado**: v1 en desarrollo. Arranca **siempre en simulación**, y en simulación nada sale al
+exterior. Operar de verdad es posible **solo en cripto** (Binance u otro exchange de ccxt) y exige
+las cuatro condiciones de [Dinero real](#dinero-real) — la guía completa está en
+[docs/operar-de-verdad.md](docs/operar-de-verdad.md). **Para bolsa no hay conexión con ningún
+broker**: el sistema propone y tú compras donde ya operes.
+
+**Arrancar**: doble clic en `levantar.cmd`. Comprueba el entorno, cierra paneles viejos y abre el
+panel en http://localhost:8601. Desde una terminal, Windows bloquea los `.ps1` por política de
+ejecución, así que hace falta el mismo rodeo que usa `levantar.cmd`:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1`.
 
 ---
 
@@ -107,9 +119,10 @@ Separa los datos verificables (con su fuente y su fecha) de la interpretación.
 uv run invest-ll-panel
 ```
 
-Tres pestañas: evaluar una estrategia sobre un activo, analizar una cartera (diversificación,
-aportaciones periódicas, rotación) y ver el estado de los históricos descargados. Todas las cifras
-salen del mismo motor que la línea de comandos, con las mismas advertencias.
+Seis pestañas, una por pregunta: **Mercado** (cotizaciones al momento y rendimiento del histórico),
+**Mi cartera**, **Simular** (propuestas y backtests), **Vigilar** (alertas y triggers de retirada),
+**Estimado vs real** y **Chat**. Todas las cifras salen del mismo motor que la línea de comandos,
+con las mismas advertencias. Ninguna pestaña envía órdenes.
 
 **Evaluar una estrategia sobre ellos:**
 
@@ -161,6 +174,12 @@ se actualizan para hacer pasar un test.
 
 **El sistema arranca siempre en modo simulación.** No es una opción por defecto que se pueda
 cambiar en un fichero de configuración: es lo que se obtiene sin configurar nada.
+
+**Solo cripto.** La ejecución real existe únicamente para exchanges de cripto, vía ccxt (Binance
+por defecto, `--exchange` para otro). Para bolsa **no hay integración con ningún broker**: de AAPL o
+SPY el sistema descarga datos y propone, pero la compra la haces tú donde ya operes y la registras
+con `invest-ll-portfolio`. El procedimiento entero, de pruebas a real, está en
+[docs/operar-de-verdad.md](docs/operar-de-verdad.md).
 
 Para operar de verdad hacen falta **cuatro cosas a la vez**, y ninguna basta por sí sola:
 
