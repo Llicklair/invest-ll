@@ -19,11 +19,13 @@ from typing import TYPE_CHECKING
 from invest_ll.data.bar import Bar, Interval
 from invest_ll.data.calendars import Continuous24x7, ExchangeCalendarAdapter, MarketCalendar
 from invest_ll.data.loader import load_series
+from invest_ll.data.reserved import load_reservation
 from invest_ll.fetch.provenance import Provenance
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
+    from invest_ll.data.loader import DataWarning
     from invest_ll.data.series import PriceSeries
     from invest_ll.report.report import BacktestReport
 
@@ -53,13 +55,46 @@ class AvailableAsset:
         return Continuous24x7() if self.is_crypto else ExchangeCalendarAdapter("XNYS")
 
     def load(self) -> PriceSeries:
-        serie, _ = load_series(
+        """Para **medir**: respeta la reserva de datos, igual que la linea de comandos."""
+        serie, _ = self.load_con_avisos()
+        return serie
+
+    def load_con_avisos(self) -> tuple[PriceSeries, tuple[DataWarning, ...]]:
+        """Lo mismo, con los avisos que el panel debe poder enseñar (recorte incluido)."""
+        return load_series(
             self.path,
             symbol=self.symbol,
             interval=self.interval,
             calendar=self.calendar(),
         )
+
+    def load_completa(self) -> PriceSeries:
+        """Para **mirar el mercado**: todo el histórico, sin recortar.
+
+        Ver el precio de ayer no contamina ninguna decisión de estrategia, y ocultarlo sí hace
+        daño: al fijar una reserva, el panel pasó a mostrar precios de año y medio antes sin
+        decirlo. La reserva protege lo que se **mide**, no lo que se **mira**.
+        """
+        serie, _ = load_series(
+            self.path,
+            symbol=self.symbol,
+            interval=self.interval,
+            calendar=self.calendar(),
+            use_reserved=True,
+        )
         return serie
+
+
+def aviso_de_reserva() -> str | None:
+    """Qué contarle al operador sobre la reserva vigente. `None` si no hay ninguna."""
+    reserva = load_reservation()
+    if reserva is None:
+        return None
+    return (
+        f"Hay datos reservados desde {reserva.cutoff}: los backtests se recortan ahi para que ese "
+        "tramo siga sirviendo como validacion. Las cotizaciones y el rendimiento por periodo si "
+        f"usan el historico completo. Motivo: {reserva.reason}"
+    )
 
 
 def discover_assets(root: Path = RAIZ_DATOS) -> list[AvailableAsset]:
@@ -184,7 +219,7 @@ def suggest_compatible(
     cargados: list[tuple[AvailableAsset, datetime, datetime]] = []
     for activo in assets:
         try:
-            serie = activo.load()
+            serie = activo.load_completa()
         except Exception:
             continue
         cargados.append((activo, serie.bars[0].timestamp, serie.bars[-1].timestamp))
@@ -295,7 +330,7 @@ def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]
 
     for activo in assets:
         try:
-            serie = activo.load()
+            serie = activo.load_completa()
         except Exception:
             continue
 
@@ -343,7 +378,7 @@ def normalised_series(
 
     for activo in assets:
         try:
-            serie = activo.load()
+            serie = activo.load_completa()
         except Exception:
             continue
 

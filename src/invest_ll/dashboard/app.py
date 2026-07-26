@@ -34,6 +34,7 @@ from invest_ll.cli.compare import ADVERTENCIA_CONTAMINACION
 from invest_ll.dashboard.data import (
     VENTANAS,
     AvailableAsset,
+    aviso_de_reserva,
     discover_assets,
     equity_table,
     fetch_args,
@@ -335,7 +336,7 @@ def _grafica_activo(simbolo: str, activos: list[AvailableAsset]) -> None:
     if activo is None:
         return
     try:
-        serie = activo.load()
+        serie = activo.load_completa()
     except (InvestLLError, ValueError) as error:
         st.error(f"No se pudo cargar {simbolo}: {error}")
         return
@@ -1218,7 +1219,7 @@ def pestana_alertas(activos: list[AvailableAsset]) -> None:
     series = []
     for activo in activos:
         try:
-            series.append(activo.load())
+            series.append(activo.load_completa())
         except (InvestLLError, ValueError):  # pragma: no cover - fichero corrupto
             continue
 
@@ -1351,7 +1352,7 @@ def seccion_datos(activos: list[AvailableAsset]) -> None:
     filas: list[dict[str, object]] = []
     for activo in activos:
         try:
-            serie = activo.load()
+            serie = activo.load_completa()
         except (InvestLLError, ValueError):  # pragma: no cover - fichero corrupto
             continue
         ultimo = serie.bars[-1]
@@ -1437,6 +1438,11 @@ def main() -> None:
         )
         + "Recuerda: el win rate no es criterio de exito."
     )
+
+    # La reserva recorta los backtests. Sin decirlo, un resultado de 2024 parece de hoy.
+    reservado = aviso_de_reserva()
+    if reservado:
+        st.caption(reservado)
 
     activos = discover_assets()
     if not activos:
