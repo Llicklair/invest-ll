@@ -8,6 +8,9 @@ falla, no dice nada sobre si el código está bien.
 
 Cortarla aquí convierte esa regla en algo mecánico. Si alguien escribe un test que llama de verdad
 a un proveedor, no pasará por descuido: fallará con un mensaje que explica por qué.
+
+**La reserva de datos del proyecto también se ignora**, por la misma razón: es estado del mundo,
+no del código. Ver `reserva_aislada`.
 """
 
 # pyright: reportUnknownMemberType=false
@@ -47,3 +50,20 @@ def bloquear_red(request: pytest.FixtureRequest) -> Iterator[None]:
         yield
     finally:
         socket.socket = _SOCKET_REAL  # type: ignore[assignment]
+
+
+@pytest.fixture(autouse=True)
+def reserva_aislada(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ignora la reserva de datos declarada en el proyecto.
+
+    `data/market/reserved.json` es una decisión de investigación de quien usa el proyecto, no una
+    propiedad del código. Sin este aislamiento, fijar una reserva —algo que el sistema invita a
+    hacer— ponía en rojo tests que cargan series con fechas recientes: fallaban por un fichero que
+    ellos no habían escrito, y el mensaje hablaba de datos reservados en mitad de un test sobre el
+    almacén. Un test que depende del estado del repositorio no dice nada sobre si el código
+    está bien.
+
+    Los tests que sí comprueban el recorte vuelven a sustituir este mismo nombre por una reserva
+    propia en un directorio temporal; su fixture se aplica después que este y gana.
+    """
+    monkeypatch.setattr("invest_ll.data.loader.load_reservation", lambda: None)
