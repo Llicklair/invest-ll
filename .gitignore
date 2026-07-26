@@ -48,3 +48,8 @@ portfolio/
 # No es codigo del proyecto: el test que los provoca no toca disco.
 pytest-of-*/
 tmp[a-z0-9]*
+
+# Estado interno del consejo de sabios: la transcripcion cruda del debate no es
+# documentacion. El reporte legible se guarda en docs/.
+.consejo/
+consejo-debate-*.jsonl
