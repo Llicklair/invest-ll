@@ -15,6 +15,11 @@ las cuatro condiciones de [Dinero real](#dinero-real) — la guía completa est�
 [docs/operar-de-verdad.md](docs/operar-de-verdad.md). **Para bolsa no hay conexión con ningún
 broker**: el sistema propone y tú compras donde ya operes.
 
+**Los dos mercados no se mezclan**: cripto se gestiona de forma activa (rotación semanal) y bolsa a
+largo plazo (meses). No es una preferencia, es lo que dicen las mediciones — en bolsa ninguna de
+siete estrategias batió a comprar y mantener. Las cifras están en
+[docs/horizontes.md](docs/horizontes.md).
+
 **Arrancar**: doble clic en `levantar.cmd`. Comprueba el entorno, cierra paneles viejos y abre el
 panel en http://localhost:8601. Desde una terminal, Windows bloquea los `.ps1` por política de
 ejecución, así que hace falta el mismo rodeo que usa `levantar.cmd`:
