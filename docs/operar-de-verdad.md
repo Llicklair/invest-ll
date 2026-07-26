@@ -232,6 +232,22 @@ que teclees dos veces lo que el sistema ya sabe. Tres reglas que no se pueden de
 En el panel, la pestaña **Mi cartera** muestra la tabla de órdenes enviadas con el modo de cada
 una, y avisa de las que necesitan tu atención.
 
+**Lo que el puente no puede traer: el efectivo.** Los ingresos que haces en el exchange no pasan
+por el registro de órdenes, así que hay que anotarlos (`cash deposit`). Para saber si te falta
+alguno, contrasta con la realidad:
+
+```bash
+uv run invest-ll-portfolio reconciliar
+```
+
+Compara lo que el exchange dice que tienes con lo que tu cartera cree, y te da el comando exacto
+que cuadraría cada diferencia. **No ajusta nada solo**, a propósito: un descuadre corregido en
+silencio es un error que nunca llegas a ver. Solo mira los activos que has tocado — el resto del
+saldo se cuenta aparte, porque la red de pruebas reparte fondos en más de 400 monedas.
+
+Es la única comprobación de todo el sistema que mira fuera. Las demás derivan del registro, así
+que si al registro le falta algo, sus cifras cuadran entre sí y el error no se nota nunca.
+
 El importador acepta cabeceras en inglés o español (`date`/`fecha`, `symbol`/`ticker`/`code`,
 `type`/`tipo`, `quantity`/`shares`/`cantidad`, `price`/`precio`/`unit price`, `fee`/`comision`), no
 duplica lo ya importado, y los movimientos que no son compra/venta (dividendos, intereses,

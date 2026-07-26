@@ -19,7 +19,9 @@ from typing import TYPE_CHECKING
 from invest_ll.cli.compare import SALIDA_ERROR, SALIDA_NO_ENCONTRADO, SALIDA_OK
 from invest_ll.cli.emit import Salida, add_json_flag, salida_de
 from invest_ll.errors import InvestLLError
+from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
+from invest_ll.live.mode import resolve_mode
 from invest_ll.portfolio.csv_import import parse_broker_csv
 from invest_ll.portfolio.derive import Portfolio, derive_portfolio
 from invest_ll.portfolio.from_orders import (
@@ -29,12 +31,16 @@ from invest_ll.portfolio.from_orders import (
 )
 from invest_ll.portfolio.models import Activity, ActivityType, OpenPosition
 from invest_ll.portfolio.quotes import ultimo_cierre
+from invest_ll.portfolio.reconcile import MONEDAS_DE_CUENTA, reconciliar
 from invest_ll.portfolio.store import ActivityStore
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
 D = Decimal
+
+# 'No cuadra' no es un fallo de uso: es un hallazgo que hay que poder detectar desde fuera.
+SALIDA_ATENCION = 5
 
 
 def _fecha(texto: str | None) -> datetime:
@@ -267,6 +273,80 @@ def _importar_ordenes(args: argparse.Namespace, store: ActivityStore, salida: Sa
     return salida.cerrar(SALIDA_OK)
 
 
+def _reconciliar(args: argparse.Namespace, store: ActivityStore, salida: Salida) -> int:
+    """Contrasta la cartera con el saldo que el exchange dice que tienes.
+
+    Es la unica comprobacion que mira fuera. Todo lo demas deriva del registro, asi que si al
+    registro le falta algo, sus cifras cuadran entre si y el error no se nota nunca.
+    """
+    modo = resolve_mode()
+    if not modo.sends_real_orders:
+        return salida.error(
+            "en simulacion no hay ningun exchange con el que contrastar. Arranca con "
+            "INVEST_LL_MODE=testnet (o =real) y sus credenciales.",
+            SALIDA_ERROR,
+        )
+
+    try:
+        saldo = construir_broker(modo, exchange_id=args.exchange).balance()
+    except (InvestLLError, ValueError, ImportError) as error:
+        return salida.error(f"leyendo el saldo del exchange: {error}", SALIDA_ERROR)
+
+    try:
+        cartera = derive_portfolio(store.activities())
+    except InvestLLError as error:
+        return salida.error(str(error), SALIDA_ERROR)
+
+    # El simbolo del par (BTC/USDT) se reduce a su moneda base: el exchange informa por moneda.
+    mio = {p.symbol.split("/")[0]: p.quantity for p in cartera.open_positions}
+    if cartera.cash:
+        mio["USDT"] = mio.get("USDT", D(0)) + cartera.cash
+
+    # Se compara lo que has tocado: lo que tienes registrado, lo que has llegado a ordenar, y el
+    # efectivo. El resto del saldo del exchange no es un descuadre tuyo -- la red de pruebas
+    # reparte saldo en mas de 400 monedas y enterraria lo que si importa.
+    tocados = set(mio) | set(MONEDAS_DE_CUENTA)
+    libro = ExecutionLedger(args.ledger) if args.ledger else ExecutionLedger()
+    for entrada in libro.entries():
+        par = entrada.result.request.symbol
+        tocados.add(par.split("/")[0])
+
+    informe = reconciliar(exchange=saldo, cartera=mio, relevantes=tocados)
+
+    salida.dato(
+        mode=modo.name,
+        matches=informe.cuadra,
+        differences=[
+            {
+                "symbol": d.symbol,
+                "on_exchange": d.en_el_exchange,
+                "in_portfolio": d.en_la_cartera,
+                "unregistered": d.falta_registrar,
+            }
+            for d in informe.diferencias
+        ],
+    )
+
+    salida.linea(f"Modo: {modo.name}")
+    salida.linea(informe.describe())
+    if informe.cuadra:
+        return salida.cerrar(SALIDA_OK)
+
+    salida.linea()
+    salida.linea(f"{'activo':<10}{'en el exchange':>18}{'en tu cartera':>18}{'sin registrar':>18}")
+    salida.linea("-" * 64)
+    for d in informe.diferencias:
+        salida.linea(
+            f"{d.symbol:<10}{d.en_el_exchange:>18,.8f}{d.en_la_cartera:>18,.8f}"
+            f"{d.falta_registrar:>18,.8f}"
+        )
+    salida.linea()
+    salida.linea("Para cuadrarlo:")
+    for d in informe.diferencias:
+        salida.linea(f"  {d.como_cuadrarlo()}")
+    return salida.cerrar(SALIDA_ATENCION)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="invest-ll-portfolio",
@@ -290,6 +370,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     efectivo.add_argument("movimiento", choices=["deposit", "withdraw"])
     efectivo.add_argument("--amount", type=D, required=True)
     efectivo.add_argument("--date", help="AAAA-MM-DD; sin ella, ahora")
+
+    conciliar = sub.add_parser(
+        "reconciliar",
+        help="Contrastar tu cartera con el saldo real del exchange",
+    )
+    conciliar.add_argument("--exchange", default="binance")
+    conciliar.add_argument("--ledger", type=Path, help="Carpeta del registro de ordenes")
 
     ordenes = sub.add_parser(
         "import-ledger",
@@ -323,6 +410,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _importar(args, store, salida)
     if args.accion == "import-ledger":
         return _importar_ordenes(args, store, salida)
+    if args.accion == "reconciliar":
+        return _reconciliar(args, store, salida)
     return _mostrar(store, salida)
 
 
