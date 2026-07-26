@@ -19,6 +19,11 @@ Los tests lo prueban con un doble. La suite corre con los sockets bloqueados, as
 implementación que intentara salir a la red fallaría de forma ruidosa.
 """
 
+# Frontera con ccxt, que no publica tipado completo: la respuesta del exchange llega sin
+# garantias. Se relaja SOLO aqui, igual que en loader.py y en los proveedores de datos.
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
+# pyright: reportUnknownVariableType=false
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -171,7 +176,64 @@ class CcxtBroker:
             fill_price=Decimal(str(precio)) if precio else None,
             executed_at=datetime.now(UTC),
             broker_reference=str(crudo.get("id") or ""),
+            commission=comision_declarada(crudo),
         )
+
+
+def comision_declarada(crudo: dict[str, Any]) -> Decimal | None:
+    """Lo que cobró el exchange, si lo dice. `None` cuando no viene.
+
+    ccxt la publica en `fee.cost`, y algunos exchanges reparten el cobro en varias monedas dentro
+    de `fees`. Se suma lo que haya: dejarlo fuera haría que una cartera derivada del registro
+    pareciera más rentable de lo que fue, que es la mentira más fácil de contar sin querer.
+
+    Devolver `None` ante algo inesperado es deliberado: un cero inventado se confunde con «no
+    cobraron nada» y nadie vuelve a mirarlo.
+    """
+    fee: object = crudo.get("fee")
+    if isinstance(fee, dict) and fee.get("cost") is not None:
+        try:
+            return Decimal(str(fee["cost"]))
+        except (ArithmeticError, ValueError):  # pragma: no cover - respuesta inesperada
+            return None
+
+    fees: object = crudo.get("fees")
+    if isinstance(fees, list) and fees:
+        sumado = _sumar_costes(fees, campo="cost")
+        if sumado is not None:
+            return sumado
+
+    # Binance no rellena `fee` al crear una orden de mercado: reparte el cobro en los `fills`, uno
+    # por cada trozo ejecutado. ccxt los expone en `trades`, y el formato crudo en `info.fills`.
+    # Sin mirar aqui, la comision de un exchange entero se perderia en silencio.
+    trades: object = crudo.get("trades")
+    if isinstance(trades, list) and trades:
+        costes = [t.get("fee") for t in trades if isinstance(t, dict)]
+        sumado = _sumar_costes([c for c in costes if isinstance(c, dict)], campo="cost")
+        if sumado is not None:
+            return sumado
+
+    info: object = crudo.get("info")
+    if isinstance(info, dict):
+        fills: object = info.get("fills")
+        if isinstance(fills, list) and fills:
+            return _sumar_costes(fills, campo="commission")
+    return None
+
+
+def _sumar_costes(trozos: list[Any], *, campo: str) -> Decimal | None:
+    """Suma el campo indicado de cada trozo. `None` si ninguno lo trae o algo no es un numero."""
+    total = Decimal(0)
+    visto = False
+    for trozo in trozos:
+        if not isinstance(trozo, dict) or trozo.get(campo) is None:
+            continue
+        try:
+            total += Decimal(str(trozo[campo]))
+        except (ArithmeticError, ValueError):  # pragma: no cover - respuesta inesperada
+            return None
+        visto = True
+    return total if visto else None
 
 
 def _limpiar(error: Exception) -> str:

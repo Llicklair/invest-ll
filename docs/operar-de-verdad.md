@@ -212,10 +212,25 @@ ido mal. Con `--ledger otra/carpeta` lo llevas a otro sitio.
 
 ```bash
 uv run invest-ll-portfolio show                      # posiciones, retiradas y efectivo
+uv run invest-ll-portfolio import-ledger             # trae lo que YA enviaste al mercado
 uv run invest-ll-portfolio add buy --symbol GLD --quantity 10 --price 180.5 --fee 1.2
 uv run invest-ll-portfolio cash deposit --amount 1000
 uv run invest-ll-portfolio import movimientos.csv    # CSV del broker
 ```
+
+**`import-ledger` es el puente**: lee las órdenes que enviaste y las convierte en movimientos, sin
+que teclees dos veces lo que el sistema ya sabe. Tres reglas que no se pueden desactivar:
+
+- **Solo entra el dinero real.** Las de pruebas hay que pedirlas con `--pruebas`, y lo suyo es
+  mandarlas a otra cartera (`--store carteras/pruebas`): sus precios no son los del mercado, y
+  mezclarlas con dinero de verdad corrompe el historial con el que luego decides.
+- **Nada se importa dos veces**, aunque lo ejecutes veinte veces seguidas.
+- **Lo que no se ejecutó no entra**, y **lo que no trae comisión registrada, tampoco**. Anotar una
+  compra con comisión cero la haría parecer más rentable de lo que fue. Todo lo descartado se
+  cuenta y se te dice; un filtro silencioso es una mentira con retraso.
+
+En el panel, la pestaña **Mi cartera** muestra la tabla de órdenes enviadas con el modo de cada
+una, y avisa de las que necesitan tu atención.
 
 El importador acepta cabeceras en inglés o español (`date`/`fecha`, `symbol`/`ticker`/`code`,
 `type`/`tipo`, `quantity`/`shares`/`cantidad`, `price`/`precio`/`unit price`, `fee`/`comision`), no

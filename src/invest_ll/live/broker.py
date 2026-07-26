@@ -95,6 +95,17 @@ class OrderResult:
     fill_price: Decimal | None
     executed_at: datetime | None
     broker_reference: str | None = None
+    commission: Decimal | None = None
+    """Lo que se quedó el exchange. `None` es **desconocida**, no cero.
+
+    Sin este dato, todo lo que se construya encima del registro miente por omisión: la comisión se
+    cobra igual, solo que deja de aparecer en tus cifras. Distinguir «no cobraron» de «no lo
+    apuntamos» es lo que permite que una cartera derivada de aquí avise en vez de inventar.
+    """
+
+    def __post_init__(self) -> None:
+        if self.commission is not None and self.commission < 0:
+            raise ValueError(f"una comision negativa ({self.commission}) seria un ingreso disfrazado")
 
     @property
     def matches_request(self) -> bool:

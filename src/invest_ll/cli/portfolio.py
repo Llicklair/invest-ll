@@ -19,8 +19,14 @@ from typing import TYPE_CHECKING
 from invest_ll.cli.compare import SALIDA_ERROR, SALIDA_NO_ENCONTRADO, SALIDA_OK
 from invest_ll.cli.emit import Salida, add_json_flag, salida_de
 from invest_ll.errors import InvestLLError
+from invest_ll.live.ledger import ExecutionLedger
 from invest_ll.portfolio.csv_import import parse_broker_csv
 from invest_ll.portfolio.derive import Portfolio, derive_portfolio
+from invest_ll.portfolio.from_orders import (
+    MODOS_FICTICIOS,
+    MODOS_REALES,
+    actividades_desde_ordenes,
+)
 from invest_ll.portfolio.models import Activity, ActivityType, OpenPosition
 from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
@@ -212,6 +218,55 @@ def _importar(args: argparse.Namespace, store: ActivityStore, salida: Salida) ->
     return salida.cerrar(SALIDA_OK)
 
 
+def _importar_ordenes(args: argparse.Namespace, store: ActivityStore, salida: Salida) -> int:
+    """Trae a la cartera lo que ya se envio al mercado, sin teclearlo dos veces.
+
+    Por defecto **solo el dinero real**. Las de pruebas hay que pedirlas, y lo suyo es mandarlas a
+    otra cartera con `--store`: sus precios no son los del mercado, y mezclarlas con dinero de
+    verdad corrompe el historial que luego se usa para decidir.
+    """
+    libro = ExecutionLedger(args.ledger) if args.ledger else ExecutionLedger()
+    entradas = libro.entries()
+    if not entradas:
+        salida.linea(f"No hay ninguna orden registrada en {libro.path}.")
+        salida.dato(imported=0, source=str(libro.path))
+        return salida.cerrar(SALIDA_OK)
+
+    modos = MODOS_FICTICIOS if args.pruebas else MODOS_REALES
+    resultado = actividades_desde_ordenes(entradas, modos=modos, conocidos=store.known_ids())
+
+    for actividad in resultado.activities:
+        store.append(actividad)
+
+    salida.dato(
+        imported=len(resultado.activities),
+        already_present=resultado.already_known,
+        skipped_by_mode=resultado.skipped_by_mode,
+        not_executed=resultado.not_executed,
+        without_commission=resultado.without_commission,
+        mode=("pruebas" if args.pruebas else "REAL"),
+    )
+    salida.linea(f"Desde {libro.path}: {resultado.describe()}")
+
+    if args.pruebas:
+        salida.linea(
+            "  [!] Son ordenes de la red de PRUEBAS: sus precios no son los del mercado real. "
+            "Tenlas en una cartera aparte (--store) o tu P&L dejara de significar nada."
+        )
+    if resultado.without_commission:
+        salida.aviso(
+            "sin_comision",
+            f"{resultado.without_commission} orden(es) ejecutadas sin comision registrada: "
+            "no se importan porque un cero inventado haria la cartera mas rentable de lo que fue.",
+            mostrar=False,
+        )
+        salida.linea(
+            f"  [!] {resultado.without_commission} ejecutada(s) sin comision registrada. No entran: "
+            "anotarlas con comision cero las haria parecer mas rentables de lo que fueron."
+        )
+    return salida.cerrar(SALIDA_OK)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="invest-ll-portfolio",
@@ -236,6 +291,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     efectivo.add_argument("--amount", type=D, required=True)
     efectivo.add_argument("--date", help="AAAA-MM-DD; sin ella, ahora")
 
+    ordenes = sub.add_parser(
+        "import-ledger",
+        help="Traer a la cartera las ordenes ya enviadas (ledger/orders.jsonl)",
+    )
+    ordenes.add_argument("--ledger", type=Path, help="Carpeta del registro de ordenes")
+    ordenes.add_argument(
+        "--pruebas",
+        action="store_true",
+        help="Importar las de la red de pruebas en vez de las reales (usa otra --store).",
+    )
+
     importar = sub.add_parser("import", help="Importar el CSV del broker (formato Ghostfolio)")
     importar.add_argument("csv", type=Path)
 
@@ -255,6 +321,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _efectivo(args, store, salida)
     if args.accion == "import":
         return _importar(args, store, salida)
+    if args.accion == "import-ledger":
+        return _importar_ordenes(args, store, salida)
     return _mostrar(store, salida)
 
 

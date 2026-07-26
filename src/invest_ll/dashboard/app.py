@@ -1062,8 +1062,11 @@ def pestana_mi_cartera() -> None:
             "```\nuv run invest-ll-portfolio add buy --symbol GLD --quantity 10 "
             "--price 240.5 --fee 2\nuv run invest-ll-portfolio import movimientos.csv\n```"
         )
-        # La cartera vacia es precisamente cuando hace falta poder mandar la primera orden.
+        # La cartera vacia es precisamente cuando hace falta poder mandar la primera orden. Y ver
+        # lo enviado importa mas aqui que en ningun sitio: si mandaste algo y esto sigue vacio,
+        # la explicacion esta en la tabla de abajo.
         seccion_enviar_orden(clave="cartera")
+        seccion_ordenes_enviadas()
         return
 
     for aviso in cartera.warnings:
@@ -1133,6 +1136,57 @@ def pestana_mi_cartera() -> None:
     )
 
     seccion_enviar_orden(clave="cartera")
+    seccion_ordenes_enviadas()
+
+
+def seccion_ordenes_enviadas() -> None:
+    """Lo que de verdad salio al mercado, con el modo de cada orden a la vista.
+
+    Vive separado de la cartera a proposito: la cartera dice **que tienes**, y esto **que
+    mandaste**. Una orden rechazada o de estado desconocido no cambia lo que tienes, pero es justo
+    lo que hay que poder mirar cuando algo ha ido mal.
+    """
+    entradas = ExecutionLedger().entries()
+    if not entradas:
+        return
+
+    st.markdown("---")
+    st.subheader("Ordenes enviadas")
+
+    filas = [
+        {
+            "cuando": e.result.executed_at or e.recorded_at,
+            "modo": e.mode_name,
+            "activo": e.result.request.symbol,
+            "lado": e.result.request.side.value,
+            "pedida": float(e.result.request.quantity),
+            "ejecutada": float(e.result.filled_quantity),
+            "precio": float(e.result.fill_price) if e.result.fill_price else None,
+            "comision": float(e.result.commission) if e.result.commission is not None else None,
+            "estado": e.result.status.value,
+            "referencia": e.result.broker_reference or "",
+        }
+        for e in reversed(entradas)
+    ]
+    st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+
+    reales = sum(1 for e in entradas if e.was_real_money)
+    atencion = [e for e in entradas if e.result.needs_attention]
+    sin_comision = sum(
+        1 for e in entradas if e.result.commission is None and e.result.filled_quantity > 0
+    )
+
+    st.caption(
+        f"{len(entradas)} orden(es) · {reales} con dinero real · "
+        f"registro en {ExecutionLedger().path}"
+    )
+    for e in atencion:
+        st.warning(e.result.describe())
+    if sin_comision:
+        st.caption(
+            f"{sin_comision} sin comision registrada: no pasan a la cartera, porque anotarlas "
+            "con comision cero las haria parecer mas rentables de lo que fueron."
+        )
 
 
 def pestana_alertas(activos: list[AvailableAsset]) -> None:

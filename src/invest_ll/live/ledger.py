@@ -119,6 +119,9 @@ def _escribir(e: LedgerEntry) -> dict[str, Any]:
         "fill_price": str(r.fill_price) if r.fill_price is not None else None,
         "executed_at": r.executed_at.isoformat() if r.executed_at else None,
         "broker_reference": r.broker_reference,
+        # Ausente en las entradas anteriores a que se guardara: al leerlas vale None, que
+        # significa "no se sabe" y no "no cobraron nada".
+        "commission": str(r.commission) if r.commission is not None else None,
     }
 
 
@@ -137,6 +140,7 @@ def _leer(c: dict[str, Any]) -> LedgerEntry:
             fill_price=Decimal(c["fill_price"]) if c.get("fill_price") else None,
             executed_at=datetime.fromisoformat(c["executed_at"]) if c.get("executed_at") else None,
             broker_reference=c.get("broker_reference"),
+            commission=Decimal(c["commission"]) if c.get("commission") is not None else None,
         ),
         mode_name=c["mode"],
         recorded_at=datetime.fromisoformat(c["recorded_at"]),
