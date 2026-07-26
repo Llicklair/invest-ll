@@ -51,6 +51,8 @@ from invest_ll.engine.config import FrictionConfig, RiskConfig
 from invest_ll.engine.dca import run_dca
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
+from invest_ll.fetch.catalog import EQUITY_CATALOG
+from invest_ll.fetch.live import LiveDataError, crypto_tickers, equity_quotes
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.models import Activity, ActivityType
 from invest_ll.portfolio.quotes import ultimo_cierre
@@ -137,6 +139,135 @@ def mostrar_informe(report: BacktestReport) -> None:
         st.dataframe(metrics_table(report), use_container_width=True, hide_index=True)
     with st.expander(f"Registro de operaciones ({report.trade_count})"):
         st.dataframe(trades_table(report), use_container_width=True, hide_index=True)
+
+
+def _tabla_viva(filas: list[dict[str, object]], clave: str) -> str | None:
+    """La mesa de cotizaciones: color solo en el 24h, seleccion de fila."""
+    df = pd.DataFrame(filas)
+
+    def _tinta(valor: object) -> str:
+        if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+            return ""
+        numero = float(valor)  # type: ignore[arg-type]
+        if numero > 0:
+            return "color: #1a873b"
+        return "color: #c92a2a" if numero < 0 else ""
+
+    estilo = (
+        df.style.map(_tinta, subset=["24h %"])
+        .format("{:+.2f}%", subset=["24h %"], na_rep="—")
+        .format("{:,.4g}", subset=["precio"])
+        .format("{:,.1f}", subset=["volumen 24h (M)"], na_rep="—")
+    )
+    evento = st.dataframe(
+        estilo,
+        use_container_width=True,
+        hide_index=True,
+        height=360,
+        key=clave,
+        on_select="rerun",
+        selection_mode="single-row",
+    )
+    seleccionadas = evento.get("selection", {}).get("rows", [])
+    if seleccionadas:
+        return str(df.iloc[seleccionadas[0]]["activo"])
+    return None
+
+
+def seccion_cotizaciones(activos: list[AvailableAsset]) -> None:
+    """Cotizaciones al pulsar: cientos de activos, con su hora en la cara.
+
+    Una foto fechada, no un chorro continuo — un panel que se refresca solo es una notificacion
+    con otro nombre. Y nada de esto entra en un backtest: el historico reproducible sigue
+    viniendo de invest-ll-fetch con su procedencia.
+    """
+    st.subheader("Cotizaciones")
+    st.caption(
+        f"Bolsa: {len(EQUITY_CATALOG)} valores del catalogo (ampliable en fetch/catalog.py) · "
+        "Cripto: TODOS los pares USDT al contado de Binance. Se piden al pulsar; cada foto "
+        "lleva su hora."
+    )
+
+    if st.button("Traer cotizaciones (bolsa + cripto)"):
+        capturas: dict[str, object] = {"at": datetime.now(UTC).strftime("%H:%M:%S")}
+        with st.spinner("Pidiendo a Binance todos los pares USDT..."):
+            try:
+                capturas["cripto"] = [q.as_row() for q in crypto_tickers()]
+            except LiveDataError as error:
+                capturas["cripto"] = []
+                st.error(f"Cripto: {error}")
+        with st.spinner(f"Pidiendo {len(EQUITY_CATALOG)} valores de bolsa a yfinance..."):
+            try:
+                capturas["bolsa"] = [q.as_row() for q in equity_quotes(EQUITY_CATALOG)]
+            except LiveDataError as error:
+                capturas["bolsa"] = []
+                st.error(f"Bolsa: {error}")
+        st.session_state["cotizaciones"] = capturas
+
+    datos = st.session_state.get("cotizaciones")
+    if not datos:
+        st.info("Pulsa el boton para traer la primera foto del mercado.")
+        return
+
+    st.caption(f"Foto de las {datos['at']} UTC. Vuelve a pulsar para refrescarla.")
+    filtro = (
+        st.text_input("Filtrar por simbolo (p.ej. BTC, AAPL, .MC)", key="filtro_cotizaciones")
+        .strip()
+        .upper()
+    )
+
+    descargados = {a.symbol for a in activos}
+    elegido: str | None = None
+    mercado_elegido = ""
+    for titulo, clave_datos, clave_tabla, mercado in (
+        ("Bolsa", "bolsa", "viva_bolsa", "equity"),
+        ("Cripto", "cripto", "viva_cripto", "crypto"),
+    ):
+        filas = list(datos.get(clave_datos, []))
+        visibles = [f for f in filas if filtro in str(f["activo"]).upper()] if filtro else filas
+        st.markdown(f"**{titulo}** — {len(visibles)} de {len(filas)} (ordenados por volumen)")
+        if not visibles:
+            continue
+        pinchado = _tabla_viva(visibles, clave_tabla)
+        if pinchado:
+            elegido, mercado_elegido = pinchado, mercado
+
+    if elegido is None:
+        st.caption("Pincha una fila para poder descargar su historico completo.")
+        return
+
+    if elegido in descargados:
+        st.info(f"{elegido} ya tiene historico descargado: lo tienes abajo, con su grafica.")
+        return
+
+    st.markdown(f"Seleccionado: **{elegido}**")
+    if st.button(f"Descargar historico completo de {elegido}", key="descargar_vivo"):
+        argumentos = [
+            "uv",
+            "run",
+            "invest-ll-fetch",
+            elegido,
+            "--market",
+            mercado_elegido,
+            "--interval",
+            "DAY_1",
+            "--start",
+            "2015-01-01",
+            "--end",
+            datetime.now(UTC).date().isoformat(),
+        ]
+        if mercado_elegido == "crypto":
+            argumentos += ["--exchange", "binance"]
+        with st.spinner(f"Descargando {elegido} desde 2015..."):
+            proceso = subprocess.run(
+                argumentos, capture_output=True, text=True, timeout=600, check=False
+            )
+        if proceso.returncode == 0:
+            st.success(f"{elegido} descargado: ya aparece en las mesas de rendimiento.")
+            st.rerun()
+        else:
+            detalle = (proceso.stderr or proceso.stdout or "sin mensaje").strip()[-300:]
+            st.error(f"No se pudo descargar {elegido}: {detalle}")
 
 
 def _tabla_mercado(filas: list[dict[str, object]], clave: str) -> str | None:
@@ -233,8 +364,9 @@ def seccion_panorama(activos: list[AvailableAsset]) -> None:
     todo lo medido en este proyecto dice que operar mas pierde dinero.
     """
     st.caption(
-        "Como ha ido cada activo. Son datos historicos hasta la ultima descarga, "
-        "no precios en vivo."
+        "Rendimiento sobre el HISTORICO descargado (las cotizaciones al momento estan arriba). "
+        "Aqui solo aparece lo que tiene serie completa: graficas, backtests y alertas salen "
+        "de estos datos."
     )
 
     filas = market_overview(activos)
@@ -715,6 +847,8 @@ def pestana_mercado(activos: list[AvailableAsset]) -> None:
     dos pestañas. La reestructuración las junta: **una pestaña por pregunta**.
     """
     st.header("Mercado")
+    seccion_cotizaciones(activos)
+    st.divider()
     seccion_panorama(activos)
     st.divider()
     seccion_datos(activos)
