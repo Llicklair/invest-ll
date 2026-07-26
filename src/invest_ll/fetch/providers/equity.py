@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from math import isfinite
 
 from invest_ll.data.bar import Bar, Interval
 from invest_ll.fetch.errors import ProviderUnavailableError, UnknownSymbolError
@@ -47,6 +48,15 @@ def coherent_ohlc(*, open_: float, high: float, low: float, close: float) -> tup
     propague al resto del sistema.
     """
     return max(high, open_, close), min(low, open_, close)
+
+
+def _hay_precios(fila: object) -> bool:
+    """Si alguno de los cuatro precios no es un numero, esa vela no trae precio.
+
+    Se comprueban los cuatro y no solo la apertura: Yahoo los deja a NaN juntos, pero basta con que
+    falte uno para que la vela no describa ninguna sesion.
+    """
+    return all(isfinite(float(fila[campo])) for campo in ("Open", "High", "Low", "Close"))  # type: ignore[index]
 
 
 def normalize_daily(momento: datetime, interval: Interval) -> datetime:
@@ -124,6 +134,14 @@ class YFinanceProvider:
                 momento = momento.astimezone(UTC)
 
             momento = normalize_daily(momento, interval)
+
+            # Yahoo sirve la sesion en curso, o la que aun no ha consolidado, con volumen pero con
+            # los cuatro precios a NaN. No es un dato corrupto: es que todavia no hay dato. Una
+            # sola de esas filas hacia fallar la descarga entera del activo, asi que se descarta
+            # aqui, en el borde. No queda en silencio: la cobertura obtenida pasa a ser menor que
+            # la pedida, y eso ya dispara el aviso de rango parcial.
+            if not _hay_precios(fila):
+                continue
 
             apertura = float(fila["Open"])
             cierre = float(fila["Close"])
