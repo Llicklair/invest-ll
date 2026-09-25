@@ -8,7 +8,7 @@ ejecutan y la suite lenta de verdad.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -235,10 +235,3 @@ def _partial_range_warning(series: PriceSeries, request: FetchRequest) -> list[Q
             ),
         )
     ]
-
-
-def as_data_warnings(avisos: Sequence[QualityWarning]) -> tuple[object, ...]:
-    """Puente hacia el informe de la feature 001."""
-    from invest_ll.fetch.provenance import as_data_warnings as convertir
-
-    return convertir(avisos)
