@@ -17,14 +17,9 @@ algunas cifras sean bonitas.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from math import comb
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:  # pragma: no cover
-    from invest_ll.report.report import BacktestReport
 
 # Por debajo de esta probabilidad, el resultado del barrido es difícil de explicar solo por azar.
 # No es una frontera mágica: es el convenio habitual, y sigue sin demostrar que la estrategia
@@ -218,30 +213,3 @@ def probabilidad_cola_inferior(exitos: int, pruebas: int) -> float:
     total = 2**pruebas
     acumulado = sum(comb(pruebas, k) for k in range(exitos + 1))
     return acumulado / total
-
-
-def run_sweep(
-    configuraciones: Sequence[
-        tuple[str, Callable[[], BacktestReport], Callable[[], BacktestReport]]
-    ],
-) -> SweepSummary:
-    """Ejecuta cada configuración en entrenamiento y validación.
-
-    Recibe pares de funciones ya preparadas en lugar de construir los backtests aquí: así el
-    barrido sirve igual para estrategias de un activo, para rotación entre varios o para lo que
-    venga después, sin conocer ninguna de las tres.
-    """
-    entradas: list[SweepEntry] = []
-    for etiqueta, entrenar, validar in configuraciones:
-        train = entrenar()
-        val = validar()
-        entradas.append(
-            SweepEntry(
-                label=etiqueta,
-                train_excess=train.excess_return,
-                train_trades=train.trade_count,
-                validation_excess=val.excess_return,
-                validation_trades=val.trade_count,
-            )
-        )
-    return SweepSummary(entries=tuple(entradas))
