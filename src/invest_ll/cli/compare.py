@@ -33,7 +33,7 @@ from invest_ll.engine.config import FrictionConfig, RiskConfig
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.errors import InvestLLError
 from invest_ll.research.attempts import AttemptLog
-from invest_ll.strategy.llm import CADA_MES, LLMStrategy
+from invest_ll.strategy.llm import ADVERTENCIA_CONTAMINACION, CADA_MES, LLMStrategy
 from invest_ll.strategy.rotation import RelativeMomentum
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -49,14 +49,6 @@ SALIDA_ERROR = 1
 SALIDA_NO_ENCONTRADO = 2
 SALIDA_NO_CONCLUYENTE = 3
 SALIDA_CANCELADO = 4
-
-ADVERTENCIA_CONTAMINACION = """\
-[!] Sobre el resultado del LLM: el modelo fue entrenado con datos que incluyen lo que paso
-    despues del periodo simulado. Eso no se puede eliminar, solo acotar -- aqui se le ocultan
-    fechas y nombres, pero un modelo que reconozca un patron sabe en que epoca esta.
-    Un buen resultado del LLM sobre el pasado NO es evidencia de que funcione hacia adelante.
-    La unica prueba limpia es registrar lo que estima y comparar con lo que pase despues.
-"""
 
 
 def _calendario(ruta: Path):  # type: ignore[no-untyped-def]

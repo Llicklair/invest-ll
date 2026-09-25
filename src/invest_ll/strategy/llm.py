@@ -29,6 +29,16 @@ if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.decision.provider import DecisionProvider
     from invest_ll.engine.universe_view import UniverseView
 
+# Lo que hay que decir siempre que se enseñe un resultado del LLM sobre el pasado. Vive junto a
+# la estrategia para que la línea de comandos y el panel lo compartan sin importarse entre sí.
+ADVERTENCIA_CONTAMINACION = """\
+[!] Sobre el resultado del LLM: el modelo fue entrenado con datos que incluyen lo que paso
+    despues del periodo simulado. Eso no se puede eliminar, solo acotar -- aqui se le ocultan
+    fechas y nombres, pero un modelo que reconozca un patron sabe en que epoca esta.
+    Un buen resultado del LLM sobre el pasado NO es evidencia de que funcione hacia adelante.
+    La unica prueba limpia es registrar lo que estima y comparar con lo que pase despues.
+"""
+
 # Periodos entre decisiones. 21 ≈ un mes de sesiones bursátiles: el valor por defecto de FR-040.
 CADA_MES = 21
 

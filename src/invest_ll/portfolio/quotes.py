@@ -15,8 +15,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from invest_ll.dashboard.data import RAIZ_DATOS, discover_assets
 from invest_ll.errors import InvestLLError
+from invest_ll.fetch.available import RAIZ_DATOS, discover_assets
 
 if TYPE_CHECKING:  # pragma: no cover
     from datetime import datetime

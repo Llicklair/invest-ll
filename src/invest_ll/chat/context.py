@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from invest_ll.dashboard.data import RAIZ_DATOS, discover_assets, market_overview
 from invest_ll.errors import InvestLLError
+from invest_ll.fetch.available import RAIZ_DATOS, discover_assets, market_overview
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.quotes import ultimo_cierre
 from invest_ll.portfolio.store import RAIZ as RAIZ_CARTERA

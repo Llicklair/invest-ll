@@ -30,7 +30,6 @@ from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
 from invest_ll.alerts.models import Nivel, Umbrales
 from invest_ll.chat.context import build_context
 from invest_ll.chat.session import ChatSession, ChatUnavailableError
-from invest_ll.cli.compare import ADVERTENCIA_CONTAMINACION
 from invest_ll.dashboard.data import (
     VENTANAS,
     AvailableAsset,
@@ -68,7 +67,7 @@ from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
 from invest_ll.report.report import BacktestReport
 from invest_ll.strategy.breakout import BreakoutHighs
-from invest_ll.strategy.llm import LLMStrategy
+from invest_ll.strategy.llm import ADVERTENCIA_CONTAMINACION, LLMStrategy
 from invest_ll.strategy.moving_average import MovingAverageCrossover
 from invest_ll.strategy.price_vs_average import PriceVsAverage
 from invest_ll.strategy.rotation import RelativeMomentum
