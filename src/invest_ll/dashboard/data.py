@@ -246,20 +246,6 @@ def suggest_compatible(
     return [a for a in assets if id(a) in seleccionados]
 
 
-def common_intervals(assets: Sequence[AvailableAsset]) -> list[Interval]:
-    """Intervalos disponibles en todos los activos indicados.
-
-    Un universo exige el mismo intervalo en todos, así que el panel solo debe ofrecer los que
-    valgan para la selección actual.
-    """
-    if not assets:
-        return []
-    comunes = {a.interval for a in assets}
-    for activo in assets[1:]:
-        comunes &= {activo.interval}
-    return sorted(comunes, key=lambda i: i.duration)
-
-
 # Ventanas para la tabla de rendimiento, en sesiones bursátiles.
 VENTANAS: tuple[tuple[str, int], ...] = (
     ("1 mes", 21),
