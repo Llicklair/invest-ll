@@ -38,11 +38,15 @@ Thumbs.db
 .vscode/
 
 # Decisiones cacheadas del LLM y registro de ordenes: datos locales, no codigo.
-decisions/
-ledger/
-forecasts/
-attempts/
-portfolio/
+# Anchored to the repo root: an unanchored `portfolio/` also matched the source package
+# src/invest_ll/portfolio/, which is how that package never reached git.
+/decisions/
+/ledger/
+/forecasts/
+/attempts/
+/portfolio/
+/paper/
+/research/runs/
 
 # Basura que dejan pytest y hypothesis en el directorio de trabajo (Windows).
 # No es codigo del proyecto: el test que los provoca no toca disco.
