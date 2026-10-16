@@ -48,7 +48,10 @@ class TestDondeMirar:
 
     def test_el_campo_normalizado_gana_al_desglose(self) -> None:
         """Si el exchange ya da el total, no hace falta sumar trozos."""
-        crudo: dict[str, Any] = {"fee": {"cost": "0.10"}, "info": {"fills": [{"commission": "999"}]}}
+        crudo: dict[str, Any] = {
+            "fee": {"cost": "0.10"},
+            "info": {"fills": [{"commission": "999"}]},
+        }
         assert comision_declarada(crudo) == D("0.10")
 
 

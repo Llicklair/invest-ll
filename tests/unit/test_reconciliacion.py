@@ -32,9 +32,7 @@ class TestCuandoTodoCuadra:
 
     def test_una_diferencia_ridicula_no_cuenta(self) -> None:
         """El polvo de decimales del exchange no es un descuadre."""
-        informe = reconciliar(
-            exchange={"BTC": D("0.00600001")}, cartera={"BTC": D("0.006")}
-        )
+        informe = reconciliar(exchange={"BTC": D("0.00600001")}, cartera={"BTC": D("0.006")})
         assert informe.cuadra
 
     def test_un_activo_a_cero_en_ambos_lados_no_es_diferencia(self) -> None:
@@ -95,9 +93,7 @@ class TestSoloSeMiraLoQueHasTocado:
         assert informe.otros_con_saldo == ("DOGE", "SHIB")
 
     def test_lo_ignorado_se_cuenta_en_el_resumen(self) -> None:
-        informe = reconciliar(
-            exchange={"DOGE": D("18466")}, cartera={}, relevantes={"BTC"}
-        )
+        informe = reconciliar(exchange={"DOGE": D("18466")}, cartera={}, relevantes={"BTC"})
         assert "1 activo(s) con saldo" in informe.describe()
 
     def test_el_descuadre_de_lo_relevante_sigue_saliendo(self) -> None:

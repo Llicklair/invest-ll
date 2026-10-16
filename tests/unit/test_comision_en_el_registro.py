@@ -23,9 +23,7 @@ AHORA = datetime(2026, 7, 26, 18, 40, tzinfo=UTC)
 
 
 def peticion() -> OrderRequest:
-    return OrderRequest(
-        symbol="BTC/USDT", side=Side.BUY, quantity=D("0.001"), requested_at=AHORA
-    )
+    return OrderRequest(symbol="BTC/USDT", side=Side.BUY, quantity=D("0.001"), requested_at=AHORA)
 
 
 def resultado(comision: Decimal | None) -> OrderResult:

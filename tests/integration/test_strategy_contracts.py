@@ -44,8 +44,8 @@ ESTRATEGIAS: list[tuple[str, Strategy]] = [
 FUERA_DE_CONTRATO = {
     "protocol",  # define el contrato, no lo implementa
     "rotation",  # otro contrato: elige entre varios activos, no emite señales
-    "scoring",   # puntúa activos, no decide entradas
-    "llm",       # necesita un proveedor de decisiones; se cubre en sus propios tests
+    "scoring",  # puntúa activos, no decide entradas
+    "llm",  # necesita un proveedor de decisiones; se cubre en sus propios tests
 }
 
 
@@ -65,7 +65,9 @@ class TestContratoDeEstrategia:
         assert isinstance(estrategia, Strategy), f"{nombre} no satisface el Protocol"
 
     @pytest.mark.parametrize(
-        "precios", [SUBIDA, BAJADA, PLANA, DIENTE_DE_SIERRA], ids=["sube", "baja", "plana", "sierra"]
+        "precios",
+        [SUBIDA, BAJADA, PLANA, DIENTE_DE_SIERRA],
+        ids=["sube", "baja", "plana", "sierra"],
     )
     def test_decide_devuelve_senal_o_nada(
         self, nombre: str, estrategia: Strategy, precios: list[float]
@@ -143,9 +145,7 @@ class TestLaListaEstaCompleta:
 
     def test_lo_excluido_existe_de_verdad(self) -> None:
         """Una exclusion que apunta a un modulo borrado esconde una estrategia sin cubrir."""
-        modulos = {
-            nombre for _, nombre, _ in pkgutil.iter_modules(paquete_estrategias.__path__)
-        }
+        modulos = {nombre for _, nombre, _ in pkgutil.iter_modules(paquete_estrategias.__path__)}
         assert modulos >= FUERA_DE_CONTRATO, (
             f"FUERA_DE_CONTRATO nombra modulos que ya no existen: {sorted(FUERA_DE_CONTRATO - modulos)}"
         )

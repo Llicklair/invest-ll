@@ -116,16 +116,12 @@ class TestLasPruebasNoContaminanLaCarteraReal:
         assert resultado.skipped_by_mode == 1
 
     def test_se_pueden_pedir_las_de_pruebas_a_proposito(self) -> None:
-        resultado = actividades_desde_ordenes(
-            [entrada(modo="pruebas")], modos=MODOS_FICTICIOS
-        )
+        resultado = actividades_desde_ordenes([entrada(modo="pruebas")], modos=MODOS_FICTICIOS)
         assert len(resultado.activities) == 1
 
     def test_la_simulacion_nunca_entra_ni_pidiendola(self) -> None:
         """Nunca salio al exterior: no hay nada que registrar."""
-        resultado = actividades_desde_ordenes(
-            [entrada(modo="simulacion")], modos=MODOS_FICTICIOS
-        )
+        resultado = actividades_desde_ordenes([entrada(modo="simulacion")], modos=MODOS_FICTICIOS)
         assert not resultado.activities
 
 

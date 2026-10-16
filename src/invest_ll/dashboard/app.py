@@ -803,7 +803,12 @@ def seccion_enviar_orden(sugeridos: list[str] | None = None, *, clave: str = "pr
         lado = st.selectbox("Lado", [s.value for s in Side], key=f"envio_lado_{clave}")
     with col_cant:
         cantidad = st.number_input(
-            "Cantidad", min_value=0.0, value=0.001, step=0.001, format="%.6f", key=f"envio_cantidad_{clave}"
+            "Cantidad",
+            min_value=0.0,
+            value=0.001,
+            step=0.001,
+            format="%.6f",
+            key=f"envio_cantidad_{clave}",
         )
 
     cantidad_decimal = Decimal(str(cantidad))
@@ -1426,9 +1431,7 @@ def main() -> None:
             "Cada una sigue pidiendo su confirmacion."
         )
     elif modo_actual.sends_real_orders:
-        st.warning(
-            "MODO PRUEBAS: las ordenes salen de verdad al exchange, con dinero ficticio."
-        )
+        st.warning("MODO PRUEBAS: las ordenes salen de verdad al exchange, con dinero ficticio.")
     st.caption(
         "Simulacion sobre datos historicos. "
         + (

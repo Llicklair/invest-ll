@@ -105,7 +105,9 @@ class OrderResult:
 
     def __post_init__(self) -> None:
         if self.commission is not None and self.commission < 0:
-            raise ValueError(f"una comision negativa ({self.commission}) seria un ingreso disfrazado")
+            raise ValueError(
+                f"una comision negativa ({self.commission}) seria un ingreso disfrazado"
+            )
 
     @property
     def matches_request(self) -> bool:
