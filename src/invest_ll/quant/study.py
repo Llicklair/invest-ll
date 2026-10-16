@@ -105,6 +105,10 @@ class StudyResult:
     stage_two_deflated: dict[str, float] = field(default_factory=lambda: dict[str, float]())
     stage_two_sharpe: dict[str, Interval] = field(default_factory=lambda: dict[str, Interval]())
     trials: int = 0
+    # (label, Sharpe without filter, Sharpe with filter, max drawdown without, max drawdown with)
+    filter_robustness: list[tuple[str, float, float, float, float]] = field(
+        default_factory=lambda: list[tuple[str, float, float, float, float]]()
+    )
 
 
 def _year(day: int) -> int:
@@ -246,6 +250,16 @@ def run_study(
         out.summaries[key] = out.stage_two[key]
         out.stage_two_deflated[key] = deflated_sharpe(r.returns, np.array(trial_sharpes))
         out.stage_two_sharpe[key] = bootstrap(r.returns, p.periods_per_year)[1]
+
+    # Is the market filter a general improvement or a lucky match with the flagship? Apply it to
+    # every grid configuration and compare each one with itself.
+    for i, (gp, plain) in enumerate(zip(points, out.grid_summaries, strict=True), start=1):
+        say(f"market filter on grid {i}/{len(points)}")
+        r = run(p, MarketFilter(gp.strategy), costs, cfg, universe(gp.universe))
+        filtered = summarise(r)
+        out.filter_robustness.append(
+            (gp.label, plain.sharpe, filtered.sharpe, plain.max_drawdown, filtered.max_drawdown)
+        )
 
     # The project's reserved stretch, measured on its own.
     h0 = p.index_of(holdout_start)

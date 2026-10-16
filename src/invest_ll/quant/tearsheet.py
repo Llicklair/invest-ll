@@ -328,6 +328,38 @@ def _stage_two_section(result: StudyResult) -> str:
 </section>"""
 
 
+def _robustness_section(result: StudyResult) -> str:
+    rows: list[tuple[str, float, float, float, float]] = getattr(result, "filter_robustness", [])
+    if not rows:
+        return ""
+    better_sharpe = sum(1 for _, a, b, _, _ in rows if b > a)
+    shallower = sum(1 for _, _, _, da, db in rows if db > da)
+
+    def med(xs: list[float]) -> float:
+        return sorted(xs)[len(xs) // 2]
+
+    sa, sb = med([a for _, a, _, _, _ in rows]), med([b for _, _, b, _, _ in rows])
+    da, db = med([d for _, _, _, d, _ in rows]), med([d for _, _, _, _, d in rows])
+    table = "".join(
+        f"<tr><td>{html.escape(lab)}</td><td>{_num(a)}</td><td>{_num(b)}</td>"
+        f"<td>{_pct(x)}</td><td>{_pct(y)}</td></tr>"
+        for lab, a, b, x, y in sorted(rows, key=lambda r: -(r[2] - r[1]))
+    )
+    return f"""
+<section aria-labelledby="robust">
+  <div class="section-head"><div class="eyebrow">Stage two, robustness</div>
+  <h2 id="robust">Is the market filter a general improvement?</h2></div>
+  <p class="col">The filter was added after seeing the pre-registered portfolio fall 75% in 2022. If it only
+  rescued that one configuration, it would be a fit to the past. Applied unchanged to all {len(rows)} grid
+  configurations, it raised the Sharpe ratio of {better_sharpe} and made the worst fall shallower in
+  {shallower}. Median Sharpe went from {_num(sa)} to {_num(sb)}; median worst fall from {_pct(da)} to {_pct(db)}.</p>
+  <details><summary>Show every configuration with and without the filter</summary>
+    <div class="table-wrap"><table class="data"><thead><tr><th>Configuration</th><th>Sharpe</th><th>Sharpe, filtered</th>
+    <th>Max drawdown</th><th>Max drawdown, filtered</th></tr></thead><tbody>{table}</tbody></table></div>
+  </details>
+</section>"""
+
+
 def _capacity_section(result: StudyResult) -> str:
     if not result.capacity:
         return ""
@@ -420,6 +452,7 @@ def render(
         capacity=_capacity_section(result),
         equities=_etf_section(etf),
         stage_two=_stage_two_section(result),
+        robustness=_robustness_section(result),
         universe=_universe_section(result),
         chart=chart,
         light=json.dumps(SERIES_LIGHT),
@@ -538,6 +571,7 @@ footer {{ border-top: 1px solid var(--rule); padding-top: 18px; font-size: 12.5p
 {grid}
 {luck}
 {stage_two}
+{robustness}
 {capacity}
 {universe}
 {equities}
