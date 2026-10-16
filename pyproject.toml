@@ -34,6 +34,7 @@ invest-ll-portfolio = "invest_ll.cli.portfolio:main"
 invest-ll-signal = "invest_ll.cli.signal:main"
 invest-ll-triggers = "invest_ll.cli.triggers:main"
 invest-ll-chat = "invest_ll.cli.chat:main"
+invest-ll-quant = "invest_ll.cli.quant:main"
 
 [dependency-groups]
 dev = [

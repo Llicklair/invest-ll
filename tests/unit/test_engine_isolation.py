@@ -45,7 +45,7 @@ PROHIBIDOS = frozenset(
 )
 
 RAIZ_MOTOR = Path(__file__).resolve().parents[2] / "src" / "invest_ll"
-SUBPAQUETES_MOTOR = ("engine", "report", "strategy")
+SUBPAQUETES_MOTOR = ("engine", "report", "strategy", "quant")
 
 
 def modulos_del_motor() -> list[Path]:
