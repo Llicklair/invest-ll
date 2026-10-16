@@ -251,6 +251,26 @@ def run_study(
         out.stage_two_deflated[key] = deflated_sharpe(r.returns, np.array(trial_sharpes))
         out.stage_two_sharpe[key] = bootstrap(r.returns, p.periods_per_year)[1]
 
+    # The two strongest candidates, paying Spanish tax every July like a real account.
+    for key, strategy, band, rule in (
+        (
+            "Stage 2: + market filter + band, tax paid yearly",
+            MarketFilter(FLAGSHIP),
+            NO_TRADE_BAND,
+            FLAGSHIP_UNIVERSE,
+        ),
+        ("BTC 30-day trend, tax paid yearly", TrendAsset("BTCUSDT", 30), 0.0, None),
+    ):
+        config = RunConfig(
+            initial_capital=CAPITAL,
+            rebalance_every=REBALANCE_EVERY,
+            tranches=TRANCHES,
+            start=s0,
+            pay_tax=True,
+            no_trade_band=band,
+        )
+        out.summaries[key] = summarise(go(key, strategy, config, rule), btc)
+
     # Is the market filter a general improvement or a lucky match with the flagship? Apply it to
     # every grid configuration and compare each one with itself.
     for i, (gp, plain) in enumerate(zip(points, out.grid_summaries, strict=True), start=1):

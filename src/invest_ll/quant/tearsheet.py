@@ -36,6 +36,11 @@ SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"]
 
 FLAG = FLAG_KEY
 STAGE_KEY = "Stage 2: + market filter + band"
+TAXED_KEYS = (
+    "Momentum portfolio, Spanish tax paid yearly",
+    "Stage 2: + market filter + band, tax paid yearly",
+    "BTC 30-day trend, tax paid yearly",
+)
 CHART_KEYS = [
     FLAG,
     "Hold BTC",
@@ -54,6 +59,8 @@ SHORT = {
     "Stage 2: + market filter": "Stage 2: market filter",
     "Stage 2: + no-trade band": "Stage 2: no-trade band",
     STAGE_KEY: "Stage 2: filter + band",
+    "Stage 2: + market filter + band, tax paid yearly": "Stage 2, after tax",
+    "BTC 30-day trend, tax paid yearly": "BTC trend, after tax",
 }
 
 
@@ -425,7 +432,7 @@ def render(
 ) -> str:
     flag = result.summaries[FLAG]
     btc = result.summaries["Hold BTC"]
-    main_keys = [*CHART_KEYS, "Momentum portfolio, Spanish tax paid yearly"]
+    main_keys = [*CHART_KEYS, *TAXED_KEYS]
     holdout = _summary_rows(result.holdout, list(result.holdout)) if result.holdout else ""
     chart = json.dumps(_line_chart_data(result))
     config = (

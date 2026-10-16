@@ -15,10 +15,17 @@ las cuatro condiciones de [Dinero real](#dinero-real) — la guía completa est�
 [docs/operar-de-verdad.md](docs/operar-de-verdad.md). **Para bolsa no hay conexión con ningún
 broker**: el sistema propone y tú compras donde ya operes.
 
-**Los dos mercados no se mezclan**: cripto se gestiona de forma activa (rotación semanal) y bolsa a
-largo plazo (meses). No es una preferencia, es lo que dicen las mediciones — en bolsa ninguna de
-siete estrategias batió a comprar y mantener. Las cifras están en
-[docs/horizontes.md](docs/horizontes.md).
+**Los dos mercados no se mezclan**: cripto se gestiona de forma activa y bolsa a largo plazo
+(meses). En bolsa ninguna de siete estrategias batió a comprar y mantener. Las cifras están en
+[docs/horizontes.md](docs/horizontes.md), que incluye una **corrección del 2026-10-16**: la rotación
+semanal entre cuatro monedas fijas no tiene validación fuera de muestra.
+
+**Investigación cuantitativa** (`invest-ll-quant`): lo que se puede copiar de un fondo sistemático a
+escala de una persona. Universo de cripto sin sesgo de supervivencia (todos los pares de Binance,
+también los que murieron), carteras con peso por riesgo, costes e impuestos españoles en el motor,
+y pruebas de sobreajuste (walk-forward, PBO, Sharpe deflactado). La cartera principal se fijó antes
+de ver resultados y se prueba hacia delante con registros diarios en git. Todo en
+[docs/quant-research.md](docs/quant-research.md) y en la pestaña **Investigación** del panel.
 
 **Arrancar**: doble clic en `levantar.cmd`. Comprueba el entorno, cierra paneles viejos y abre el
 panel en http://localhost:8601. Desde una terminal, Windows bloquea los `.ps1` por política de
@@ -62,6 +69,7 @@ Recogidos en [la constitución del proyecto](.specify/memory/constitution.md):
 | [002 · Descarga de histórico](specs/002-market-data-fetch/) | Funcional | Trae mercado real de cripto y bolsa, listo para el motor |
 | Carteras y rotación | Funcional | Universo de activos, momentum relativo, aportaciones periódicas y análisis de diversificación |
 | Panel interactivo | Funcional | Streamlit sobre el mismo motor |
+| Investigación cuantitativa | Funcional | Universo sin sesgo de supervivencia, carteras por riesgo, pruebas de sobreajuste, prueba hacia delante |
 
 Soporta cripto (mercado continuo) y bolsa (con horario de sesión y festivos) sobre el mismo
 motor, con cualquier granularidad de vela. Incluye dos estrategias de referencia: cruce de medias
@@ -124,10 +132,20 @@ Separa los datos verificables (con su fuente y su fecha) de la interpretación.
 uv run invest-ll-panel
 ```
 
-Seis pestañas, una por pregunta: **Mercado** (cotizaciones al momento y rendimiento del histórico),
+Siete pestañas, una por pregunta: **Mercado** (cotizaciones al momento y rendimiento del histórico),
 **Mi cartera**, **Simular** (propuestas y backtests), **Vigilar** (alertas y triggers de retirada),
-**Estimado vs real** y **Chat**. Todas las cifras salen del mismo motor que la línea de comandos,
+**Estimado vs real**, **Investigación** (la cartera prerregistrada de hoy, su prueba hacia delante y
+el último estudio) y **Chat**. Todas las cifras salen del mismo motor que la línea de comandos,
 con las mismas advertencias. Ninguna pestaña envía órdenes.
+
+**Investigación cuantitativa:**
+
+```bash
+uv run invest-ll-quant download            # todos los pares USDT de Binance desde 2017
+uv run invest-ll-quant study               # estudio completo -> research/runs/<fecha>/report.html
+uv run invest-ll-quant paper targets --capital 1000   # qué tendría hoy la cartera, en USDT
+.\scripts\paper-daily.ps1                  # registro diario de la prueba hacia delante, con commit
+```
 
 **Evaluar una estrategia sobre ellos:**
 
