@@ -31,7 +31,7 @@ from invest_ll.cli.emit import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.quant.metrics import Summary
-    from invest_ll.quant.panel import FloatArray, Panel
+    from invest_ll.quant.panel import Panel
 
 SALIDA_OK = 0
 SALIDA_ERROR = 1
@@ -171,95 +171,111 @@ def cmd_render(args: argparse.Namespace, salida: Salida) -> int:
     return salida.cerrar(SALIDA_OK)
 
 
-def _targets(args: argparse.Namespace) -> tuple[Panel, FloatArray, str]:
-    from invest_ll.quant.paper import current_targets
-    from invest_ll.quant.study import FLAGSHIP, FLAGSHIP_UNIVERSE, REBALANCE_EVERY, TRANCHES
-
-    panel = _panel(args.root)
-    weights = current_targets(
-        panel,
-        FLAGSHIP,
-        FLAGSHIP_UNIVERSE,
-        rebalance_every=REBALANCE_EVERY,
-        tranches=TRANCHES,
-    )
-    return panel, weights, FLAGSHIP.name
-
-
 def cmd_paper(args: argparse.Namespace, salida: Salida) -> int:
     from invest_ll.quant.metrics import summarise
-    from invest_ll.quant.paper import read, record, replay
+    from invest_ll.quant.paper import current_targets, read, record, replay, variants
+    from invest_ll.quant.study import FLAGSHIP_UNIVERSE, REBALANCE_EVERY, TRANCHES
 
     salida.aviso(
-        AVISO_SOLO_SIMULACION,
-        "Paper portfolio: nothing here sends orders.",
-        mostrar=False,
+        AVISO_SOLO_SIMULACION, "Paper portfolio: nothing here sends orders.", mostrar=False
     )
-    if args.action in {"record", "targets"}:
-        panel, weights, name = _targets(args)
-        last = panel.date_at(len(panel) - 1)
-        stale = (datetime.now(UTC).date() - last).days
-        if stale > 2:
-            salida.aviso(
-                AVISO_DATOS_VIEJOS,
-                f"Data ends on {last} ({stale} days ago). Run `invest-ll-quant download` first.",
+    chosen = list(variants().values())
+    if args.variant != "all":
+        chosen = [v for v in chosen if v.key == args.variant]
+    panel = _panel(args.root)
+    last = panel.date_at(len(panel) - 1)
+    stale = (datetime.now(UTC).date() - last).days
+    if args.action in {"record", "targets"} and stale > 2:
+        salida.aviso(
+            AVISO_DATOS_VIEJOS,
+            f"Data ends on {last} ({stale} days ago). Run `invest-ll-quant download` first.",
+        )
+
+    report: dict[str, object] = {}
+    code = SALIDA_OK
+    for variant in chosen:
+        if args.action in {"record", "targets"}:
+            weights = current_targets(
+                panel,
+                variant.strategy,
+                FLAGSHIP_UNIVERSE,
+                rebalance_every=REBALANCE_EVERY,
+                tranches=TRANCHES,
             )
-        held = sorted(
-            ((float(w), panel.symbols[i]) for i, w in enumerate(weights) if w > 1e-6),
-            reverse=True,
-        )
-        cash = 1.0 - sum(w for w, _ in held)
-        salida.dato(
-            data_date=last,
-            strategy=name,
-            weights={sym: w for w, sym in held},
-            cash=cash,
-            amounts=None if not args.capital else {sym: w * args.capital for w, sym in held},
-        )
-        salida.linea(f"Targets after the close of {last} ({name}):")
-        for w, sym in held:
-            line = f"  {sym.removesuffix('USDT'):<10} {w:6.1%}"
+            held = sorted(
+                ((float(w), panel.symbols[i]) for i, w in enumerate(weights) if w > 1e-6),
+                reverse=True,
+            )
+            cash = 1.0 - sum(w for w, _ in held)
+            entry: dict[str, object] = {
+                "strategy": variant.strategy.name,
+                "data_date": last,
+                "weights": {sym: w for w, sym in held},
+                "cash": cash,
+            }
             if args.capital:
-                line += f"   {w * args.capital:12,.2f} USDT"
-            salida.linea(line)
-        tail = f"   {cash * args.capital:12,.2f} USDT" if args.capital else ""
-        salida.linea(f"  {'cash':<10} {cash:6.1%}{tail}")
+                entry["amounts"] = {sym: w * args.capital for w, sym in held}
+            salida.linea(
+                f"[{variant.key}] targets after the close of {last} ({variant.strategy.name}):"
+            )
+            for w, sym in held:
+                line = f"  {sym.removesuffix('USDT'):<10} {w:6.1%}"
+                if args.capital:
+                    line += f"   {w * args.capital:12,.2f} USDT"
+                salida.linea(line)
+            tail = f"   {cash * args.capital:12,.2f} USDT" if args.capital else ""
+            salida.linea(f"  {'cash':<10} {cash:6.1%}{tail}")
+            if args.action == "record":
+                try:
+                    saved = record(panel, weights, variant.strategy.name, variant.ledger)
+                except ValueError as error:
+                    # Append-only: the existing record stands and is not rewritten.
+                    salida.aviso("already_recorded", f"  {error}")
+                else:
+                    entry["recorded_in"] = variant.ledger
+                    salida.linea(f"  recorded {saved.data_date} in {variant.ledger}")
+            report[variant.key] = entry
+            continue
+
+        records = read(variant.ledger)
+        if not records:
+            salida.linea(f"[{variant.key}] no records in {variant.ledger} yet.")
+            report[variant.key] = None
+            code = SALIDA_NO_CONCLUYENTE
+            continue
+        result = replay(panel, records, no_trade_band=variant.no_trade_band)
+        if result is None or len(result.returns) < 1:
+            salida.linea(
+                f"[{variant.key}] first record {records[0].data_date}: no days after it yet."
+            )
+            report[variant.key] = {"since": records[0].data_date, "records": len(records)}
+            code = SALIDA_NO_CONCLUYENTE
+            continue
+        s = summarise(result)
+        btc = panel.close[:, panel.column("BTCUSDT")]
+        btc_value = float(10_000 * btc[-1] / btc[result.start])
+        report[variant.key] = {
+            "since": records[0].data_date,
+            "records": len(records),
+            "summary": _summary_dict(s),
+            "btc": btc_value,
+        }
+        salida.linea(
+            f"[{variant.key}] forward test since {records[0].data_date} ({len(records)} records):"
+        )
+        salida.linea(
+            f"  value {s.final_value:,.0f} from 10,000   max drawdown {s.max_drawdown:.1%}"
+            f"   trades {s.trades}   holding BTC: {btc_value:,.0f}"
+        )
+
+    if args.action in {"record", "targets"}:
         salida.aviso(
             AVISO_NO_ES_PREVISION,
             "These are the rule's targets, not a forecast that they will rise.",
             mostrar=False,
         )
-        if args.action == "record":
-            try:
-                entry = record(panel, weights, name, args.ledger)
-            except ValueError as error:
-                return salida.error(str(error), SALIDA_ERROR)
-            salida.dato(recorded=entry.data_date, ledger=args.ledger)
-            salida.linea(f"Recorded {entry.data_date} in {args.ledger}")
-        return salida.cerrar(SALIDA_OK)
-
-    records = read(args.ledger)
-    if not records:
-        salida.linea(f"No records in {args.ledger}. Start with `invest-ll-quant paper record`.")
-        return salida.cerrar(SALIDA_NO_CONCLUYENTE)
-    panel = _panel(args.root)
-    result = replay(panel, records)
-    if result is None or len(result.returns) < 1:
-        salida.linea("Not enough data after the first record yet.")
-        return salida.cerrar(SALIDA_NO_CONCLUYENTE)
-    s = summarise(result)
-    btc = panel.close[:, panel.column("BTCUSDT")]
-    btc_value = float(10_000 * btc[-1] / btc[result.start])
-    salida.dato(
-        since=records[0].data_date, records=len(records), summary=_summary_dict(s), btc=btc_value
-    )
-    salida.linea(f"Forward test since {records[0].data_date} ({len(records)} records):")
-    salida.linea(
-        f"  value {s.final_value:,.0f} from 10,000   max drawdown {s.max_drawdown:.1%}"
-        f"   trades {s.trades}"
-    )
-    salida.linea(f"  holding BTC over the same days: {btc_value:,.0f}")
-    return salida.cerrar(SALIDA_OK)
+    salida.dato(variants=report)
+    return salida.cerrar(code)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -292,7 +308,12 @@ def build_parser() -> argparse.ArgumentParser:
     paper = sub.add_parser("paper", help="forward test of the pre-registered portfolio")
     add_json_flag(paper, hereda=True)
     paper.add_argument("action", choices=["record", "status", "targets"])
-    paper.add_argument("--ledger", type=Path, default=Path("paper/momentum.jsonl"))
+    paper.add_argument(
+        "--variant",
+        choices=["all", "preregistered", "filtered"],
+        default="all",
+        help="which forward test (default: both)",
+    )
     paper.add_argument(
         "--capital", type=float, default=None, help="show amounts in USDT for this account size"
     )

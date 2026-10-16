@@ -20,7 +20,6 @@ import streamlit.components.v1 as components
 from invest_ll.quant.panel import Panel, load_binance_universe
 
 DATA_ROOT = Path("data/market/binance-universe")
-LEDGER = Path("paper/momentum.jsonl")
 RUNS = Path("research/runs")
 
 
@@ -37,7 +36,7 @@ def latest_report(runs: Path = RUNS) -> Path | None:
 
 def render_research_tab() -> None:
     from invest_ll.quant.metrics import summarise
-    from invest_ll.quant.paper import current_targets, read, replay
+    from invest_ll.quant.paper import current_targets, read, replay, variants
     from invest_ll.quant.study import FLAGSHIP, FLAGSHIP_UNIVERSE, REBALANCE_EVERY, TRANCHES
 
     st.subheader("Cartera prerregistrada")
@@ -94,29 +93,36 @@ def render_research_tab() -> None:
     st.caption("El panel no envía nada. Ejecutar estas cantidades sigue siendo cosa tuya.")
 
     st.subheader("Prueba hacia delante")
-    records = read(LEDGER)
-    if not records:
-        st.info(
-            "Todavía no hay registros. `uv run invest-ll-quant paper record` guarda la cartera de "
-            "hoy; `scripts/paper-daily.ps1` lo hace cada día y lo deja en un commit con fecha."
-        )
-    else:
-        result = replay(panel, records)
+    labels = {
+        "preregistered": "Prerregistrada",
+        "filtered": "Segunda fase (filtro de mercado + banda)",
+    }
+    for variant in variants().values():
+        records = read(variant.ledger)
+        st.markdown(f"**{labels.get(variant.key, variant.key)}**")
+        if not records:
+            st.info(
+                "Todavía no hay registros. `uv run invest-ll-quant paper record` guarda la cartera "
+                "de hoy; `scripts/paper-daily.ps1` lo hace cada día y lo deja en un commit con fecha."
+            )
+            continue
+        result = replay(panel, records, no_trade_band=variant.no_trade_band)
         if result is None or len(result.returns) < 1:
             st.info(
                 f"Primer registro el {records[0].data_date}: aún no hay días después para medir."
             )
-        else:
-            s = summarise(result)
-            btc = panel.close[:, panel.column("BTCUSDT")]
-            btc_value = 10_000 * float(btc[-1] / btc[result.start])
-            a, b, c = st.columns(3)
-            a.metric("Cartera (desde 10.000)", f"{s.final_value:,.0f}")
-            b.metric("Mantener BTC", f"{btc_value:,.0f}")
-            c.metric("Peor caída", f"{s.max_drawdown:.1%}")
-            st.caption(
-                f"Desde {records[0].data_date}, {len(records)} registros, con las mismas comisiones que el backtest."
-            )
+            continue
+        s = summarise(result)
+        btc = panel.close[:, panel.column("BTCUSDT")]
+        btc_value = 10_000 * float(btc[-1] / btc[result.start])
+        a, b, c = st.columns(3)
+        a.metric("Cartera (desde 10.000)", f"{s.final_value:,.0f}")
+        b.metric("Mantener BTC", f"{btc_value:,.0f}")
+        c.metric("Peor caída", f"{s.max_drawdown:.1%}")
+        st.caption(
+            f"Desde {records[0].data_date}, {len(records)} registros, con las mismas comisiones "
+            "que el backtest."
+        )
 
     st.subheader("Último estudio")
     report = latest_report()

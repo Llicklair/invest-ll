@@ -19,11 +19,37 @@ import numpy as np
 
 from invest_ll.quant.engine import BINANCE_SPOT, Costs, RunConfig, RunResult, run
 from invest_ll.quant.panel import FloatArray, Panel
-from invest_ll.quant.strategies import MomentumPortfolio
+from invest_ll.quant.strategies import WeightStrategy
 from invest_ll.quant.universe import PointInTimeUniverse, UniverseRule
 from invest_ll.quant.view import MarketView
 
 DEFAULT_LEDGER = Path("paper/momentum.jsonl")
+
+
+@dataclass(frozen=True, slots=True)
+class PaperVariant:
+    """One portfolio under forward test: its strategy, its ledger and its execution band."""
+
+    key: str
+    strategy: WeightStrategy
+    ledger: Path
+    no_trade_band: float = 0.0
+
+
+def variants() -> dict[str, PaperVariant]:
+    """Both versions run forward side by side: the pre-registered one and stage two."""
+    from invest_ll.quant.strategies import MarketFilter
+    from invest_ll.quant.study import FLAGSHIP, NO_TRADE_BAND
+
+    return {
+        "preregistered": PaperVariant("preregistered", FLAGSHIP, DEFAULT_LEDGER),
+        "filtered": PaperVariant(
+            "filtered",
+            MarketFilter(FLAGSHIP),
+            Path("paper/momentum-filtered.jsonl"),
+            NO_TRADE_BAND,
+        ),
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +62,7 @@ class PaperRecord:
 
 def current_targets(
     panel: Panel,
-    strategy: MomentumPortfolio,
+    strategy: WeightStrategy,
     rule: UniverseRule,
     *,
     rebalance_every: int,
@@ -122,7 +148,11 @@ class RecordedWeights:
 
 
 def replay(
-    panel: Panel, records: list[PaperRecord], costs: Costs = BINANCE_SPOT, capital: float = 10_000.0
+    panel: Panel,
+    records: list[PaperRecord],
+    costs: Costs = BINANCE_SPOT,
+    capital: float = 10_000.0,
+    no_trade_band: float = 0.0,
 ) -> RunResult | None:
     """Engine run from the first record to the last close, trading to each recorded target."""
     if not records:
@@ -134,5 +164,7 @@ def replay(
         panel,
         RecordedWeights(panel, records),
         costs,
-        RunConfig(initial_capital=capital, rebalance_every=1, start=start),
+        RunConfig(
+            initial_capital=capital, rebalance_every=1, start=start, no_trade_band=no_trade_band
+        ),
     )
