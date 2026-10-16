@@ -1417,6 +1417,12 @@ def seccion_datos(activos: list[AvailableAsset]) -> None:
             st.rerun()
 
 
+def pestana_investigacion() -> None:
+    from invest_ll.dashboard.research import render_research_tab
+
+    render_research_tab()
+
+
 def main() -> None:
     st.set_page_config(page_title="INVEST LL", layout="wide")
     st.title("INVEST LL")
@@ -1462,10 +1468,10 @@ def main() -> None:
         "optimista."
     )
 
-    # Seis pestanas, una pregunta cada una, en el orden en que se usan:
-    # mirar -> tener -> ensayar -> vigilar -> comprobar -> preguntar.
-    mercado, mi_cartera, simular, vigilar, seguimiento, chat = st.tabs(
-        ["Mercado", "Mi cartera", "Simular", "Vigilar", "Estimado vs real", "Chat"]
+    # Siete pestanas, una pregunta cada una, en el orden en que se usan:
+    # mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar -> preguntar.
+    mercado, mi_cartera, simular, vigilar, seguimiento, investigacion, chat = st.tabs(
+        ["Mercado", "Mi cartera", "Simular", "Vigilar", "Estimado vs real", "Investigación", "Chat"]
     )
     with mercado:
         pestana_mercado(activos)
@@ -1477,6 +1483,8 @@ def main() -> None:
         pestana_alertas(activos)
     with seguimiento:
         pestana_seguimiento()
+    with investigacion:
+        pestana_investigacion()
     with chat:
         pestana_chat()
 
