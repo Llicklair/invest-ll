@@ -170,3 +170,28 @@ def test_tax_is_paid_in_july_from_the_account() -> None:
     assert untaxed.equity[-1] == pytest.approx(20_000)
     assert taxed.equity[-1] == pytest.approx(20_000 - 1_980)
     assert taxed.taxes.sum() == pytest.approx(1_980)
+
+
+def test_the_no_trade_band_skips_small_adjustments_but_never_an_exit() -> None:
+    closes = {"AUSDT": [100.0] * 12, "BUSDT": [100.0] * 12}
+
+    class Drift:
+        name = "drift"
+
+        def weights(self, view: MarketView) -> np.ndarray:
+            if view.cursor < 3:
+                return np.array([0.50, 0.40])
+            if view.cursor < 6:
+                return np.array([0.51, 0.40])  # 1 point: inside a 2-point band
+            return np.array([0.51, 0.0])  # B leaves: an exit, never banded
+
+    panel = panel_from_closes(closes)
+    banded = run(
+        panel,
+        Drift(),
+        FREE,
+        RunConfig(initial_capital=10_000, rebalance_every=1, no_trade_band=0.02),
+    )
+    plain = run(panel, Drift(), FREE, RunConfig(initial_capital=10_000, rebalance_every=1))
+    assert banded.trades < plain.trades
+    assert banded.weights[-1][1] == 0.0

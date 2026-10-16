@@ -5,6 +5,13 @@ textbook values rather than tuned ones (a blend of 2-week to 3-month trends, fiv
 volatility, a 35% cap and a 60% volatility target). The grid around it exists to measure how fragile
 it is, not to pick a better one. Picking the best cell of the grid afterwards would be exactly the
 mistake the deflated Sharpe ratio and PBO are here to price.
+
+**Stage two** (`STAGE_TWO`) was written after seeing the first results, so it is labelled as such
+everywhere and its deflated Sharpe counts every trial before it. It tests two changes motivated by
+the first run rather than by a search: a market-level trend filter (the first run stayed half
+invested through 2022 and fell 75%) and a no-trade band (the first run turned its capital over 28
+times a year). Neither has a free parameter tuned on the data: the filter reuses the strategy's own
+trend horizons and the band is a round 2 points.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from invest_ll.quant.panel import FloatArray, Panel
 from invest_ll.quant.strategies import (
     EqualWeightUniverse,
     HoldAsset,
+    MarketFilter,
     MomentumPortfolio,
     RotationTop1,
     TrendAsset,
@@ -45,6 +53,12 @@ FLAG_KEY = "Momentum portfolio (pre-registered)"
 REBALANCE_EVERY = 7
 TRANCHES = 7
 CAPITAL = 10_000.0
+NO_TRADE_BAND = 0.02
+STAGE_TWO: dict[str, tuple[WeightStrategy, float]] = {
+    "Stage 2: + market filter": (MarketFilter(FLAGSHIP), 0.0),
+    "Stage 2: + no-trade band": (FLAGSHIP, NO_TRADE_BAND),
+    "Stage 2: + market filter + band": (MarketFilter(FLAGSHIP), NO_TRADE_BAND),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +101,10 @@ class StudyResult:
     capacity: dict[str, Summary] = field(default_factory=lambda: dict[str, Summary]())
     holdout: dict[str, Summary] = field(default_factory=lambda: dict[str, Summary]())
     universe_samples: dict[str, list[str]] = field(default_factory=lambda: dict[str, list[str]]())
+    stage_two: dict[str, Summary] = field(default_factory=lambda: dict[str, Summary]())
+    stage_two_deflated: dict[str, float] = field(default_factory=lambda: dict[str, float]())
+    stage_two_sharpe: dict[str, Interval] = field(default_factory=lambda: dict[str, Interval]())
+    trials: int = 0
 
 
 def _year(day: int) -> int:
@@ -204,10 +222,30 @@ def run_study(
         out.walk = walk_forward(out.grid_labels, matrix, years, days=p.days[s0 + 1 :])
         say("PBO")
         out.pbo = probability_of_overfitting(matrix, blocks=16)
-        trials = np.array([per_period_sharpe(matrix[:, j]) for j in range(matrix.shape[1])])
-        out.deflated = deflated_sharpe(flagship.returns, trials)
+    trial_sharpes = [per_period_sharpe(c) for c in columns]
+    if trial_sharpes:
+        out.deflated = deflated_sharpe(flagship.returns, np.array(trial_sharpes))
 
     out.flagship_cagr, out.flagship_sharpe = bootstrap(flagship.returns, p.periods_per_year)
+
+    # Stage two: written after the first results; every earlier trial counts against it.
+    stage_runs: dict[str, RunResult] = {}
+    for key, (strategy, band) in STAGE_TWO.items():
+        config = RunConfig(
+            initial_capital=CAPITAL,
+            rebalance_every=REBALANCE_EVERY,
+            tranches=TRANCHES,
+            start=s0,
+            no_trade_band=band,
+        )
+        stage_runs[key] = go(key, strategy, config, FLAGSHIP_UNIVERSE)
+        trial_sharpes.append(per_period_sharpe(stage_runs[key].returns))
+    out.trials = len(trial_sharpes)
+    for key, r in stage_runs.items():
+        out.stage_two[key] = summarise(r, btc)
+        out.summaries[key] = out.stage_two[key]
+        out.stage_two_deflated[key] = deflated_sharpe(r.returns, np.array(trial_sharpes))
+        out.stage_two_sharpe[key] = bootstrap(r.returns, p.periods_per_year)[1]
 
     # The project's reserved stretch, measured on its own.
     h0 = p.index_of(holdout_start)
@@ -215,7 +253,8 @@ def run_study(
         "Hold BTC",
         "Hold the top 20 (equal weight, monthly)",
         "INVEST LL policy on the top 20 (top-1, 30d, weekly)",
-        "Momentum portfolio (pre-registered)",
+        FLAG_KEY,
+        *STAGE_TWO,
     ):
         r = out.runs[key]
         out.holdout[key] = summarise(_rebase(r, h0), _rebase(btc, h0))

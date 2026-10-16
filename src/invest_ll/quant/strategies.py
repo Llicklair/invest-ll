@@ -253,3 +253,117 @@ def _cap_and_normalise(weights: FloatArray, cap: float) -> FloatArray:
             break
         w[free] += excess * w[free] / w[free].sum()
     return np.minimum(w, cap)
+
+
+@dataclass(frozen=True, slots=True)
+class MarketFilter:
+    """Hold the inner strategy's book only while the market itself is trending up.
+
+    Crypto moves as one block: when Bitcoin falls, almost every coin falls with it, and a per-coin
+    trend filter reacts coin by coin and late. This wrapper applies the same multi-horizon trend
+    test to the market proxy (`symbol`) and moves everything to cash when it fails. It is the
+    piece of INVEST LL's rotation that survived out-of-sample testing ("not being in when
+    everything falls"), applied at the level of the whole book.
+    """
+
+    inner: MomentumPortfolio
+    symbol: str = "BTCUSDT"
+    lookbacks: tuple[int, ...] = (14, 30, 60, 90)
+
+    @property
+    def name(self) -> str:
+        return f"{self.inner.name} + {self.symbol.removesuffix('USDT')} market filter"
+
+    def market_is_up(self, view: MarketView) -> bool:
+        col = view.column(self.symbol)
+        logs = [np.log1p(view.total_return(lb)[col]) for lb in self.lookbacks]
+        valid = [x for x in logs if not np.isnan(x)]
+        return bool(valid) and float(np.mean(valid)) > 0
+
+    def weights(self, view: MarketView) -> FloatArray | None:
+        if not self.market_is_up(view):
+            return _zeros(view)
+        return self.inner.weights(view)
+
+
+@dataclass(frozen=True, slots=True)
+class ConstantMix:
+    """Fixed weights, restored on every decision day (60/40 and similar)."""
+
+    mix: tuple[tuple[str, float], ...]
+    label: str = ""
+
+    @property
+    def name(self) -> str:
+        return self.label or " / ".join(f"{s} {w:.0%}" for s, w in self.mix)
+
+    def weights(self, view: MarketView) -> FloatArray | None:
+        w = _zeros(view)
+        for symbol, weight in self.mix:
+            col = view.column(symbol)
+            if not np.isnan(view.last_close()[col]):
+                w[col] = weight
+        return w
+
+
+@dataclass(frozen=True, slots=True)
+class RiskParity:
+    """Inverse-volatility weights across a fixed list, optionally with a per-asset trend filter.
+
+    With `trend_lookbacks`, an asset whose average log return over those horizons is not positive
+    keeps its risk budget in cash instead of handing it to the others: the classic tactical
+    allocation that sidesteps long bear markets in one asset class without betting on another.
+    """
+
+    symbols: tuple[str, ...]
+    vol_lookback: int = 63
+    trend_lookbacks: tuple[int, ...] | None = None
+
+    @property
+    def name(self) -> str:
+        return "risk parity" + (" + trend filter" if self.trend_lookbacks else "")
+
+    def weights(self, view: MarketView) -> FloatArray | None:
+        w = _zeros(view)
+        cols = np.array([view.column(s) for s in self.symbols])
+        vol = view.volatility(self.vol_lookback)[cols]
+        ok = ~np.isnan(vol) & (vol > 0)
+        if not ok.any():
+            return w
+        inv = np.where(ok, 1.0 / np.where(ok, vol, 1.0), 0.0)
+        budget = inv / inv.sum()
+        if self.trend_lookbacks:
+            logs = np.vstack([np.log1p(view.total_return(lb)[cols]) for lb in self.trend_lookbacks])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                trend = np.nanmean(logs, axis=0)
+            budget = np.where(np.nan_to_num(trend, nan=-1.0) > 0, budget, 0.0)
+        w[cols] = budget
+        return w
+
+
+@dataclass(frozen=True, slots=True)
+class CashSleeve:
+    """Whatever the inner strategy leaves in cash goes to a cash-like asset (short Treasuries).
+
+    The engine's cash earns nothing; for equity portfolios over decades that would understate any
+    strategy that steps aside. Parking the remainder in a short-duration bond fund is what a real
+    account would do.
+    """
+
+    inner: WeightStrategy
+    symbol: str = "SHY"
+
+    @property
+    def name(self) -> str:
+        return f"{self.inner.name}, cash in {self.symbol}"
+
+    def weights(self, view: MarketView) -> FloatArray | None:
+        w = self.inner.weights(view)
+        if w is None:
+            return None
+        w = w.copy()
+        col = view.column(self.symbol)
+        if not np.isnan(view.last_close()[col]):
+            w[col] += max(0.0, 1.0 - float(w.sum()))
+        return w

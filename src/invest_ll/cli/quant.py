@@ -13,6 +13,7 @@ executing them stays with you.
 from __future__ import annotations
 
 import argparse
+import pickle
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,6 +39,8 @@ SALIDA_NO_ENCONTRADO = 2
 SALIDA_NO_CONCLUYENTE = 3
 
 DATA_ROOT = Path("data/market/binance-universe")
+ETF_ROOT = Path("data/market/etf-universe")
+RESULTS_FILE = "results.pkl"
 RUNS_ROOT = Path("research/runs")
 AVISO_DATOS_VIEJOS = "stale_data"
 
@@ -57,6 +60,14 @@ def _summary_dict(s: Summary) -> dict[str, object]:
 
 def cmd_download(args: argparse.Namespace, salida: Salida) -> int:
     from invest_ll.fetch.binance_universe import default_client, download
+
+    if args.etf:
+        from invest_ll.fetch import etf_universe
+
+        path = etf_universe.download(ETF_ROOT)
+        salida.dato(path=path)
+        salida.linea(f"Saved {path}")
+        return salida.cerrar(SALIDA_OK)
 
     def progress(n: int, total: int, symbol: str) -> None:
         if n % 50 == 0 or n == total:
@@ -78,11 +89,23 @@ def cmd_study(args: argparse.Namespace, salida: Salida) -> int:
         f"{panel.date_at(0)} to {panel.date_at(len(panel) - 1)}"
     )
     result = run_study(panel, progress=lambda m: salida.linea(f"  {m}"))
+    etf = None
+    etf_file = ETF_ROOT / "etf_1d.parquet"
+    if etf_file.exists():
+        from invest_ll.quant.etf_study import load_etf_panel, run_etf_study
+
+        salida.linea("  running the ETF study")
+        etf = run_etf_study(load_etf_panel(str(etf_file)))
+    else:
+        salida.linea("  no ETF data (`invest-ll-quant download --etf`): equities section skipped")
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
     out: Path = args.out or RUNS_ROOT / f"{stamp}-crypto-study"
     out.mkdir(parents=True, exist_ok=True)
+    # Results are kept so the report can be re-rendered without re-running (`quant render`).
+    # Pickle is only ever read back from this tool's own output folder.
+    (out / RESULTS_FILE).write_bytes(pickle.dumps((result, etf)))
     report = out / "report.html"
-    report.write_text(render(result), encoding="utf-8")
+    report.write_text(render(result, etf=etf), encoding="utf-8")
 
     salida.dato(
         report=report,
@@ -110,6 +133,10 @@ def cmd_study(args: argparse.Namespace, salida: Salida) -> int:
             for s in result.walk.steps
         ],
         universe_samples=result.universe_samples,
+        stage_two={k: _summary_dict(v) for k, v in result.stage_two.items()},
+        stage_two_deflated=result.stage_two_deflated,
+        trials=result.trials,
+        equities=None if etf is None else {k: _summary_dict(v) for k, v in etf.summaries.items()},
     )
     flag = result.summaries[FLAG_KEY]
     btc = result.summaries["Hold BTC"]
@@ -125,6 +152,21 @@ def cmd_study(args: argparse.Namespace, salida: Salida) -> int:
             f"Deflated Sharpe {result.deflated:.0%}: after {len(result.grid_labels)} trials the "
             "result is compatible with luck.",
         )
+    salida.linea(f"Report: {report}")
+    return salida.cerrar(SALIDA_OK)
+
+
+def cmd_render(args: argparse.Namespace, salida: Salida) -> int:
+    from invest_ll.quant.tearsheet import render
+
+    folder: Path = args.run
+    results = folder / RESULTS_FILE
+    if not results.exists():
+        raise FileNotFoundError(f"no saved results at {results}; run `invest-ll-quant study` first")
+    result, etf = pickle.loads(results.read_bytes())
+    report = folder / "report.html"
+    report.write_text(render(result, etf=etf), encoding="utf-8")
+    salida.dato(report=report)
     salida.linea(f"Report: {report}")
     return salida.cerrar(SALIDA_OK)
 
@@ -234,12 +276,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     download = sub.add_parser("download", help="download or extend the Binance universe")
     add_json_flag(download, hereda=True)
+    download.add_argument("--etf", action="store_true", help="download the ETF universe instead")
     download.set_defaults(func=cmd_download)
 
     study = sub.add_parser("study", help="run the crypto study and write the report")
     add_json_flag(study, hereda=True)
     study.add_argument("--out", type=Path, default=None)
     study.set_defaults(func=cmd_study)
+
+    again = sub.add_parser("render", help="re-render a study's report from its saved results")
+    add_json_flag(again, hereda=True)
+    again.add_argument("run", type=Path, help="the study's output folder")
+    again.set_defaults(func=cmd_render)
 
     paper = sub.add_parser("paper", help="forward test of the pre-registered portfolio")
     add_json_flag(paper, hereda=True)

@@ -45,8 +45,9 @@ Thumbs.db
 /forecasts/
 /attempts/
 /portfolio/
-/paper/
 /research/runs/
+# paper/ is tracked on purpose: a forward-test record committed before the outcome is
+# known is the only proof that it was not fitted afterwards.
 
 # Basura que dejan pytest y hypothesis en el directorio de trabajo (Windows).
 # No es codigo del proyecto: el test que los provoca no toca disco.

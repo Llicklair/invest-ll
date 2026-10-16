@@ -199,11 +199,13 @@ def run(
             current_w = holdings / value if value > 0 else np.zeros(n)
             target_w = np.where(tradable, pending, current_w)
             change = target_w - current_w
-            change[np.abs(change) < config.no_trade_band] = 0.0
+            # Exits are never held back by the band or the minimum: leaving a position the
+            # strategy wants gone is risk, not saved fees, and it would leave dust behind.
+            exiting = tradable & (pending <= 0) & (qty > 0)
+            change[(np.abs(change) < config.no_trade_band) & ~exiting] = 0.0
             delta = change * value
-            delta[np.abs(delta) < costs.min_trade] = 0.0
-            # Liquidate fully when the target is zero, so no dust is left behind.
-            full_exit = tradable & (pending <= 0) & (qty > 0) & (delta < 0)
+            delta[(np.abs(delta) < costs.min_trade) & ~exiting] = 0.0
+            full_exit = exiting & (delta < 0)
             rates = costs.commission + _slippage(panel, t, delta, costs)
 
             traded_value = 0.0

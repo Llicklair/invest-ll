@@ -4,6 +4,24 @@ Decidido el 2026-07-26 a partir de lo medido, no de una preferencia. Este docume
 que la decisión no se re-litigue cada vez y para que las cifras que la sostienen se puedan
 comprobar.
 
+> **Corrección del 2026-10-16.** Re-ejecutado con el mismo motor y datos de Binance:
+>
+> - El **+3.063 fuera de muestra** de abajo corresponde a decidir **cada día** con 30 días de
+>   histórico. La política que se adoptó, **semanal**, dio de media **−1.684** en ese mismo tramo
+>   (1-ene-2025 a 24-jul-2026), y entre −3.947 y +336 según el día de la semana en que se decida.
+> - De 20 combinaciones vecinas (14/30/60/90 días × cada 1/3/7/14/30 días), solo 3 ganaron
+>   dinero. La celda de 30 días diaria está aislada, que es justo lo que este documento dice que
+>   no se use para decidir.
+> - El "×160" de 2020-2024 sale de haber elegido BTC, ETH, SOL y BNB en 2026. Con las cuatro
+>   mayores de enero de 2020 (BTC, ETH, XRP, BCH), rotar acabó igual que mantener y por debajo de
+>   tener solo BTC.
+> - Lo que sí se sostiene es el filtro: en 19 de las 20 combinaciones se perdió menos que
+>   manteniendo durante la caída de 2025-26.
+>
+> La política semanal sobre cuatro monedas fijas **no tiene validación fuera de muestra**. El
+> sustituto, con universo sin sesgo de supervivencia y pruebas de sobreajuste, está en
+> [quant-research.md](quant-research.md).
+
 | | Cripto | Bolsa |
 |---|---|---|
 | **Horizonte** | Semanal (mira 30 días atrás) | Meses |

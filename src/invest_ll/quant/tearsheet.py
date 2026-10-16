@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 
+from invest_ll.quant.etf_study import EtfStudy
 from invest_ll.quant.metrics import Summary, drawdown
 from invest_ll.quant.panel import FloatArray
 from invest_ll.quant.study import (
@@ -24,6 +25,7 @@ from invest_ll.quant.study import (
     FLAG_KEY,
     FLAGSHIP,
     FLAGSHIP_UNIVERSE,
+    NO_TRADE_BAND,
     REBALANCE_EVERY,
     TRANCHES,
     StudyResult,
@@ -33,12 +35,14 @@ SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6"
 SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"]
 
 FLAG = FLAG_KEY
+STAGE_KEY = "Stage 2: + market filter + band"
 CHART_KEYS = [
     FLAG,
     "Hold BTC",
     "Hold the top 20 (equal weight, monthly)",
     "INVEST LL policy on the top 20 (top-1, 30d, weekly)",
     "BTC 30-day trend (weekly)",
+    STAGE_KEY,
 ]
 SHORT = {
     FLAG: "Momentum portfolio",
@@ -47,6 +51,9 @@ SHORT = {
     "INVEST LL policy on the top 20 (top-1, 30d, weekly)": "Current policy",
     "BTC 30-day trend (weekly)": "BTC trend",
     "Momentum portfolio, Spanish tax paid yearly": "Momentum, after tax",
+    "Stage 2: + market filter": "Stage 2: market filter",
+    "Stage 2: + no-trade band": "Stage 2: no-trade band",
+    STAGE_KEY: "Stage 2: filter + band",
 }
 
 
@@ -280,6 +287,47 @@ def _luck_section(result: StudyResult) -> str:
 </section>"""
 
 
+def _stage_two_section(result: StudyResult) -> str:
+    if not result.stage_two:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(SHORT.get(k, k))}</td>"
+        f"<td>{_money(s.final_value)}</td><td>{_pct(s.cagr)}</td><td>{_num(s.sharpe)}</td>"
+        f"<td>{_pct(s.max_drawdown)}</td><td>{_pct_plain(s.exposure)}</td>"
+        f"<td>{s.turnover_per_year:.1f}x</td><td>{_pct_plain(s.cost_drag, 1)}</td>"
+        f"<td>{_num(result.stage_two_sharpe[k].low)} to {_num(result.stage_two_sharpe[k].high)}</td>"
+        f"<td>{_pct_plain(result.stage_two_deflated.get(k, float('nan')))}</td>"
+        "</tr>"
+        for k, s in result.stage_two.items()
+    )
+    flag = result.summaries[FLAG]
+    base = (
+        "<tr>"
+        f"<td>Pre-registered (for reference)</td><td>{_money(flag.final_value)}</td>"
+        f"<td>{_pct(flag.cagr)}</td><td>{_num(flag.sharpe)}</td><td>{_pct(flag.max_drawdown)}</td>"
+        f"<td>{_pct_plain(flag.exposure)}</td><td>{flag.turnover_per_year:.1f}x</td>"
+        f"<td>{_pct_plain(flag.cost_drag, 1)}</td><td>–</td><td>{_pct_plain(result.deflated)}</td>"
+        "</tr>"
+    )
+    head = (
+        "<tr><th>Variant</th><th>End value</th><th>CAGR</th><th>Sharpe</th><th>Max drawdown</th>"
+        "<th>Avg exposure</th><th>Turnover / yr</th><th>Cost drag / yr</th>"
+        "<th>Sharpe, 90% bootstrap</th><th>Deflated Sharpe</th></tr>"
+    )
+    return f"""
+<section aria-labelledby="stage2">
+  <div class="section-head"><div class="eyebrow">Stage two, written after the first results</div>
+  <h2 id="stage2">Two changes the first run asked for</h2></div>
+  <p class="col">The first run stayed about half invested through 2022 and lost three quarters of the account,
+  and it turned its capital over many times a year. Two changes answer that without a search: a market filter
+  that moves the whole book to cash when Bitcoin fails the same trend test the coins must pass, and a no-trade
+  band that skips adjustments under {NO_TRADE_BAND:.0%} of the account. Because they were written after seeing
+  results, their deflated Sharpe counts all {result.trials} trials run before and including them.</p>
+  <div class="table-wrap"><table class="data"><thead>{head}</thead><tbody>{base}{rows}</tbody></table></div>
+</section>"""
+
+
 def _capacity_section(result: StudyResult) -> str:
     if not result.capacity:
         return ""
@@ -313,7 +361,36 @@ def _universe_section(result: StudyResult) -> str:
 </section>"""
 
 
-def render(result: StudyResult, *, title: str = "Crypto Momentum Study") -> str:
+def _etf_section(etf: EtfStudy | None) -> str:
+    if etf is None:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(k)}</td><td>{_money(s.final_value)}</td><td>{_pct(s.cagr, 1)}</td>"
+        f"<td>{_pct_plain(s.volatility)}</td><td>{_num(s.sharpe)}</td><td>{_pct(s.max_drawdown)}</td>"
+        f"<td>{_num(s.calmar)}</td><td>{_num(etf.sharpe_interval[k].low)} to {_num(etf.sharpe_interval[k].high)}</td>"
+        f"<td>{_pct(etf.holdout[k].cagr)}</td><td>{_pct(etf.holdout[k].max_drawdown)}</td>"
+        "</tr>"
+        for k, s in etf.summaries.items()
+    )
+    head = (
+        "<tr><th>Strategy</th><th>End value</th><th>CAGR</th><th>Volatility</th><th>Sharpe</th>"
+        "<th>Max drawdown</th><th>Calmar</th><th>Sharpe, 90% bootstrap</th>"
+        "<th>2025 on: CAGR</th><th>2025 on: max drawdown</th></tr>"
+    )
+    return f"""
+<section aria-labelledby="equities">
+  <div class="section-head"><div class="eyebrow">Equities and bonds</div><h2 id="equities">The same tools on eight asset-class ETFs</h2></div>
+  <p class="col">From {html.escape(etf.start)} to {html.escape(etf.end)}: stocks (US, developed, emerging), Treasuries (7-10 and 20+ years),
+  gold, commodities and real estate. Monthly decisions in three staggered tranches, 0.1% commission and 0.05% slippage,
+  cash held in short Treasuries. Sharpe is annualised over 252 sessions.</p>
+  <div class="table-wrap"><table class="data"><thead>{head}</thead><tbody>{rows}</tbody></table></div>
+</section>"""
+
+
+def render(
+    result: StudyResult, *, etf: EtfStudy | None = None, title: str = "INVEST LL Research"
+) -> str:
     flag = result.summaries[FLAG]
     btc = result.summaries["Hold BTC"]
     main_keys = [*CHART_KEYS, "Momentum portfolio, Spanish tax paid yearly"]
@@ -341,6 +418,8 @@ def render(result: StudyResult, *, title: str = "Crypto Momentum Study") -> str:
         grid=_grid_section(result),
         luck=_luck_section(result),
         capacity=_capacity_section(result),
+        equities=_etf_section(etf),
+        stage_two=_stage_two_section(result),
         universe=_universe_section(result),
         chart=chart,
         light=json.dumps(SERIES_LIGHT),
@@ -458,8 +537,10 @@ footer {{ border-top: 1px solid var(--rule); padding-top: 18px; font-size: 12.5p
 </section>
 {grid}
 {luck}
+{stage_two}
 {capacity}
 {universe}
+{equities}
 <footer>Generated by invest-ll-quant on {generated}. Binance spot daily data; costs 0.1% commission and 0.05% slippage per side plus
 square-root market impact. Past results say nothing certain about the future. Not investment advice.</footer>
 </div>
