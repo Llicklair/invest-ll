@@ -96,6 +96,7 @@ def render_research_tab() -> None:
     labels = {
         "preregistered": "Prerregistrada",
         "filtered": "Segunda fase (filtro de mercado + banda)",
+        "btc-trend": "Tendencia de BTC (BTC o liquidez)",
     }
     for variant in variants().values():
         records = read(variant.ledger)

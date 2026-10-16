@@ -310,7 +310,7 @@ def build_parser() -> argparse.ArgumentParser:
     paper.add_argument("action", choices=["record", "status", "targets"])
     paper.add_argument(
         "--variant",
-        choices=["all", "preregistered", "filtered"],
+        choices=["all", "preregistered", "filtered", "btc-trend"],
         default="all",
         help="which forward test (default: both)",
     )

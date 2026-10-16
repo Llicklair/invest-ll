@@ -37,8 +37,8 @@ class PaperVariant:
 
 
 def variants() -> dict[str, PaperVariant]:
-    """Both versions run forward side by side: the pre-registered one and stage two."""
-    from invest_ll.quant.strategies import MarketFilter
+    """The three candidates run forward side by side: pre-registered, stage two, and BTC trend."""
+    from invest_ll.quant.strategies import MarketFilter, TrendAsset
     from invest_ll.quant.study import FLAGSHIP, NO_TRADE_BAND
 
     return {
@@ -48,6 +48,9 @@ def variants() -> dict[str, PaperVariant]:
             MarketFilter(FLAGSHIP),
             Path("paper/momentum-filtered.jsonl"),
             NO_TRADE_BAND,
+        ),
+        "btc-trend": PaperVariant(
+            "btc-trend", TrendAsset("BTCUSDT", 30), Path("paper/btc-trend.jsonl")
         ),
     }
 
