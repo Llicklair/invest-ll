@@ -44,9 +44,13 @@ SALIDA_ATENCION = 5
 
 
 def _fecha(texto: str | None) -> datetime:
+    """Fecha de un movimiento. Sin zona se toma UTC; con zona se convierte, no se reetiqueta."""
     if not texto:
         return datetime.now(UTC)
-    return datetime.fromisoformat(texto).replace(tzinfo=UTC)
+    momento = datetime.fromisoformat(texto)
+    if momento.tzinfo is None:
+        return momento.replace(tzinfo=UTC)
+    return momento.astimezone(UTC)
 
 
 def _posicion_json(
@@ -121,6 +125,14 @@ def _mostrar(store: ActivityStore, salida: Salida) -> int:
                 f"{t.realized_pnl:>15,.0f}"
             )
         salida.linea("-" * 84)
+
+    # Las ventas parciales realizan P&L aunque la posición siga abierta: sin esta línea, ese
+    # resultado solo aparecía en el JSON y el total de texto no cuadraba con la tabla.
+    cerradas = sum((t.realized_pnl for t in cartera.closed_trades), Decimal(0))
+    parciales = cartera.realized_pnl - cerradas
+    if parciales != 0:
+        salida.linea(f"{'P&L de ventas parciales (posición abierta)':>50}{parciales:>15,.0f}")
+    if cartera.closed_trades or parciales != 0:
         salida.linea(f"{'P&L realizado total':>50}{cartera.realized_pnl:>15,.0f}")
 
     salida.linea()
