@@ -195,3 +195,22 @@ def test_the_no_trade_band_skips_small_adjustments_but_never_an_exit() -> None:
     plain = run(panel, Drift(), FREE, RunConfig(initial_capital=10_000, rebalance_every=1))
     assert banded.trades < plain.trades
     assert banded.weights[-1][1] == 0.0
+
+
+def test_on_decision_only_observes() -> None:
+    """Every tranche decision is reported, in order, and the run is the same without it."""
+    panel = random_walk_panel(3, 120, seed=5)
+    config = RunConfig(initial_capital=1_000, rebalance_every=7, tranches=7)
+    seen: list[tuple[int, int, float]] = []
+
+    def note(tranche: int, row: int, target: np.ndarray) -> None:
+        seen.append((tranche, row, float(target.sum())))
+
+    watched = run(panel, TrendAsset("C0USDT", 20), FREE, config, on_decision=note)
+    plain = run(panel, TrendAsset("C0USDT", 20), FREE, config)
+
+    assert np.array_equal(watched.equity, plain.equity)
+    assert watched.trades == plain.trades
+    assert len(seen) == 119, "one decision a day (a tranche each), none on the last row"
+    assert [t for t, _, _ in seen[:8]] == [0, 1, 2, 3, 4, 5, 6, 0]
+    assert all(0.0 <= s <= 1.0 for _, _, s in seen)

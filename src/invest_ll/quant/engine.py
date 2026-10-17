@@ -20,6 +20,7 @@ targets. The timing luck averages out, and opposite trades between copies net in
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -124,8 +125,14 @@ def run(
     config: RunConfig,
     universe: PointInTimeUniverse | None = None,
     name: str | None = None,
+    on_decision: Callable[[int, int, FloatArray], None] | None = None,
 ) -> RunResult:
-    """Run a strategy (or one instance per tranche, for stateful strategies) over the panel."""
+    """Run a strategy (or one instance per tranche, for stateful strategies) over the panel.
+
+    `on_decision(tranche, row, target)` is called each time a tranche sets a new target (already
+    cleaned: no NaN, no shorts, summing at most 1). It only observes: the run is the same with or
+    without it.
+    """
     copies = strategy if isinstance(strategy, list) else [strategy] * config.tranches
     if len(copies) != config.tranches:
         raise ValueError("pass one strategy instance per tranche")
@@ -265,8 +272,11 @@ def run(
                 if (since - j * offset) % config.rebalance_every == 0 and since >= j * offset:
                     target = strat.weights(MarketView(panel, t, universe))
                     if target is not None:
-                        tranche_targets[j] = _clean(target)
+                        cleaned = _clean(target)
+                        tranche_targets[j] = cleaned
                         changed = True
+                        if on_decision is not None:
+                            on_decision(j, t, cleaned.copy())
             if changed:
                 # Copies that have not decided yet keep their share in cash until they do.
                 active = [x for x in tranche_targets if x is not None]
