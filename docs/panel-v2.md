@@ -313,7 +313,8 @@ Un plan tiene como mucho una estrategia de bolsa y una de cripto (`PUT /api/plan
   422.
 - **El dinero que queda en el bróker** tras vender es el **efectivo de la parte de bolsa**: lo
   cobrado con el plan que aún no se ha reinvertido con él (las compras del plan gastan primero de
-  ahí; las ventas de un día van antes que sus compras). Se ve en Inicio
+  ahí, en el orden en que se anotan: por eso la lista pone las ventas primero y la pantalla pide
+  anotarlas antes que las compras que se pagan con ellas). Se ve en Inicio
   (`ParteResumen.efectivo`, incluido en el valor y en lo puesto de la parte; y "Tu dinero hoy"
   nunca cuenta menos efectivo que eso, aunque falten ingresos por anotar) y en Cartera
   (`Cartera.efectivo_broker`). Lo vendido con el plan sale en "Lo que ya vendiste" en euros.

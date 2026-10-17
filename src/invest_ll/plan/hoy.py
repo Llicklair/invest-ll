@@ -381,7 +381,12 @@ def en_el_broker(
 ) -> EnElBroker:
     """Recorre lo anotado con el plan desde `desde` (y hasta `hasta`, si se da).
 
-    Las ventas de un día van antes que sus compras: el dinero de la venta es el que paga la compra.
+    En el orden del registro: por fecha y, el mismo día, en el que se anotaron (`activities()` ya
+    viene así). Las compras de la aportación anotadas por la mañana no gastan lo que cobras al
+    vender por la tarde; la lista pone las ventas primero para que se anoten antes que lo que se
+    paga con ellas. (Poner las ventas del día delante de todo, como se probó primero, hacía que esas
+    compras de la mañana se comieran lo cobrado: con los datos reales, la venta dejaba la parte sin
+    su dinero.)
     """
     del_plan = [
         a
@@ -392,7 +397,7 @@ def en_el_broker(
     ]
     unidades: dict[str, Decimal] = {}
     libre = Decimal(0)
-    for a in sorted(del_plan, key=lambda a: (a.timestamp.date(), a.type is ActivityType.BUY)):
+    for a in sorted(del_plan, key=lambda a: a.timestamp):  # estable: el mismo día, como se anotó
         simbolo = (a.symbol or "").strip().upper()
         if a.type is ActivityType.SELL:
             unidades[simbolo] = max(Decimal(0), unidades.get(simbolo, Decimal(0)) - a.quantity)
@@ -661,9 +666,12 @@ def _bolsa(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
             if de_ventas >= IMPORTE_MINIMO_BOLSA:
                 detalle += f"; y unos {llano.euros(de_ventas.to_integral_value())} de {origen}"
         else:
+            tiene = float(actual(simbolo))
+            # "quiere un 2 % y tiene un 2 %" no se entiende: si redondeados coinciden, con un decimal.
+            decimales = 1 if llano.porcentaje(peso) == llano.porcentaje(tiene) else 0
             detalle = (
-                f"Con {origen}: tu estrategia quiere un {llano.porcentaje(peso)} de tu parte de "
-                f"bolsa en {nombre} y ahora tiene un {llano.porcentaje(float(actual(simbolo)))}"
+                f"Con {origen}: tu estrategia quiere un {llano.porcentaje(peso, decimales)} de tu "
+                f"parte de bolsa en {nombre} y ahora tiene un {llano.porcentaje(tiene, decimales)}"
             )
         acciones.append(
             _accion_de_compra(

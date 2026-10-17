@@ -550,6 +550,17 @@ def test_si_el_objetivo_deja_liquidez_lo_liberado_se_queda_y_se_dice() -> None:
     assert "unos 5.000 € se quedan sin invertir en tu bróker" in venta.explicacion
 
 
+def test_si_redondeados_coinciden_los_porcentajes_van_con_un_decimal() -> None:
+    """Con los datos reales salía "quiere un 2 % y ahora tiene un 2 %": no se entiende."""
+    parte = _parte_bolsa("bolsa-prudente", {"SPY": 0.5, "SHY": 0.5})
+    r = calcular(_con_cartera(parte, {"SPY": "49.7", "SHY": "40.3", "EEM": "10"}))
+    spy = next(a for a in r.acciones if a.simbolo == "SPY")
+    assert spy.importe == D("30.00")
+    assert spy.explicacion.endswith(
+        "quiere un 50,0 % de tu parte de bolsa en Bolsa de EE.UU. y ahora tiene un 49,7 %."
+    )
+
+
 def test_con_las_compras_en_pausa_se_vende_y_no_se_compra() -> None:
     parte = _parte_bolsa("bolsa-prudente", {"SPY": 0.5, "SHY": 0.5})
     r = calcular(_con_cartera(parte, {"SPY": "40", "SHY": "40", "EEM": "20"}, pausa="motivo W"))
@@ -586,20 +597,33 @@ def test_resumen_con_ventas_y_compras_en_el_broker_y_ordenes_en_binance() -> Non
 # -- Lo que el plan tiene en el bróker y cómo se anota una venta --------------------------------
 
 
-def test_en_el_broker_cuenta_solo_lo_del_plan_y_las_ventas_del_dia_van_primero() -> None:
+def test_en_el_broker_cuenta_solo_lo_del_plan_y_en_el_orden_en_que_se_anoto() -> None:
     actividades = [
         _movimiento(ActivityType.BUY, "EEM", "20", OCTUBRE),
         _movimiento(ActivityType.BUY, "EEM", "5", OCTUBRE, fuente="panel"),
-        _movimiento(ActivityType.BUY, "SHY", "10", HOY),  # anotada antes que la venta del día
         _movimiento(ActivityType.SELL, "EEM", "20", HOY),
+        _movimiento(ActivityType.BUY, "SHY", "10", HOY),  # anotada después de la venta del día
     ]
     tenido = en_el_broker(actividades, OCTUBRE, {"EEM": D("5"), "SHY": D("10")})
     assert tenido.unidades == {"SHY": D("10")}, "las 5 de EEM a mano no son del plan"
-    assert tenido.libre == D("1000"), "la venta de 2.000 pagó la compra de 1.000 del mismo día"
+    assert tenido.libre == D("1000"), "la venta de 2.000 pagó la compra de 1.000 de después"
 
     antes = en_el_broker(actividades, OCTUBRE, {"EEM": D("25")}, hasta=date(2026, 10, 16))
     assert antes.unidades == {"EEM": D("20")}
     assert antes.libre == 0
+
+
+def test_las_compras_anotadas_antes_que_la_venta_del_dia_no_gastan_lo_cobrado() -> None:
+    """Con los datos reales: la aportación se compró por la mañana y la venta llegó después (los
+    precios se actualizaron). Poner las ventas del día delante hacía que esas compras se comieran
+    lo cobrado y la parte se quedaba sin su dinero."""
+    actividades = [
+        _movimiento(ActivityType.BUY, "EEM", "20", OCTUBRE),
+        _movimiento(ActivityType.BUY, "SHY", "10", HOY),  # la aportación, por la mañana
+        _movimiento(ActivityType.SELL, "EEM", "20", HOY),
+    ]
+    tenido = en_el_broker(actividades, OCTUBRE, {"SHY": D("10")})
+    assert tenido.libre == D("2000")
 
 
 def test_lo_vendido_a_mano_tampoco_se_vende_dos_veces() -> None:
