@@ -4,8 +4,9 @@
 cliente de red falla. Aquí solo hay transporte; lo que significan los mensajes y dónde se guardan
 está en `vivo/hyperliquid.py`, que se prueba sin red.
 
-- **WebSocket** (`wss://api.hyperliquid.xyz/ws`): `allMids` siempre; libro (`l2Book`, con `fast`),
-  operaciones (`trades`) y velas (`candle`) de lo que se pide con `FuenteHyperliquid.seguir`.
+- **WebSocket** (`wss://api.hyperliquid.xyz/ws`): `allMids` siempre; libro (`l2Book`, el rápido y
+  el hondo), operaciones (`trades`) y velas (`candle`) de lo que se pide con
+  `FuenteHyperliquid.seguir`.
   Reconecta solo, con espera creciente (1 s, 2 s, 4 s… hasta 30 s), y al volver lo pide todo otra
   vez. Un latido (`{"method": "ping"}`) cada 20 s, y si pasan 30 s sin ningún mensaje la conexión se
   da por muerta y se rehace.

@@ -584,8 +584,8 @@ class CuentaDePractica:
 
     def _sin_saldo(self, necesario: Decimal) -> SinSaldoError:
         return SinSaldoError(
-            f"No te llega: son {llano.dinero(necesario, MONEDA)} con la comisión y tienes "
-            f"{llano.dinero(self._estado.saldo, MONEDA)} libres."
+            f"No te llega: son {usdc(necesario)} con la comisión y tienes "
+            f"{usdc(self._estado.saldo)} libres."
         )
 
     def _nueva_ejecutada(self, coin: str, lado: Lado, tipo: Tipo, e: Ejecucion) -> Ejecutada:
@@ -673,6 +673,14 @@ def _minimo(coin: str, decimales: int | None) -> str:
 # -- En llano --------------------------------------------------------------------------------------
 
 
+def usdc(importe: Decimal) -> str:
+    """Un importe en USDC con céntimos ('999,89 USDC'); por debajo del céntimo, con las cifras
+    que hagan falta para que no se lea 0,00."""
+    if abs(importe) >= Decimal("0.01") or importe == 0:
+        return f"{llano.numero(importe, 2)} {MONEDA}"
+    return llano.dinero(importe, MONEDA)
+
+
 def resumir(resultado: Resultado) -> str:
     """'Compraste 0,0148 Bitcoin a 67.420,10 USDC de media: 997,82 USDC más 0,45 de comisión.'"""
     e, orden = resultado.ejecutada, resultado.orden
@@ -680,16 +688,16 @@ def resumir(resultado: Resultado) -> str:
         nombre = nombre_hyperliquid(e.coin)
         cuanto = f"{llano.cantidad(e.cantidad)} {nombre}"
         precio = llano.dinero(e.precio, MONEDA)
-        comision = llano.dinero(e.comision, MONEDA)
+        comision = usdc(e.comision)
         if e.lado == "compra":
             texto = (
-                f"Compraste {cuanto} a {precio} de media: {llano.dinero(e.importe, MONEDA)} "
+                f"Compraste {cuanto} a {precio} de media: {usdc(e.importe)} "
                 f"más {comision} de comisión."
             )
         else:
             texto = (
                 f"Vendiste {cuanto} a {precio} de media: cobras "
-                f"{llano.dinero(e.neto, MONEDA)} ({comision} de comisión)."
+                f"{usdc(e.neto)} ({comision} de comisión)."
             )
         if e.tipo == "limite":
             texto = f"Tu precio ya cruzaba el libro y se ejecutó al momento. {texto}"
@@ -703,6 +711,6 @@ def resumir(resultado: Resultado) -> str:
     if orden.lado == "compra":
         return (
             f"Orden puesta: comprar {cuanto} cuando alguien venda a {precio} o menos. "
-            f"Se apartan {llano.dinero(orden.reservado, MONEDA)} de tu saldo hasta entonces."
+            f"Se apartan {usdc(orden.reservado)} de tu saldo hasta entonces."
         )
     return f"Orden puesta: vender {cuanto} cuando alguien compre a {precio} o más."

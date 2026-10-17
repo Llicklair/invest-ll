@@ -124,9 +124,10 @@ def test_arranca_sigue_reconecta_y_para(
         # Seguir una moneda (como haría una ruta, desde otro hilo) la suscribe y trae su histórico.
         await asyncio.to_thread(fuente.seguir, "BTC", libro=True, intervalos=["1m"])
         await asyncio.to_thread(fuente.seguir, "NOEXISTE", libro=True)
-        await hasta(lambda: len(primera.suscripciones()) == 4)
+        await hasta(lambda: len(primera.suscripciones()) == 5)
         assert primera.suscripciones()[1:] == [
             {"type": "l2Book", "coin": "BTC", "fast": True},
+            {"type": "l2Book", "coin": "BTC"},
             {"type": "trades", "coin": "BTC"},
             {"type": "candle", "coin": "BTC", "interval": "1m"},
         ]
@@ -138,7 +139,7 @@ def test_arranca_sigue_reconecta_y_para(
         primera.cola.put_nowait(CORTE)
         await hasta(lambda: len(hyperliquid.conexiones) == 2)
         segunda = hyperliquid.conexiones[1]
-        await hasta(lambda: len(segunda.suscripciones()) == 4)
+        await hasta(lambda: len(segunda.suscripciones()) == 5)
         await hasta(fuente.conectada)
         await hasta(
             lambda: len([p for p in hyperliquid.peticiones if p["type"] == "candleSnapshot"]) == 2

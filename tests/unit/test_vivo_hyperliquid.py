@@ -126,10 +126,14 @@ def test_los_mensajes_que_se_mandan() -> None:
         "method": "subscribe",
         "subscription": {"type": "allMids"},
     }
-    assert hl.mensaje_suscripcion(("l2Book", "BTC", ""))["subscription"] == {
+    assert hl.mensaje_suscripcion(("l2Book", "BTC", "rapido"))["subscription"] == {
         "type": "l2Book",
         "coin": "BTC",
         "fast": True,
+    }
+    assert hl.mensaje_suscripcion(("l2Book", "BTC", "hondo"))["subscription"] == {
+        "type": "l2Book",
+        "coin": "BTC",
     }
     assert hl.mensaje_suscripcion(("candle", "ETH", "4h"))["subscription"] == {
         "type": "candle",
@@ -224,14 +228,60 @@ def test_seguir_avisa_y_solo_pide_monedas_que_existen(fuente: FuenteHyperliquid)
     con_lista(fuente)
     assert fuente.suscripciones() == [
         ("allMids", "", ""),
-        ("l2Book", "BTC", ""),
+        ("l2Book", "BTC", "rapido"),
+        ("l2Book", "BTC", "hondo"),
         ("trades", "BTC", ""),
         ("candle", "BTC", "1m"),
     ]
     fuente.seguir("NOEXISTE", libro=True)
     fuente.seguir("BTC", libro=True)  # ya seguida: nada nuevo
     assert avisos == [1, 1]  # el segundo, al llegar la lista
-    assert ("l2Book", "NOEXISTE", "") not in fuente.suscripciones()
+    assert not [s for s in fuente.suscripciones() if s[1] == "NOEXISTE"]
+
+
+def rapido_desde(hondo: dict[str, Any], *, ms: int, compras: int = 5, ventas: int = 5) -> Any:
+    """Un mensaje del libro rápido (5 niveles) hecho del hondo real, `ms` después."""
+    datos = hondo["data"]
+    return {
+        "channel": "l2Book",
+        "data": {
+            "coin": datos["coin"],
+            "time": datos["time"] + ms,
+            "levels": [datos["levels"][0][:compras], datos["levels"][1][1 : 1 + ventas]],
+        },
+    }
+
+
+def test_el_libro_junta_el_rapido_y_el_hondo(fuente: FuenteHyperliquid) -> None:
+    hondo = mensaje("ws_l2Book.json")
+    fuente.recibir(hondo)
+    libro = fuente.libro("BTC")
+    assert libro is not None
+    assert (len(libro.compras), len(libro.ventas)) == (20, 20)
+
+    rapido = rapido_desde(hondo, ms=500)
+    rapido["data"]["levels"][0][0] = {"px": "81175.0", "sz": "1.0", "n": 3}  # cambió al momento
+    fuente.recibir(rapido)
+    libro = fuente.libro("BTC")
+    assert libro is not None
+    assert libro.at == hl.hora(hondo["data"]["time"] + 500)
+    assert libro.compras[0].cantidad == Decimal("1.0")  # lo del rápido manda delante
+    assert len(libro.compras) == 20  # y detrás, el resto del hondo
+    assert libro.mejor_venta == Decimal("81180.0")  # la mejor venta del hondo ya no está
+    assert len(libro.ventas) == 19
+    precios = [n.precio for n in libro.ventas]
+    assert precios == sorted(set(precios))
+
+    # Un mensaje de pocos niveles más viejo que el rápido que hay (un hondo de una moneda con poco
+    # libro) no lo pisa.
+    fuente.recibir(rapido_desde(hondo, ms=100))
+    assert fuente.libro("BTC") is libro
+
+    # Si un lado del rápido trae menos de 5 niveles, ese lado no tiene más: nada del hondo.
+    fuente.recibir(rapido_desde(hondo, ms=900, ventas=3))
+    libro = fuente.libro("BTC")
+    assert libro is not None
+    assert (len(libro.compras), len(libro.ventas)) == (20, 3)
 
 
 def test_lo_pedido_antes_de_la_lista_se_descarta_si_no_existe(fuente: FuenteHyperliquid) -> None:
@@ -372,5 +422,5 @@ def test_seguir_tiene_limite(fuente: FuenteHyperliquid, monkeypatch: pytest.Monk
     for coin in ("BTC", "ETH", "SOL"):
         fuente.seguir(coin, libro=True)
     con_lista(fuente)
-    libros = [s for s in fuente.suscripciones() if s[0] == "l2Book"]
+    libros = {s[1] for s in fuente.suscripciones() if s[0] == "l2Book"}
     assert len(libros) == 2

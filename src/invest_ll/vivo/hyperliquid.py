@@ -11,8 +11,12 @@ Formas de los mensajes (verificadas contra la documentación oficial y contra el
 - `allMids`: `{"BTC": "81180.5", ...}` (REST) o `{"mids": {...}}` (WebSocket). Trae también los
   mercados al contado (`PURR/USDC`, `@107`) y los de predicción (`#114220`): solo valen los nombres
   de los perpetuos.
-- `l2Book`: `{"coin", "time" (ms), "levels": [compras, ventas]}`, cada nivel `{"px", "sz", "n"}`,
-  como mucho 20 por lado; compras de mayor a menor precio, ventas de menor a mayor.
+- `l2Book`: `{"coin", "time" (ms), "levels": [compras, ventas]}`, cada nivel `{"px", "sz", "n"}`;
+  compras de mayor a menor precio, ventas de menor a mayor. **Dos ritmos** (medido): la
+  suscripción normal da 20 niveles por lado cada ~5 s; con `fast`, 5 niveles cada ~0,5 s. Se piden
+  las dos y se juntan: los 5 mejores niveles, al momento; los de detrás, del libro hondo (de hace
+  unos segundos como mucho). El mensaje no dice de cuál viene: el que trae más de 5 niveles en
+  algún lado es el hondo; si no, se toma como rápido salvo que sea más viejo que el que ya hay.
 - `trades`: lista de `{"coin", "side" ("B" compra, "A" venta: el lado de quien inició), "px", "sz",
   "time", "tid", ...}`; el primer mensaje trae las 30 últimas, de la más antigua a la más reciente.
 - `candle` y `candleSnapshot`: `{"t" (inicio, ms), "T" (último ms), "s", "i", "o", "c", "h", "l",
@@ -57,6 +61,10 @@ MAX_OPERACIONES: Final = 200
 MAX_SEGUIDAS: Final = 100
 """Monedas con libro y series de velas seguidas, cada una (Hyperliquid admite 1000 suscripciones
 por IP; un panel no necesita más)."""
+NIVELES_RAPIDOS: Final = 5
+"""Los niveles por lado del libro rápido (`fast`)."""
+NIVELES_HONDOS: Final = 20
+"""Los niveles por lado del libro normal, y los que se dan como mucho."""
 SIN_NOTICIAS: Final = 20.0
 """Segundos sin ningún mensaje para dejar de dar la conexión por viva (`allMids` llega cada ~5 s)."""
 
@@ -247,21 +255,44 @@ def leer_vela(datos: Mapping[str, Any], *, cerrada: bool = False) -> Vela:
 # -- Lo que se pide (puro) -------------------------------------------------------------------------
 
 Suscripcion = tuple[Literal["allMids", "l2Book", "trades", "candle"], str, str]
-"""(tipo, moneda, intervalo): la forma con la que se recuerda qué se ha pedido."""
+"""(tipo, moneda, detalle): el detalle es el intervalo de las velas o, en el libro, `rapido` (5
+niveles cada ~0,5 s) u `hondo` (20 niveles cada ~5 s)."""
 
 
 def mensaje_suscripcion(suscripcion: Suscripcion) -> dict[str, Any]:
-    """El mensaje del WebSocket para suscribirse. El libro, con `fast` (una foto cada ~0,5 s en
-    vez de cada ~5 s)."""
-    tipo, coin, intervalo = suscripcion
+    """El mensaje del WebSocket para suscribirse."""
+    tipo, coin, detalle = suscripcion
     datos: dict[str, Any] = {"type": tipo}
     if tipo == "l2Book":
-        datos |= {"coin": coin, "fast": True}
+        datos["coin"] = coin
+        if detalle == "rapido":
+            datos["fast"] = True
     elif tipo == "trades":
         datos["coin"] = coin
     elif tipo == "candle":
-        datos |= {"coin": coin, "interval": intervalo}
+        datos |= {"coin": coin, "interval": detalle}
     return {"method": "subscribe", "subscription": datos}
+
+
+def juntar_libros(rapido: Libro | None, hondo: Libro | None) -> Libro | None:
+    """Los 5 mejores niveles del libro rápido y, detrás, los del hondo que quedan más lejos.
+
+    Si un lado del rápido trae menos de 5 niveles, ese lado del libro no tiene más: no se añade
+    nada del hondo, que sería más viejo.
+    """
+    if rapido is None or hondo is None:
+        return rapido or hondo
+    compras, ventas = rapido.compras, rapido.ventas
+    if len(compras) == NIVELES_RAPIDOS:
+        compras += tuple(n for n in hondo.compras if n.precio < compras[-1].precio)
+    if len(ventas) == NIVELES_RAPIDOS:
+        ventas += tuple(n for n in hondo.ventas if n.precio > ventas[-1].precio)
+    return Libro(
+        coin=rapido.coin,
+        compras=compras[:NIVELES_HONDOS],
+        ventas=ventas[:NIVELES_HONDOS],
+        at=rapido.at,
+    )
 
 
 def peticion_velas(coin: str, intervalo: str, desde: datetime, hasta: datetime) -> dict[str, Any]:
@@ -311,6 +342,8 @@ class FuenteHyperliquid:
         self._mids_recibidos = float("-inf")
         self._info: dict[str, InfoMoneda] = {}
         self._libros: dict[str, Libro] = {}
+        self._rapidos: dict[str, Libro] = {}
+        self._hondos: dict[str, Libro] = {}
         self._libros_recibidos: dict[str, float] = {}
         self._operaciones: dict[str, deque[Operacion]] = {}
         self._contador: dict[str, int] = {}
@@ -567,7 +600,8 @@ class FuenteHyperliquid:
             pedidas: list[Suscripcion] = [("allMids", "", "")]
             for coin in sorted(self._libros_seguidos):
                 if coin in validas:
-                    pedidas.append(("l2Book", coin, ""))
+                    pedidas.append(("l2Book", coin, "rapido"))
+                    pedidas.append(("l2Book", coin, "hondo"))
                     pedidas.append(("trades", coin, ""))
             for coin, intervalo in sorted(self._series_seguidas):
                 if coin in validas:
@@ -613,9 +647,22 @@ class FuenteHyperliquid:
             self._mids_recibidos = self._monotono()
 
     def _poner_libro(self, libro: Libro) -> None:
+        coin = libro.coin
         with self._cerrojo:
-            self._libros[libro.coin] = libro
-            self._libros_recibidos[libro.coin] = self._monotono()
+            if len(libro.compras) > NIVELES_RAPIDOS or len(libro.ventas) > NIVELES_RAPIDOS:
+                self._hondos[coin] = libro
+                if coin in self._rapidos:  # el precio sigue saliendo del rápido, más reciente
+                    self._libros[coin] = juntar_libros(self._rapidos[coin], libro) or libro
+                    return
+            else:
+                previo = self._rapidos.get(coin)
+                if previo is not None and libro.at < previo.at:
+                    return  # un hondo de pocos niveles, más viejo que el rápido que ya hay
+                self._rapidos[coin] = libro
+            self._libros[coin] = (
+                juntar_libros(self._rapidos.get(coin), self._hondos.get(coin)) or libro
+            )
+            self._libros_recibidos[coin] = self._monotono()
 
     def _poner_operaciones(self, operaciones: list[Operacion]) -> None:
         with self._cerrojo:

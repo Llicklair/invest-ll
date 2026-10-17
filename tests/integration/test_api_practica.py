@@ -68,7 +68,9 @@ def test_comprar_y_vender_a_mercado(cliente: Api, fuente: FuenteFalsa) -> None:
     )
     assert compra.status_code == 200, compra.text
     datos = compra.json()
-    assert datos["resumen"].startswith("Compraste 10 Bitcoin a 100,00 USDC de media")
+    assert datos["resumen"] == (
+        "Compraste 10 Bitcoin a 100,00 USDC de media: 1.000,00 USDC más 0,45 USDC de comisión."
+    )
     assert datos["orden"] is None
     ejecucion = datos["ejecucion"]
     assert (ejecucion["cantidad"], ejecucion["importe"], ejecucion["tipo"]) == (
