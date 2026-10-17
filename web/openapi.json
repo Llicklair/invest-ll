@@ -1,0 +1,4061 @@
+{
+  "components": {
+    "schemas": {
+      "Activo": {
+        "description": "Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.",
+        "properties": {
+          "desde": {
+            "format": "date",
+            "title": "Desde",
+            "type": "string"
+          },
+          "hasta": {
+            "format": "date",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "id": {
+            "description": "proveedor:símbolo:intervalo, p.ej. 'yfinance:GLD:DAY_1'",
+            "title": "Id",
+            "type": "string"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "is_crypto": {
+            "title": "Is Crypto",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "symbol",
+          "provider",
+          "interval",
+          "is_crypto",
+          "label",
+          "desde",
+          "hasta"
+        ],
+        "title": "Activo",
+        "type": "object"
+      },
+      "Alerta": {
+        "properties": {
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "nivel": {
+            "enum": [
+              "revisar",
+              "informativo"
+            ],
+            "title": "Nivel",
+            "type": "string"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "required": [
+          "symbol",
+          "nivel",
+          "mensaje"
+        ],
+        "title": "Alerta",
+        "type": "object"
+      },
+      "Alertas": {
+        "properties": {
+          "alertas": {
+            "items": {
+              "$ref": "#/components/schemas/Alerta"
+            },
+            "title": "Alertas",
+            "type": "array"
+          },
+          "nada_que_contar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo mirado y lo no mirado, sin 'todo bien'",
+            "title": "Nada Que Contar"
+          }
+        },
+        "required": [
+          "alertas",
+          "nada_que_contar"
+        ],
+        "title": "Alertas",
+        "type": "object"
+      },
+      "AnalisisCartera": {
+        "properties": {
+          "activos": {
+            "title": "Activos",
+            "type": "integer"
+          },
+          "activos_efectivos": {
+            "title": "Activos Efectivos",
+            "type": "number"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "correlacion_media": {
+            "title": "Correlacion Media",
+            "type": "number"
+          },
+          "desde": {
+            "format": "date",
+            "title": "Desde",
+            "type": "string"
+          },
+          "diversificada": {
+            "title": "Diversificada",
+            "type": "boolean"
+          },
+          "fechas_comunes": {
+            "title": "Fechas Comunes",
+            "type": "integer"
+          },
+          "hasta": {
+            "format": "date",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "pares": {
+            "items": {
+              "$ref": "#/components/schemas/Par"
+            },
+            "title": "Pares",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fechas_comunes",
+          "desde",
+          "hasta",
+          "activos",
+          "activos_efectivos",
+          "correlacion_media",
+          "diversificada",
+          "aviso",
+          "pares"
+        ],
+        "title": "AnalisisCartera",
+        "type": "object"
+      },
+      "Cartera": {
+        "properties": {
+          "abiertas": {
+            "items": {
+              "$ref": "#/components/schemas/PosicionAbierta"
+            },
+            "title": "Abiertas",
+            "type": "array"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "efectivo": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Efectivo",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El ledger cuenta una historia imposible",
+            "title": "Error"
+          },
+          "invertido_abiertas": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Invertido Abiertas",
+            "type": "string"
+          },
+          "realizado_total": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Realizado Total",
+            "type": "string"
+          },
+          "retiradas": {
+            "items": {
+              "$ref": "#/components/schemas/PosicionRetirada"
+            },
+            "title": "Retiradas",
+            "type": "array"
+          },
+          "vacia": {
+            "title": "Vacia",
+            "type": "boolean"
+          },
+          "valor_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si falta el precio de alguna abierta",
+            "title": "Valor Total"
+          }
+        },
+        "required": [
+          "vacia",
+          "error",
+          "avisos",
+          "abiertas",
+          "retiradas",
+          "invertido_abiertas",
+          "valor_total",
+          "efectivo",
+          "realizado_total"
+        ],
+        "title": "Cartera",
+        "type": "object"
+      },
+      "Comparacion": {
+        "properties": {
+          "puntos": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoComparado"
+            },
+            "title": "Puntos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "puntos"
+        ],
+        "title": "Comparacion",
+        "type": "object"
+      },
+      "ComparacionLLM": {
+        "properties": {
+          "advertencia": {
+            "title": "Advertencia",
+            "type": "string"
+          },
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaLLM"
+            },
+            "title": "Filas",
+            "type": "array"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por qué no se puede reproducir, si no se puede",
+            "title": "Motivo"
+          },
+          "ninguna_bate": {
+            "title": "Ninguna Bate",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "disponible",
+          "motivo",
+          "filas",
+          "ninguna_bate",
+          "advertencia"
+        ],
+        "title": "ComparacionLLM",
+        "type": "object"
+      },
+      "CompraPropuesta-Input": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si no hay precio descargado",
+            "title": "Cantidad"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha del cierre usado como precio de referencia",
+            "title": "Fecha"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Importe"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "importe",
+          "precio",
+          "fecha",
+          "cantidad"
+        ],
+        "title": "CompraPropuesta",
+        "type": "object"
+      },
+      "CompraPropuesta-Output": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si no hay precio descargado",
+            "title": "Cantidad"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha del cierre usado como precio de referencia",
+            "title": "Fecha"
+          },
+          "importe": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "importe",
+          "precio",
+          "fecha",
+          "cantidad"
+        ],
+        "title": "CompraPropuesta",
+        "type": "object"
+      },
+      "ComprarYMantener": {
+        "properties": {
+          "drawdown": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drawdown",
+            "type": "string"
+          },
+          "no_hizo_nada": {
+            "title": "No Hizo Nada",
+            "type": "boolean"
+          },
+          "resultado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Resultado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resultado",
+          "drawdown",
+          "no_hizo_nada"
+        ],
+        "title": "ComprarYMantener",
+        "type": "object"
+      },
+      "ComprobacionEnvio": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "escrito": {
+            "title": "Escrito",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cantidad",
+          "escrito"
+        ],
+        "title": "ComprobacionEnvio",
+        "type": "object"
+      },
+      "ComprobacionTriggers": {
+        "properties": {
+          "armados": {
+            "title": "Armados",
+            "type": "integer"
+          },
+          "disparados": {
+            "items": {
+              "$ref": "#/components/schemas/Disparo"
+            },
+            "title": "Disparados",
+            "type": "array"
+          },
+          "sin_evaluar": {
+            "description": "No poder mirar NO es 'todo en orden'",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sin Evaluar",
+            "type": "array"
+          }
+        },
+        "required": [
+          "disparados",
+          "sin_evaluar",
+          "armados"
+        ],
+        "title": "ComprobacionTriggers",
+        "type": "object"
+      },
+      "Consistencia": {
+        "properties": {
+          "asimetria": {
+            "title": "Asimetria",
+            "type": "number"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "peor_periodo": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Peor Periodo",
+            "type": "string"
+          },
+          "periodos": {
+            "title": "Periodos",
+            "type": "integer"
+          },
+          "positivos": {
+            "title": "Positivos",
+            "type": "integer"
+          },
+          "proporcion": {
+            "title": "Proporcion",
+            "type": "number"
+          },
+          "racha_en_rojo": {
+            "title": "Racha En Rojo",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "periodos",
+          "positivos",
+          "proporcion",
+          "peor_periodo",
+          "racha_en_rojo",
+          "asimetria",
+          "aviso"
+        ],
+        "title": "Consistencia",
+        "type": "object"
+      },
+      "Cotizacion": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "descargado": {
+            "description": "True si ya tiene histórico completo",
+            "title": "Descargado",
+            "type": "boolean"
+          },
+          "precio": {
+            "title": "Precio",
+            "type": "number"
+          },
+          "var_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En %",
+            "title": "Var 24H"
+          },
+          "volumen_24h_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Millones",
+            "title": "Volumen 24H M"
+          }
+        },
+        "required": [
+          "activo",
+          "precio",
+          "var_24h",
+          "volumen_24h_m",
+          "descargado"
+        ],
+        "title": "Cotizacion",
+        "type": "object"
+      },
+      "Cotizaciones": {
+        "description": "Una foto fechada, no un chorro: se pide al pulsar y lleva su hora.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bolsa": {
+            "items": {
+              "$ref": "#/components/schemas/Cotizacion"
+            },
+            "title": "Bolsa",
+            "type": "array"
+          },
+          "cripto": {
+            "items": {
+              "$ref": "#/components/schemas/Cotizacion"
+            },
+            "title": "Cripto",
+            "type": "array"
+          },
+          "errores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "at",
+          "bolsa",
+          "cripto",
+          "errores"
+        ],
+        "title": "Cotizaciones",
+        "type": "object"
+      },
+      "DatosDescargados": {
+        "properties": {
+          "desfasados": {
+            "description": "Históricos que no llegan a datos recientes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Desfasados",
+            "type": "array"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDatos"
+            },
+            "title": "Filas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "filas",
+          "desfasados"
+        ],
+        "title": "DatosDescargados",
+        "type": "object"
+      },
+      "Disparo": {
+        "properties": {
+          "cantidad_propuesta": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Propuesta",
+            "type": "string"
+          },
+          "comando": {
+            "description": "Texto para leer: nada se ha enviado",
+            "title": "Comando",
+            "type": "string"
+          },
+          "medido": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Medido",
+            "type": "string"
+          },
+          "precio": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "type": "string"
+          },
+          "precio_fecha": {
+            "format": "date",
+            "title": "Precio Fecha",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "trigger_id": {
+            "title": "Trigger Id",
+            "type": "string"
+          },
+          "umbral": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trigger_id",
+          "symbol",
+          "medido",
+          "umbral",
+          "cantidad_propuesta",
+          "precio",
+          "precio_fecha",
+          "comando"
+        ],
+        "title": "Disparo",
+        "type": "object"
+      },
+      "Estado": {
+        "properties": {
+          "activos": {
+            "items": {
+              "$ref": "#/components/schemas/Activo"
+            },
+            "title": "Activos",
+            "type": "array"
+          },
+          "modo": {
+            "$ref": "#/components/schemas/Modo"
+          },
+          "pausa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motivo y fecha de la pausa de entradas, si la hay",
+            "title": "Pausa"
+          },
+          "reserva": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Aviso de reserva de datos, si hay una declarada",
+            "title": "Reserva"
+          }
+        },
+        "required": [
+          "modo",
+          "reserva",
+          "activos",
+          "pausa"
+        ],
+        "title": "Estado",
+        "type": "object"
+      },
+      "EstadoEnvio": {
+        "description": "Si se puede enviar. El botón del frontend se habilita SOLO con `puede` en True.",
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "puede": {
+            "title": "Puede",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "puede",
+          "motivo"
+        ],
+        "title": "EstadoEnvio",
+        "type": "object"
+      },
+      "Estudio": {
+        "properties": {
+          "generado": {
+            "format": "date-time",
+            "title": "Generado",
+            "type": "string"
+          },
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruta",
+          "generado"
+        ],
+        "title": "Estudio",
+        "type": "object"
+      },
+      "FilaDatos": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "descargado": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descargado"
+          },
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "ultimo_cierre": {
+            "title": "Ultimo Cierre",
+            "type": "number"
+          },
+          "variacion": {
+            "description": "Fracción respecto al cierre anterior",
+            "title": "Variacion",
+            "type": "number"
+          },
+          "velas": {
+            "title": "Velas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activo",
+          "ultimo_cierre",
+          "variacion",
+          "fecha",
+          "velas",
+          "descargado"
+        ],
+        "title": "FilaDatos",
+        "type": "object"
+      },
+      "FilaLLM": {
+        "properties": {
+          "costes": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costes",
+            "type": "string"
+          },
+          "drawdown": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drawdown",
+            "type": "string"
+          },
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "resultado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Resultado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estrategia",
+          "resultado",
+          "drawdown",
+          "operaciones",
+          "costes"
+        ],
+        "title": "FilaLLM",
+        "type": "object"
+      },
+      "FilaOrden": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision"
+          },
+          "cuando": {
+            "format": "date-time",
+            "title": "Cuando",
+            "type": "string"
+          },
+          "ejecutada": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ejecutada",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "lado": {
+            "title": "Lado",
+            "type": "string"
+          },
+          "modo": {
+            "title": "Modo",
+            "type": "string"
+          },
+          "pedida": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pedida",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "referencia": {
+            "title": "Referencia",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cuando",
+          "modo",
+          "activo",
+          "lado",
+          "pedida",
+          "ejecutada",
+          "precio",
+          "comision",
+          "estado",
+          "referencia"
+        ],
+        "title": "FilaOrden",
+        "type": "object"
+      },
+      "FilaRendimiento": {
+        "description": "Una fila de la mesa densa. `None` = no hay histórico suficiente, NO un 0%.",
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "datos_hasta": {
+            "format": "date",
+            "title": "Datos Hasta",
+            "type": "string"
+          },
+          "desde": {
+            "format": "date",
+            "title": "Desde",
+            "type": "string"
+          },
+          "desde_maximo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La columna que más importa",
+            "title": "Desde Maximo"
+          },
+          "que_es": {
+            "title": "Que Es",
+            "type": "string"
+          },
+          "sparkline": {
+            "description": "Últimas 63 sesiones, termina en el último cierre",
+            "items": {
+              "type": "number"
+            },
+            "title": "Sparkline",
+            "type": "array"
+          },
+          "ultimo": {
+            "title": "Ultimo",
+            "type": "number"
+          },
+          "var_1a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 1A"
+          },
+          "var_1d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 1D"
+          },
+          "var_1m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 1M"
+          },
+          "var_1s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 1S"
+          },
+          "var_3m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 3M"
+          },
+          "var_5a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var 5A"
+          },
+          "ytd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ytd"
+          }
+        },
+        "required": [
+          "activo",
+          "que_es",
+          "ultimo",
+          "var_1d",
+          "var_1s",
+          "var_1m",
+          "var_3m",
+          "ytd",
+          "var_1a",
+          "var_5a",
+          "desde_maximo",
+          "sparkline",
+          "desde",
+          "datos_hasta"
+        ],
+        "title": "FilaRendimiento",
+        "type": "object"
+      },
+      "FilaSeguimiento": {
+        "properties": {
+          "emitida": {
+            "format": "date",
+            "title": "Emitida",
+            "type": "string"
+          },
+          "error": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Error",
+            "type": "string"
+          },
+          "estimado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimado",
+            "type": "string"
+          },
+          "real": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Real",
+            "type": "string"
+          }
+        },
+        "required": [
+          "emitida",
+          "estimado",
+          "real",
+          "error"
+        ],
+        "title": "FilaSeguimiento",
+        "type": "object"
+      },
+      "Friccion": {
+        "description": "Los costes son obligatorios en toda simulación (Principio IV): sin defaults en la API.",
+        "properties": {
+          "comision": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.001 = 0,1%",
+            "title": "Comision"
+          },
+          "slippage": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.0005 = 0,05%",
+            "title": "Slippage"
+          }
+        },
+        "required": [
+          "comision",
+          "slippage"
+        ],
+        "title": "Friccion",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Informe": {
+        "description": "Un backtest, en el mismo orden de lectura que el informe de texto (win rate al final).",
+        "properties": {
+          "bate_al_mercado": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bate Al Mercado"
+          },
+          "comprar_y_mantener": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComprarYMantener"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concluyente": {
+            "title": "Concluyente",
+            "type": "boolean"
+          },
+          "consistencia": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Consistencia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costes": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costes",
+            "type": "string"
+          },
+          "curva": {
+            "items": {
+              "$ref": "#/components/schemas/Punto"
+            },
+            "title": "Curva",
+            "type": "array"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "drawdown_maximo": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Drawdown Maximo",
+            "type": "string"
+          },
+          "metricas": {
+            "$ref": "#/components/schemas/Tabla"
+          },
+          "motivo_no_concluyente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo No Concluyente"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "registro": {
+            "$ref": "#/components/schemas/Tabla"
+          },
+          "resultado_neto": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Resultado Neto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "concluyente",
+          "motivo_no_concluyente",
+          "resultado_neto",
+          "drawdown_maximo",
+          "operaciones",
+          "costes",
+          "comprar_y_mantener",
+          "bate_al_mercado",
+          "diferencia",
+          "curva",
+          "consistencia",
+          "metricas",
+          "registro"
+        ],
+        "title": "Informe",
+        "type": "object"
+      },
+      "InformeAportaciones": {
+        "properties": {
+          "aportado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Aportado",
+            "type": "string"
+          },
+          "bate_a_todo_de_golpe": {
+            "title": "Bate A Todo De Golpe",
+            "type": "boolean"
+          },
+          "costes": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costes",
+            "type": "string"
+          },
+          "ganancia": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ganancia",
+            "type": "string"
+          },
+          "rentabilidad": {
+            "title": "Rentabilidad",
+            "type": "number"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          },
+          "valor_final": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Final",
+            "type": "string"
+          },
+          "valor_todo_de_golpe": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Todo De Golpe",
+            "type": "string"
+          }
+        },
+        "required": [
+          "aportado",
+          "valor_final",
+          "ganancia",
+          "rentabilidad",
+          "costes",
+          "bate_a_todo_de_golpe",
+          "valor_todo_de_golpe",
+          "texto"
+        ],
+        "title": "InformeAportaciones",
+        "type": "object"
+      },
+      "Investigacion": {
+        "properties": {
+          "dias_desfase": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Desfase"
+          },
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "estudio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Estudio"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "objetivo": {
+            "items": {
+              "$ref": "#/components/schemas/PesoObjetivo"
+            },
+            "title": "Objetivo",
+            "type": "array"
+          },
+          "prueba_adelante": {
+            "items": {
+              "$ref": "#/components/schemas/PruebaAdelante"
+            },
+            "title": "Prueba Adelante",
+            "type": "array"
+          },
+          "ultimo_dato": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Dato"
+          }
+        },
+        "required": [
+          "disponible",
+          "motivo",
+          "ultimo_dato",
+          "dias_desfase",
+          "objetivo",
+          "prueba_adelante",
+          "estudio"
+        ],
+        "title": "Investigacion",
+        "type": "object"
+      },
+      "MensajeChat": {
+        "properties": {
+          "autor": {
+            "enum": [
+              "operador",
+              "claude"
+            ],
+            "title": "Autor",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "autor",
+          "texto"
+        ],
+        "title": "MensajeChat",
+        "type": "object"
+      },
+      "Modo": {
+        "properties": {
+          "envia_ordenes": {
+            "description": "True en pruebas y REAL: las órdenes salen de verdad",
+            "title": "Envia Ordenes",
+            "type": "boolean"
+          },
+          "es_real": {
+            "description": "True solo con dinero de verdad",
+            "title": "Es Real",
+            "type": "boolean"
+          },
+          "nombre": {
+            "description": "simulacion | pruebas | REAL",
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "envia_ordenes",
+          "es_real"
+        ],
+        "title": "Modo",
+        "type": "object"
+      },
+      "MovimientoRegistrado": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id"
+        ],
+        "title": "MovimientoRegistrado",
+        "type": "object"
+      },
+      "NuevoMovimiento": {
+        "description": "Escribe en el ledger. NO envía ninguna orden.",
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Cantidad, o importe si es efectivo",
+            "title": "Cantidad"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Comision"
+          },
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo compra/venta",
+            "title": "Precio"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo compra/venta",
+            "title": "Simbolo"
+          },
+          "tipo": {
+            "enum": [
+              "compra",
+              "venta",
+              "deposito",
+              "retirada"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "fecha",
+          "cantidad"
+        ],
+        "title": "NuevoMovimiento",
+        "type": "object"
+      },
+      "NuevoTrigger": {
+        "properties": {
+          "regla": {
+            "title": "Regla",
+            "type": "string"
+          },
+          "simbolo": {
+            "title": "Simbolo",
+            "type": "string"
+          },
+          "umbral_pct": {
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Umbral Pct",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "simbolo",
+          "regla",
+          "umbral_pct"
+        ],
+        "title": "NuevoTrigger",
+        "type": "object"
+      },
+      "OpcionesSimular": {
+        "properties": {
+          "estrategias": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Estrategias",
+            "type": "array"
+          },
+          "frecuencias": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Frecuencias",
+            "type": "array"
+          },
+          "pausa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pausa"
+          },
+          "sugeridos": {
+            "description": "Ids de activos compatibles entre sí",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sugeridos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "frecuencias",
+          "sugeridos",
+          "estrategias",
+          "pausa"
+        ],
+        "title": "OpcionesSimular",
+        "type": "object"
+      },
+      "OrdenesEnviadas": {
+        "properties": {
+          "atencion": {
+            "description": "Órdenes que no salieron como se pidieron",
+            "items": {
+              "type": "string"
+            },
+            "title": "Atencion",
+            "type": "array"
+          },
+          "filas": {
+            "description": "La más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/FilaOrden"
+            },
+            "title": "Filas",
+            "type": "array"
+          },
+          "reales": {
+            "title": "Reales",
+            "type": "integer"
+          },
+          "registro": {
+            "title": "Registro",
+            "type": "string"
+          },
+          "sin_comision": {
+            "title": "Sin Comision",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "filas",
+          "total",
+          "reales",
+          "atencion",
+          "sin_comision",
+          "registro"
+        ],
+        "title": "OrdenesEnviadas",
+        "type": "object"
+      },
+      "Par": {
+        "properties": {
+          "correlacion": {
+            "title": "Correlacion",
+            "type": "number"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          }
+        },
+        "required": [
+          "par",
+          "correlacion"
+        ],
+        "title": "Par",
+        "type": "object"
+      },
+      "Pausa": {
+        "properties": {
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motivo"
+        ],
+        "title": "Pausa",
+        "type": "object"
+      },
+      "PesoObjetivo": {
+        "properties": {
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          },
+          "peso": {
+            "title": "Peso",
+            "type": "number"
+          },
+          "usdt": {
+            "title": "Usdt",
+            "type": "number"
+          }
+        },
+        "required": [
+          "moneda",
+          "peso",
+          "usdt"
+        ],
+        "title": "PesoObjetivo",
+        "type": "object"
+      },
+      "PeticionAportaciones": {
+        "properties": {
+          "activos": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Activos",
+            "type": "array"
+          },
+          "aportacion": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Aportacion"
+          },
+          "cada": {
+            "maximum": 250.0,
+            "minimum": 1.0,
+            "title": "Cada",
+            "type": "integer"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.001 = 0,1%",
+            "title": "Comision"
+          },
+          "slippage": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.0005 = 0,05%",
+            "title": "Slippage"
+          }
+        },
+        "required": [
+          "comision",
+          "slippage",
+          "activos",
+          "aportacion",
+          "cada"
+        ],
+        "title": "PeticionAportaciones",
+        "type": "object"
+      },
+      "PeticionChat": {
+        "properties": {
+          "pregunta": {
+            "minLength": 1,
+            "title": "Pregunta",
+            "type": "string"
+          },
+          "sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id devuelto por la primera respuesta",
+            "title": "Sesion"
+          }
+        },
+        "required": [
+          "pregunta"
+        ],
+        "title": "PeticionChat",
+        "type": "object"
+      },
+      "PeticionDescarga": {
+        "properties": {
+          "mercado": {
+            "enum": [
+              "equity",
+              "crypto"
+            ],
+            "title": "Mercado",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "mercado"
+        ],
+        "title": "PeticionDescarga",
+        "type": "object"
+      },
+      "PeticionOrden": {
+        "description": "Una orden. `escrito` es la cantidad tecleada a mano: la confirmación del Principio I.",
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "escrito": {
+            "title": "Escrito",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          }
+        },
+        "required": [
+          "par",
+          "lado",
+          "cantidad",
+          "escrito"
+        ],
+        "title": "PeticionOrden",
+        "type": "object"
+      },
+      "PeticionPropuesta": {
+        "properties": {
+          "activos": {
+            "description": "Ids de activos",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Activos",
+            "type": "array"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.001 = 0,1%",
+            "title": "Comision"
+          },
+          "frecuencia": {
+            "title": "Frecuencia",
+            "type": "string"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Importe"
+          },
+          "slippage": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.0005 = 0,05%",
+            "title": "Slippage"
+          }
+        },
+        "required": [
+          "comision",
+          "slippage",
+          "activos",
+          "importe",
+          "frecuencia"
+        ],
+        "title": "PeticionPropuesta",
+        "type": "object"
+      },
+      "PeticionRegistrarPropuesta": {
+        "properties": {
+          "compras": {
+            "items": {
+              "$ref": "#/components/schemas/CompraPropuesta-Input"
+            },
+            "title": "Compras",
+            "type": "array"
+          }
+        },
+        "required": [
+          "compras"
+        ],
+        "title": "PeticionRegistrarPropuesta",
+        "type": "object"
+      },
+      "PeticionRotacion": {
+        "properties": {
+          "activos": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Activos",
+            "type": "array"
+          },
+          "capital": {
+            "anyOf": [
+              {
+                "minimum": 100.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "10000",
+            "title": "Capital"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.001 = 0,1%",
+            "title": "Comision"
+          },
+          "lookback": {
+            "default": 60,
+            "maximum": 400.0,
+            "minimum": 5.0,
+            "title": "Lookback",
+            "type": "integer"
+          },
+          "slippage": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.0005 = 0,05%",
+            "title": "Slippage"
+          }
+        },
+        "required": [
+          "comision",
+          "slippage",
+          "activos"
+        ],
+        "title": "PeticionRotacion",
+        "type": "object"
+      },
+      "PeticionUnActivo": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "capital": {
+            "anyOf": [
+              {
+                "minimum": 100.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "10000",
+            "title": "Capital"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.001 = 0,1%",
+            "title": "Comision"
+          },
+          "corta": {
+            "default": 10,
+            "maximum": 200.0,
+            "minimum": 2.0,
+            "title": "Corta",
+            "type": "integer"
+          },
+          "estrategia": {
+            "enum": [
+              "cruce-medias",
+              "precio-vs-media",
+              "ruptura-maximos"
+            ],
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "fraccion": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "1",
+            "title": "Fraccion"
+          },
+          "larga": {
+            "default": 30,
+            "maximum": 400.0,
+            "minimum": 3.0,
+            "title": "Larga",
+            "type": "integer"
+          },
+          "lookback": {
+            "default": 20,
+            "maximum": 400.0,
+            "minimum": 2.0,
+            "title": "Lookback",
+            "type": "integer"
+          },
+          "margen": {
+            "default": 0.0,
+            "maximum": 0.1,
+            "minimum": 0.0,
+            "title": "Margen",
+            "type": "number"
+          },
+          "periodos": {
+            "default": 50,
+            "maximum": 400.0,
+            "minimum": 2.0,
+            "title": "Periodos",
+            "type": "integer"
+          },
+          "slippage": {
+            "anyOf": [
+              {
+                "maximum": 0.05,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Fracción: 0.0005 = 0,05%",
+            "title": "Slippage"
+          }
+        },
+        "required": [
+          "comision",
+          "slippage",
+          "activo",
+          "estrategia"
+        ],
+        "title": "PeticionUnActivo",
+        "type": "object"
+      },
+      "PeticionUniverso": {
+        "properties": {
+          "activos": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Activos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "activos"
+        ],
+        "title": "PeticionUniverso",
+        "type": "object"
+      },
+      "PosicionAbierta": {
+        "description": "Su P&L es una VALORACIÓN, con la fecha de los datos al lado.",
+        "properties": {
+          "abierta": {
+            "format": "date-time",
+            "title": "Abierta",
+            "type": "string"
+          },
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "coste_medio": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Coste Medio",
+            "type": "string"
+          },
+          "invertido": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Invertido",
+            "type": "string"
+          },
+          "pnl_no_realizado": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl No Realizado"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "precio_fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Fecha"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "activo",
+          "cantidad",
+          "coste_medio",
+          "invertido",
+          "abierta",
+          "precio",
+          "precio_fecha",
+          "valor",
+          "pnl_no_realizado"
+        ],
+        "title": "PosicionAbierta",
+        "type": "object"
+      },
+      "PosicionRetirada": {
+        "description": "Su P&L es REALIZADO: un hecho que ya no cambia.",
+        "properties": {
+          "abierta": {
+            "format": "date",
+            "title": "Abierta",
+            "type": "string"
+          },
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "dias": {
+            "title": "Dias",
+            "type": "integer"
+          },
+          "invertido": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Invertido",
+            "type": "string"
+          },
+          "pnl_realizado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pnl Realizado",
+            "type": "string"
+          },
+          "recuperado": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Recuperado",
+            "type": "string"
+          },
+          "retirada": {
+            "format": "date",
+            "title": "Retirada",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activo",
+          "abierta",
+          "retirada",
+          "dias",
+          "invertido",
+          "recuperado",
+          "pnl_realizado"
+        ],
+        "title": "PosicionRetirada",
+        "type": "object"
+      },
+      "Propuesta": {
+        "properties": {
+          "comandos": {
+            "description": "Los invest-ll-execute equivalentes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Comandos",
+            "type": "array"
+          },
+          "compras": {
+            "items": {
+              "$ref": "#/components/schemas/CompraPropuesta-Output"
+            },
+            "title": "Compras",
+            "type": "array"
+          },
+          "texto": {
+            "description": "El informe de texto, igual que invest-ll-propose",
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "texto",
+          "compras",
+          "comandos"
+        ],
+        "title": "Propuesta",
+        "type": "object"
+      },
+      "PruebaAdelante": {
+        "properties": {
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desde"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "mantener_btc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mantener Btc"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por qué no hay cifras, si no las hay",
+            "title": "Nota"
+          },
+          "peor_caida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peor Caida"
+          },
+          "registros": {
+            "title": "Registros",
+            "type": "integer"
+          },
+          "valor_final": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Desde 10.000",
+            "title": "Valor Final"
+          }
+        },
+        "required": [
+          "clave",
+          "etiqueta",
+          "registros",
+          "desde",
+          "valor_final",
+          "mantener_btc",
+          "peor_caida",
+          "nota"
+        ],
+        "title": "PruebaAdelante",
+        "type": "object"
+      },
+      "Punto": {
+        "properties": {
+          "fecha": {
+            "format": "date-time",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "fecha",
+          "valor"
+        ],
+        "title": "Punto",
+        "type": "object"
+      },
+      "PuntoComparado": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "string"
+          },
+          "fecha": {
+            "format": "date-time",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "valor": {
+            "description": "Base 100 al inicio del tramo",
+            "title": "Valor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "fecha",
+          "activo",
+          "valor"
+        ],
+        "title": "PuntoComparado",
+        "type": "object"
+      },
+      "RegistroPropuesta": {
+        "properties": {
+          "problemas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problemas",
+            "type": "array"
+          },
+          "registradas": {
+            "title": "Registradas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "registradas",
+          "problemas"
+        ],
+        "title": "RegistroPropuesta",
+        "type": "object"
+      },
+      "Rendimiento": {
+        "properties": {
+          "bolsa": {
+            "items": {
+              "$ref": "#/components/schemas/FilaRendimiento"
+            },
+            "title": "Bolsa",
+            "type": "array"
+          },
+          "cripto": {
+            "items": {
+              "$ref": "#/components/schemas/FilaRendimiento"
+            },
+            "title": "Cripto",
+            "type": "array"
+          }
+        },
+        "required": [
+          "bolsa",
+          "cripto"
+        ],
+        "title": "Rendimiento",
+        "type": "object"
+      },
+      "RespuestaChat": {
+        "properties": {
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/MensajeChat"
+            },
+            "title": "Historial",
+            "type": "array"
+          },
+          "respuesta": {
+            "title": "Respuesta",
+            "type": "string"
+          },
+          "sesion": {
+            "title": "Sesion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sesion",
+          "respuesta",
+          "historial"
+        ],
+        "title": "RespuestaChat",
+        "type": "object"
+      },
+      "ResultadoActualizacion": {
+        "properties": {
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoDescarga"
+            },
+            "title": "Resultados",
+            "type": "array"
+          },
+          "saltados": {
+            "description": "Sin metadatos de procedencia: no se adivina",
+            "items": {
+              "type": "string"
+            },
+            "title": "Saltados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resultados",
+          "saltados"
+        ],
+        "title": "ResultadoActualizacion",
+        "type": "object"
+      },
+      "ResultadoDescarga": {
+        "properties": {
+          "detalle": {
+            "title": "Detalle",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "ok",
+          "detalle"
+        ],
+        "title": "ResultadoDescarga",
+        "type": "object"
+      },
+      "ResultadoOrden": {
+        "properties": {
+          "descripcion": {
+            "title": "Descripcion",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "modo": {
+            "title": "Modo",
+            "type": "string"
+          },
+          "necesita_atencion": {
+            "title": "Necesita Atencion",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "estado",
+          "descripcion",
+          "necesita_atencion",
+          "modo"
+        ],
+        "title": "ResultadoOrden",
+        "type": "object"
+      },
+      "Seguimiento": {
+        "properties": {
+          "evaluadas": {
+            "title": "Evaluadas",
+            "type": "integer"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaSeguimiento"
+            },
+            "title": "Filas",
+            "type": "array"
+          },
+          "pendientes": {
+            "title": "Pendientes",
+            "type": "integer"
+          },
+          "sobreestimaciones": {
+            "title": "Sobreestimaciones",
+            "type": "integer"
+          },
+          "tendencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tendencia"
+          }
+        },
+        "required": [
+          "evaluadas",
+          "pendientes",
+          "sobreestimaciones",
+          "tendencia",
+          "filas"
+        ],
+        "title": "Seguimiento",
+        "type": "object"
+      },
+      "Serie": {
+        "properties": {
+          "hasta": {
+            "format": "date",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "puntos": {
+            "items": {
+              "$ref": "#/components/schemas/Punto"
+            },
+            "title": "Puntos",
+            "type": "array"
+          },
+          "sesiones": {
+            "title": "Sesiones",
+            "type": "integer"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "tramo": {
+            "enum": [
+              "3m",
+              "1a",
+              "5a",
+              "todo"
+            ],
+            "title": "Tramo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "tramo",
+          "puntos",
+          "sesiones",
+          "hasta"
+        ],
+        "title": "Serie",
+        "type": "object"
+      },
+      "Tabla": {
+        "description": "Una tabla genérica (métricas, operaciones...): columnas en orden y filas alineadas.",
+        "properties": {
+          "columnas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columnas",
+            "type": "array"
+          },
+          "filas": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Filas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columnas",
+          "filas"
+        ],
+        "title": "Tabla",
+        "type": "object"
+      },
+      "TriggerArmado": {
+        "properties": {
+          "armado": {
+            "format": "date-time",
+            "title": "Armado",
+            "type": "string"
+          },
+          "descripcion": {
+            "title": "Descripcion",
+            "type": "string"
+          },
+          "regla": {
+            "title": "Regla",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "trigger_id": {
+            "title": "Trigger Id",
+            "type": "string"
+          },
+          "umbral": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trigger_id",
+          "symbol",
+          "regla",
+          "umbral",
+          "armado",
+          "descripcion"
+        ],
+        "title": "TriggerArmado",
+        "type": "object"
+      },
+      "Triggers": {
+        "properties": {
+          "pausa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pausa"
+          },
+          "reglas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reglas",
+            "type": "array"
+          },
+          "triggers": {
+            "items": {
+              "$ref": "#/components/schemas/TriggerArmado"
+            },
+            "title": "Triggers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "triggers",
+          "reglas",
+          "pausa"
+        ],
+        "title": "Triggers",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo POST /api/ordenes, que exige la cantidad tecleada como confirmacion.",
+    "title": "INVEST LL",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/cartera": {
+      "get": {
+        "description": "La cartera derivada del ledger, valorada con el último cierre y SU fecha.",
+        "operationId": "cartera_api_cartera_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cartera"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cartera",
+        "tags": [
+          "cartera"
+        ]
+      }
+    },
+    "/api/cartera/movimientos": {
+      "post": {
+        "description": "Escribe un movimiento en el ledger (fuente 'panel'). No envía ninguna orden.",
+        "operationId": "registrar_movimiento_api_cartera_movimientos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevoMovimiento"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRegistrado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar Movimiento",
+        "tags": [
+          "cartera"
+        ]
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "description": "Pregunta a Claude con tu situación delante (gasta cuota). No puede ejecutar nada.",
+        "operationId": "chat_api_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionChat"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaChat"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/estado": {
+      "get": {
+        "description": "Modo de operación, reserva de datos, activos descargados y pausa de entradas.",
+        "operationId": "estado_api_estado_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estado",
+        "tags": [
+          "estado"
+        ]
+      }
+    },
+    "/api/investigacion": {
+      "get": {
+        "description": "La cartera prerregistrada hoy, su prueba hacia delante y el último estudio.",
+        "operationId": "investigacion_api_investigacion_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "capital",
+            "required": false,
+            "schema": {
+              "default": 1000.0,
+              "minimum": 0,
+              "title": "Capital",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Investigacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Investigacion",
+        "tags": [
+          "investigacion"
+        ]
+      }
+    },
+    "/api/investigacion/estudio": {
+      "get": {
+        "description": "El HTML del último estudio, para incrustarlo. 404 si no hay ninguno.",
+        "operationId": "estudio_api_investigacion_estudio_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estudio",
+        "tags": [
+          "investigacion"
+        ]
+      }
+    },
+    "/api/mercado/actualizar": {
+      "post": {
+        "description": "Re-descarga todos los históricos con los parámetros de su procedencia (`fetch_args`).",
+        "operationId": "actualizar_api_mercado_actualizar_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoActualizacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Actualizar",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/comparacion": {
+      "get": {
+        "description": "Base 100 al inicio del tramo (`normalised_series`); sin ventana, todo el histórico común.",
+        "operationId": "comparacion_api_mercado_comparacion_get",
+        "parameters": [
+          {
+            "description": "Ids de activos",
+            "in": "query",
+            "name": "activos",
+            "required": true,
+            "schema": {
+              "description": "Ids de activos",
+              "items": {
+                "type": "string"
+              },
+              "title": "Activos",
+              "type": "array"
+            }
+          },
+          {
+            "description": "'1 mes', '3 meses', '1 año', '5 años'",
+            "in": "query",
+            "name": "ventana",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "'1 mes', '3 meses', '1 año', '5 años'",
+              "title": "Ventana"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comparacion",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/cotizaciones": {
+      "post": {
+        "description": "Foto al pulsar de Binance (pares USDT) y del catálogo de bolsa. Toca la red.",
+        "operationId": "cotizaciones_api_mercado_cotizaciones_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cotizaciones"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cotizaciones",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/datos": {
+      "get": {
+        "description": "Último cierre de cada histórico descargado, y cuáles están desfasados.",
+        "operationId": "datos_api_mercado_datos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDescargados"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Datos",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/descargar": {
+      "post": {
+        "description": "Descarga el histórico completo (desde 2015) de un activo con `invest-ll-fetch`.",
+        "operationId": "descargar_api_mercado_descargar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionDescarga"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDescarga"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Descargar",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/rendimiento": {
+      "get": {
+        "description": "La mesa densa por periodo, separada en bolsa y cripto (`market_overview`).",
+        "operationId": "rendimiento_api_mercado_rendimiento_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rendimiento"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rendimiento",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/mercado/serie": {
+      "get": {
+        "description": "Cierres de un activo para su gráfica. 404 si no hay histórico de ese símbolo.",
+        "operationId": "serie_api_mercado_serie_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tramo",
+            "required": false,
+            "schema": {
+              "default": "1a",
+              "enum": [
+                "3m",
+                "1a",
+                "5a",
+                "todo"
+              ],
+              "title": "Tramo",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Serie"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Serie",
+        "tags": [
+          "mercado"
+        ]
+      }
+    },
+    "/api/ordenes": {
+      "get": {
+        "description": "Lo que de verdad salió al mercado, con el modo de cada orden a la vista.",
+        "operationId": "ordenes_api_ordenes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenesEnviadas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ordenes",
+        "tags": [
+          "ordenes"
+        ]
+      },
+      "post": {
+        "description": "Envía UNA orden con la confirmación tecleada (`enviar_orden`). 403 en simulación.",
+        "operationId": "enviar_api_ordenes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionOrden"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoOrden"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enviar",
+        "tags": [
+          "ordenes"
+        ]
+      }
+    },
+    "/api/ordenes/comprobar": {
+      "post": {
+        "description": "Si con el modo actual y lo tecleado se podría enviar (`motivo_para_no_enviar`).",
+        "operationId": "comprobar_envio_api_ordenes_comprobar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComprobacionEnvio"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoEnvio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comprobar Envio",
+        "tags": [
+          "ordenes"
+        ]
+      }
+    },
+    "/api/pausa": {
+      "delete": {
+        "description": "404 si no había pausa.",
+        "operationId": "reanudar_api_pausa_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reanudar",
+        "tags": [
+          "vigilar"
+        ]
+      },
+      "post": {
+        "description": "Nivel 1 del kill switch. 422 si el motivo está vacío.",
+        "operationId": "pausar_api_pausa_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Pausa"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pausar",
+        "tags": [
+          "vigilar"
+        ]
+      }
+    },
+    "/api/seguimiento": {
+      "get": {
+        "operationId": "seguimiento_api_seguimiento_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Seguimiento"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Seguimiento",
+        "tags": [
+          "seguimiento"
+        ]
+      }
+    },
+    "/api/simular/activo": {
+      "post": {
+        "description": "Una estrategia sobre un activo (`run_backtest`).",
+        "operationId": "un_activo_api_simular_activo_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionUnActivo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Informe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Un Activo",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/cartera/analisis": {
+      "post": {
+        "description": "Diversificación real del universo (`analyze_portfolio`).",
+        "operationId": "analisis_cartera_api_simular_cartera_analisis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionUniverso"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalisisCartera"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analisis Cartera",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/cartera/aportaciones": {
+      "post": {
+        "description": "Aportaciones periódicas (`run_dca`).",
+        "operationId": "aportaciones_api_simular_cartera_aportaciones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionAportaciones"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InformeAportaciones"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aportaciones",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/cartera/rotacion": {
+      "post": {
+        "description": "Rotación por momentum relativo (`run_rotation`).",
+        "operationId": "rotacion_api_simular_cartera_rotacion_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionRotacion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Informe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotacion",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/llm": {
+      "post": {
+        "description": "El experimento del LLM con decisiones grabadas, contra momentum y no hacer nada.",
+        "operationId": "llm_api_simular_llm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Friccion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparacionLLM"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Llm",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/opciones": {
+      "get": {
+        "description": "Frecuencias, activos compatibles sugeridos, estrategias y si hay pausa.",
+        "operationId": "opciones_simular_api_simular_opciones_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesSimular"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Opciones Simular",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/propuesta": {
+      "post": {
+        "description": "Propuesta simple (`propose_portfolio`). 409 si hay pausa de entradas.",
+        "operationId": "propuesta_api_simular_propuesta_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionPropuesta"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Propuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propuesta",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/simular/propuesta/registrar": {
+      "post": {
+        "description": "Anota las compras de la propuesta en el ledger (fuente 'propuesta'). No compra nada.",
+        "operationId": "registrar_propuesta_api_simular_propuesta_registrar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionRegistrarPropuesta"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistroPropuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar Propuesta",
+        "tags": [
+          "simular"
+        ]
+      }
+    },
+    "/api/triggers": {
+      "get": {
+        "operationId": "triggers_api_triggers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Triggers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Triggers",
+        "tags": [
+          "vigilar"
+        ]
+      },
+      "post": {
+        "operationId": "armar_api_triggers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevoTrigger"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerArmado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Armar",
+        "tags": [
+          "vigilar"
+        ]
+      }
+    },
+    "/api/triggers/comprobar": {
+      "get": {
+        "description": "Evalúa los triggers contra la cartera real; los disparos son texto, nada se envía.",
+        "operationId": "comprobar_triggers_api_triggers_comprobar_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComprobacionTriggers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Comprobar Triggers",
+        "tags": [
+          "vigilar"
+        ]
+      }
+    },
+    "/api/triggers/{trigger_id}": {
+      "delete": {
+        "description": "404 si no existe: desarmar lo inexistente no es un éxito.",
+        "operationId": "desarmar_api_triggers__trigger_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Desarmar",
+        "tags": [
+          "vigilar"
+        ]
+      }
+    },
+    "/api/vigilar/alertas": {
+      "get": {
+        "description": "Alertas de riesgo sobre los históricos. Nunca de subidas.",
+        "operationId": "alertas_api_vigilar_alertas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dias",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Dias",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "caida_pct",
+            "required": false,
+            "schema": {
+              "default": 15,
+              "maximum": 99,
+              "minimum": 1,
+              "title": "Caida Pct",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Alertas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alertas",
+        "tags": [
+          "vigilar"
+        ]
+      }
+    }
+  }
+}
