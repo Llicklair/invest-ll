@@ -25,7 +25,7 @@ export function MarcoTabla({
       tabIndex={0}
       // `relative`: los textos sr-only de las celdas son absolutos; sin un ancestro posicionado
       // escaparian del recorte y ensancharian la pagina en el movil.
-      className="relative overflow-auto rounded-md border border-borde bg-superficie"
+      className="relative overflow-auto rounded-md border border-linea bg-superficie"
       style={altoMaximo ? { maxHeight: altoMaximo } : undefined}
     >
       <table className="tabla-densa cifras w-full border-collapse text-sm">{children}</table>
@@ -43,7 +43,7 @@ export function Th({
     <th
       scope="col"
       className={clases(
-        "border-b border-borde px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-tinta-2",
+        "border-b border-linea px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-tinta-suave",
         numerica ? "text-right" : "text-left",
         className,
       )}
@@ -62,7 +62,7 @@ export function Td({
 }: TdHTMLAttributes<HTMLTableCellElement> & { numerica?: boolean }) {
   return (
     <td
-      className={clases("border-b border-rejilla px-2.5 py-1 whitespace-nowrap", numerica && "text-right", className)}
+      className={clases("border-b border-linea px-2.5 py-1 whitespace-nowrap", numerica && "text-right", className)}
       {...resto}
     >
       {children}
@@ -91,7 +91,7 @@ export function TdVariacion({
       className={clases(
         s === 1 && "text-sube",
         s === -1 && "text-baja",
-        s === null && "text-tinta-3",
+        s === null && "text-tinta-suave",
         className,
       )}
     >
@@ -141,7 +141,7 @@ export function TablaContrato({ tabla, etiqueta, altoMaximo }: { tabla: Tabla; e
         ))}
         {tabla.filas.length === 0 ? (
           <tr>
-            <Td colSpan={tabla.columnas.length} className="text-tinta-2">
+            <Td colSpan={tabla.columnas.length} className="text-tinta-suave">
               Sin filas.
             </Td>
           </tr>

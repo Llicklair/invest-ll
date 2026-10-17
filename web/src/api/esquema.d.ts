@@ -31,7 +31,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Movimientos
+         * @description El registro de la cartera del modo activo, legible y el más reciente primero.
+         *
+         *     ESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.
+         */
+        get: operations["movimientos_api_cartera_movimientos_get"];
         put?: never;
         /**
          * Registrar Movimiento
@@ -64,6 +70,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/conexion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conexion */
+        get: operations["conexion_api_conexion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conexion/claves/{red}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Guardar Claves
+         * @description Guarda las claves en el almacén de credenciales. 422 si las reales coinciden con las de
+         *     pruebas. Nunca se devuelven por ninguna ruta.
+         */
+        put: operations["guardar_claves_api_conexion_claves__red__put"];
+        post?: never;
+        /**
+         * Borrar Claves
+         * @description 404 si no había claves guardadas para esa red.
+         */
+        delete: operations["borrar_claves_api_conexion_claves__red__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conexion/modo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cambiar Modo
+         * @description 422 si faltan condiciones (dice cuáles) o, para real, la confirmación 'DINERO REAL'.
+         *     409 si el modo lo fija el entorno.
+         */
+        put: operations["cambiar_modo_api_conexion_modo_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conexion/probar/{red}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Probar
+         * @description Lee el saldo con esas claves. No envía ninguna orden.
+         */
+        post: operations["probar_api_conexion_probar__red__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/estado": {
         parameters: {
             query?: never;
@@ -76,6 +165,86 @@ export interface paths {
          * @description Modo de operación, reserva de datos, activos descargados y pausa de entradas.
          */
         get: operations["estado_api_estado_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/estrategias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catalogo
+         * @description Las estrategias con su descripción llana y sus cifras calculadas sobre los datos.
+         */
+        get: operations["catalogo_api_estrategias_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/estrategias/recomendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recomendar
+         * @description Reglas fijas y explicables (docs/panel-v2.md, sección 6).
+         */
+        post: operations["recomendar_api_estrategias_recomendar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/estrategias/simular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simular
+         * @description Inicial + mensual desde un año, en 1-4 estrategias. 404 si una clave no existe.
+         */
+        post: operations["simular_api_estrategias_simular_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inicio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inicio
+         * @description Tu dinero hoy (cartera del modo activo), el plan resumido, acciones pendientes y avisos.
+         */
+        get: operations["inicio_api_inicio_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -327,6 +496,91 @@ export interface paths {
          * @description 404 si no había pausa.
          */
         delete: operations["reanudar_api_pausa_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ver Plan */
+        get: operations["ver_plan_api_plan_get"];
+        /**
+         * Guardar Plan
+         * @description 422 si hay dos estrategias del mismo mercado o una clave desconocida o de laboratorio.
+         */
+        put: operations["guardar_plan_api_plan_put"];
+        post?: never;
+        /**
+         * Borrar Plan
+         * @description 404 si no había plan.
+         */
+        delete: operations["borrar_plan_api_plan_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/hoy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hoy
+         * @description Qué toca hacer hoy según el plan y la cartera del modo activo. No envía nada.
+         */
+        get: operations["hoy_api_plan_hoy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/hoy/{accion_id}/hecho": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hecho
+         * @description Anota en tu registro una compra hecha en tu bróker (solo acciones `donde=broker`).
+         */
+        post: operations["hecho_api_plan_hoy__accion_id__hecho_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/saldo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Saldo
+         * @description Saldo del exchange en el modo activo. 409 en simulación.
+         */
+        get: operations["saldo_api_saldo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -592,6 +846,92 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * Accion
+         * @description Algo que toca hacer hoy.
+         *
+         *     En Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras tú
+         *     y lo anotas con `POST /api/plan/hoy/{id}/hecho`.
+         */
+        Accion: {
+            /**
+             * Activo
+             * @description Nombre llano
+             */
+            activo: string;
+            /**
+             * Cantidad
+             * @description Exacta (binance) o aproximada (bróker)
+             */
+            cantidad: string | null;
+            /**
+             * Donde
+             * @enum {string}
+             */
+            donde: "binance" | "broker";
+            /**
+             * Equivalente
+             * @description Qué comprar desde España (bróker)
+             */
+            equivalente: string | null;
+            /** Estrategia */
+            estrategia: string;
+            /**
+             * Explicacion
+             * @description El porqué en una frase
+             */
+            explicacion: string;
+            /** Id */
+            id: string;
+            /**
+             * Importe
+             * @description Importe aproximado en la moneda de cotización
+             */
+            importe: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "buy" | "sell";
+            /**
+             * Moneda
+             * @description USDT, USD...
+             */
+            moneda: string;
+            /**
+             * Par
+             * @description Par de Binance (BTC/USDT) si donde=binance
+             */
+            par: string | null;
+            /** Precio Fecha */
+            precio_fecha: string | null;
+            /** Precio Ref */
+            precio_ref: string | null;
+            /** Simbolo */
+            simbolo: string;
+            /**
+             * Titulo
+             * @description 'Comprar Bitcoin', 'Compra unos 108 € de…'
+             */
+            titulo: string;
+        };
+        /** AccionHecha */
+        AccionHecha: {
+            /** Cantidad */
+            cantidad: number | string;
+            /**
+             * Comision
+             * @default 0
+             */
+            comision: number | string;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Precio */
+            precio: number | string;
+        };
+        /**
          * Activo
          * @description Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.
          */
@@ -671,6 +1011,19 @@ export interface components {
             /** Pares */
             pares: components["schemas"]["Par"][];
         };
+        /** CambioModo */
+        CambioModo: {
+            /**
+             * Confirmacion
+             * @description Para pasar a real hay que escribir exactamente 'DINERO REAL'
+             */
+            confirmacion?: string | null;
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "simulacion" | "pruebas" | "real";
+        };
         /** Cartera */
         Cartera: {
             /** Abiertas */
@@ -697,6 +1050,25 @@ export interface components {
              * @description None si falta el precio de alguna abierta
              */
             valor_total: string | null;
+        };
+        /** Catalogo */
+        Catalogo: {
+            /** Estrategias */
+            estrategias: components["schemas"]["Estrategia"][];
+            /**
+             * Nota
+             * @description El aviso general: el pasado no es una promesa
+             */
+            nota: string;
+        };
+        /** Cerrojo */
+        Cerrojo: {
+            /** Detalle */
+            detalle: string;
+            /** Nombre */
+            nombre: string;
+            /** Ok */
+            ok: boolean;
         };
         /** Comparacion */
         Comparacion: {
@@ -784,6 +1156,25 @@ export interface components {
              * @description No poder mirar NO es 'todo en orden'
              */
             sin_evaluar: string[];
+        };
+        /** Conexion */
+        Conexion: {
+            /** Cerrojos Real */
+            cerrojos_real: components["schemas"]["Cerrojo"][];
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "simulacion" | "pruebas" | "real";
+            /**
+             * Modo Origen
+             * @enum {string}
+             */
+            modo_origen: "panel" | "entorno";
+            /** Modos */
+            modos: components["schemas"]["ModoDisponible"][];
+            /** Redes */
+            redes: components["schemas"]["EstadoRed"][];
         };
         /** Consistencia */
         Consistencia: {
@@ -902,6 +1293,91 @@ export interface components {
             /** Puede */
             puede: boolean;
         };
+        /** EstadoRed */
+        EstadoRed: {
+            /** Claves Guardadas */
+            claves_guardadas: boolean;
+            /**
+             * Origen
+             * @enum {string}
+             */
+            origen: "panel" | "entorno" | "ninguno";
+            /**
+             * Red
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
+            /**
+             * Verificada
+             * @description Pruebas: hay al menos una orden ejecutada en el registro
+             */
+            verificada: boolean;
+        };
+        /** Estrategia */
+        Estrategia: {
+            /**
+             * Activos
+             * @description Nombres llanos de lo que compra
+             */
+            activos: string[];
+            /** Avisos */
+            avisos: string[];
+            /** Clave */
+            clave: string;
+            /**
+             * Como Funciona
+             * @description Tres pasos llanos
+             */
+            como_funciona: string[];
+            /**
+             * Disponible
+             * @description False si faltan datos para calcularla
+             */
+            disponible: boolean;
+            /**
+             * Ejecucion
+             * @enum {string}
+             */
+            ejecucion: "binance" | "broker";
+            evidencia: components["schemas"]["Evidencia"];
+            /**
+             * Frase
+             * @description Qué es, en una frase llana
+             */
+            frase: string;
+            historico: components["schemas"]["Historico"] | null;
+            /**
+             * Laboratorio
+             * @description True: solo se enseña en Laboratorio
+             */
+            laboratorio: boolean;
+            /**
+             * Mercado
+             * @enum {string}
+             */
+            mercado: "bolsa" | "cripto";
+            /**
+             * Motivo
+             * @description Qué falta, si no está disponible
+             */
+            motivo: string | null;
+            /** Nombre */
+            nombre: string;
+            /** Para Quien */
+            para_quien: string;
+            /**
+             * Retirada
+             * @description True: ya no se recomienda (se explica en avisos)
+             */
+            retirada: boolean;
+            /** Riesgo */
+            riesgo: number;
+            /**
+             * Riesgo Texto
+             * @description Tranquila · Suave · Moderada · Movida · Muy movida
+             */
+            riesgo_texto: string;
+        };
         /** Estudio */
         Estudio: {
             /**
@@ -911,6 +1387,24 @@ export interface components {
             generado: string;
             /** Ruta */
             ruta: string;
+        };
+        /** Evidencia */
+        Evidencia: {
+            /**
+             * Desde
+             * @description Desde cuándo está en prueba real, si lo está
+             */
+            desde: string | null;
+            /**
+             * Texto
+             * @description En llano: 'Probada sobre el pasado' / 'En prueba real desde…'
+             */
+            texto: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "pasado" | "prueba_real";
         };
         /** FilaDatos */
         FilaDatos: {
@@ -1054,6 +1548,75 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * Historico
+         * @description Lo que hizo con 10.000 desde el principio de los datos. Calculado, no escrito a mano.
+         */
+        Historico: {
+            /**
+             * Crecimiento Anual
+             * @description Fracción media anual compuesta
+             */
+            crecimiento_anual: number;
+            /**
+             * Desde
+             * Format: date
+             */
+            desde: string;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
+            /** Operaciones Al Anio */
+            operaciones_al_anio: number;
+            /**
+             * Peor Caida
+             * @description Fracción negativa: -0.65 = cayó un 65 %
+             */
+            peor_caida: number;
+            /**
+             * Peor Caida Fecha
+             * Format: date
+             */
+            peor_caida_fecha: string;
+            /**
+             * Peor Racha Anios
+             * @description Lo más que tardó en volver a su máximo, en años
+             */
+            peor_racha_anios: number;
+            /**
+             * Tiempo Invertido
+             * @description Fracción del tiempo dentro del mercado
+             */
+            tiempo_invertido: number;
+            /**
+             * Valor Final
+             * @description Desde 10.000
+             */
+            valor_final: number;
+        };
+        /** Hoy */
+        Hoy: {
+            /** Acciones */
+            acciones: components["schemas"]["Accion"][];
+            /** Avisos */
+            avisos: string[];
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "simulacion" | "pruebas" | "real";
+            /** Proxima Fecha */
+            proxima_fecha: string | null;
+            /**
+             * Resumen
+             * @description 'No toca hacer nada. Tu próxima aportación es…'
+             */
+            resumen: string;
+            /** Sin Plan */
+            sin_plan: boolean;
+        };
+        /**
          * Informe
          * @description Un backtest, en el mismo orden de lectura que el informe de texto (win rate al final).
          */
@@ -1100,6 +1663,28 @@ export interface components {
             /** Valor Todo De Golpe */
             valor_todo_de_golpe: string;
         };
+        /** Inicio */
+        Inicio: {
+            /** Acciones Pendientes */
+            acciones_pendientes: number;
+            /** Avisos */
+            avisos: string[];
+            /** Hay Movimientos */
+            hay_movimientos: boolean;
+            /** Mercado */
+            mercado: components["schemas"]["MiniMercado"][];
+            patrimonio: components["schemas"]["Patrimonio"];
+            /**
+             * Plan
+             * @description None si no hay plan guardado
+             */
+            plan: components["schemas"]["ParteResumen"][] | null;
+            /**
+             * Proxima Fecha
+             * @description Próxima aportación del plan
+             */
+            proxima_fecha: string | null;
+        };
         /** Investigacion */
         Investigacion: {
             /** Dias Desfase */
@@ -1126,6 +1711,28 @@ export interface components {
             /** Texto */
             texto: string;
         };
+        /** MiniMercado */
+        MiniMercado: {
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /**
+             * Nombre
+             * @description Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.', 'Oro'
+             */
+            nombre: string;
+            /** Precio */
+            precio: number;
+            /** Symbol */
+            symbol: string;
+            /**
+             * Var 1M
+             * @description En %
+             */
+            var_1m: number | null;
+        };
         /** Modo */
         Modo: {
             /**
@@ -1144,10 +1751,80 @@ export interface components {
              */
             nombre: string;
         };
+        /** ModoDisponible */
+        ModoDisponible: {
+            /** Disponible */
+            disponible: boolean;
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "simulacion" | "pruebas" | "real";
+            /** Que Falta */
+            que_falta: string[];
+        };
+        /** Movimiento */
+        Movimiento: {
+            /**
+             * Activo
+             * @description Nombre llano, si es una compra/venta
+             */
+            activo: string | null;
+            /** Cantidad */
+            cantidad: string;
+            /** Comision */
+            comision: string;
+            /**
+             * Fecha
+             * Format: date-time
+             */
+            fecha: string;
+            /** Id */
+            id: string;
+            /**
+             * Importe
+             * @description Cantidad por precio (o el importe si es efectivo)
+             */
+            importe: string;
+            /**
+             * Origen
+             * @description manual, panel, csv:…, ledger:…, plan
+             */
+            origen: string;
+            /** Precio */
+            precio: string | null;
+            /** Simbolo */
+            simbolo: string | null;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "compra" | "venta" | "ingreso" | "retirada";
+        };
         /** MovimientoRegistrado */
         MovimientoRegistrado: {
             /** Activity Id */
             activity_id: string;
+        };
+        /** Movimientos */
+        Movimientos: {
+            /**
+             * Cartera
+             * @enum {string}
+             */
+            cartera: "real" | "pruebas";
+            /**
+             * Movimientos
+             * @description El más reciente primero
+             */
+            movimientos: components["schemas"]["Movimiento"][];
+        };
+        /** NuevasClaves */
+        NuevasClaves: {
+            /** Clave */
+            clave: string;
+            /** Secreto */
+            secreto: string;
         };
         /**
          * NuevoMovimiento
@@ -1184,6 +1861,16 @@ export interface components {
              * @enum {string}
              */
             tipo: "compra" | "venta" | "deposito" | "retirada";
+        };
+        /**
+         * NuevoPlan
+         * @description Como mucho una estrategia de bolsa y una de cripto.
+         */
+        NuevoPlan: {
+            /** Dia Del Mes */
+            dia_del_mes: number;
+            /** Partes */
+            partes: components["schemas"]["ParteDelPlan-Input"][];
         };
         /** NuevoTrigger */
         NuevoTrigger: {
@@ -1236,10 +1923,123 @@ export interface components {
             /** Par */
             par: string;
         };
+        /** Parte */
+        Parte: {
+            /** Estrategia */
+            estrategia: string;
+            /** Inicial */
+            inicial: string;
+            /** Mensual */
+            mensual: string;
+            /** Nombre */
+            nombre: string;
+            /** Porcentaje */
+            porcentaje: number;
+        };
+        /** ParteDelPlan */
+        "ParteDelPlan-Input": {
+            /** Estrategia */
+            estrategia: string;
+            /** Inicial */
+            inicial: number | string;
+            /** Mensual */
+            mensual: number | string;
+        };
+        /** ParteDelPlan */
+        "ParteDelPlan-Output": {
+            /** Estrategia */
+            estrategia: string;
+            /** Inicial */
+            inicial: string;
+            /** Mensual */
+            mensual: string;
+        };
+        /** ParteResumen */
+        ParteResumen: {
+            /** Estrategia */
+            estrategia: string;
+            /**
+             * Mercado
+             * @enum {string}
+             */
+            mercado: "bolsa" | "cripto";
+            /** Nombre */
+            nombre: string;
+            /** Puesto */
+            puesto: string;
+            /** Valor */
+            valor: string | null;
+        };
+        /**
+         * Patrimonio
+         * @description Tu dinero hoy. `valor` es None si falta el precio de algo (y `incompleto` lo dice).
+         */
+        Patrimonio: {
+            /**
+             * Cartera
+             * @description 'pruebas' = dinero ficticio
+             * @enum {string}
+             */
+            cartera: "real" | "pruebas";
+            /**
+             * Fecha Precios
+             * @description Fecha del cierre más antiguo usado
+             */
+            fecha_precios: string | null;
+            /**
+             * Ganancia
+             * @description Lo que ganas o pierdes si vendieras hoy
+             */
+            ganancia: string | null;
+            /**
+             * Ganancia Pct
+             * @description Fracción: 0.046 = +4,6 %
+             */
+            ganancia_pct: number | null;
+            /** Incompleto */
+            incompleto: boolean;
+            /**
+             * Puesto
+             * @description Lo que has puesto (coste de lo que tienes)
+             */
+            puesto: string;
+            /**
+             * Realizado
+             * @description Lo ganado o perdido en lo que ya vendiste
+             */
+            realizado: string;
+            /**
+             * Valor
+             * @description Lo que vale hoy lo que tienes (+ efectivo)
+             */
+            valor: string | null;
+        };
         /** Pausa */
         Pausa: {
             /** Motivo */
             motivo: string;
+        };
+        /** Perfil */
+        Perfil: {
+            /**
+             * Ante Caida
+             * @enum {string}
+             */
+            ante_caida: "vender" | "esperar" | "comprar";
+            /**
+             * Cripto
+             * @enum {string}
+             */
+            cripto: "no" | "poco" | "si";
+            /**
+             * Horizonte
+             * @enum {string}
+             */
+            horizonte: "menos-2" | "2-5" | "5-10" | "mas-10";
+            /** Inicial */
+            inicial: number | string;
+            /** Mensual */
+            mensual: number | string;
         };
         /** PesoObjetivo */
         PesoObjetivo: {
@@ -1358,6 +2158,20 @@ export interface components {
              */
             slippage: number | string;
         };
+        /** PeticionSimulacion */
+        PeticionSimulacion: {
+            /**
+             * Desde Anio
+             * @description Año de inicio (1 de enero)
+             */
+            desde_anio: number;
+            /** Estrategias */
+            estrategias: string[];
+            /** Inicial */
+            inicial: number | string;
+            /** Mensual */
+            mensual: number | string;
+        };
         /** PeticionUnActivo */
         PeticionUnActivo: {
             /** Activo */
@@ -1417,6 +2231,27 @@ export interface components {
         PeticionUniverso: {
             /** Activos */
             activos: string[];
+        };
+        /** Plan */
+        Plan: {
+            /**
+             * Actualizado
+             * Format: date-time
+             */
+            actualizado: string;
+            /**
+             * Creado
+             * Format: date-time
+             */
+            creado: string;
+            /** Dia Del Mes */
+            dia_del_mes: number;
+            /** Partes */
+            partes: components["schemas"]["ParteDelPlan-Output"][];
+        };
+        /** PlanGuardado */
+        PlanGuardado: {
+            plan: components["schemas"]["Plan"] | null;
         };
         /**
          * PosicionAbierta
@@ -1511,6 +2346,21 @@ export interface components {
              */
             valor_final: number | null;
         };
+        /** PruebaConexion */
+        PruebaConexion: {
+            /**
+             * Detalle
+             * @description En llano; si falla, qué revisar (p. ej. tipo HMAC)
+             */
+            detalle: string;
+            /** Ok */
+            ok: boolean;
+            /**
+             * Saldo
+             * @description Solo monedas con saldo, ordenadas
+             */
+            saldo: components["schemas"]["SaldoMoneda"][];
+        };
         /** Punto */
         Punto: {
             /**
@@ -1535,6 +2385,40 @@ export interface components {
              * @description Base 100 al inicio del tramo
              */
             valor: number;
+        };
+        /** PuntoSimulado */
+        PuntoSimulado: {
+            /** Aportado */
+            aportado: number;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Valor */
+            valor: number;
+        };
+        /** Recomendacion */
+        Recomendacion: {
+            /**
+             * Alternativas
+             * @description Claves de otras estrategias razonables
+             */
+            alternativas: string[];
+            /** Avisos */
+            avisos: string[];
+            /**
+             * No Invertir
+             * @description True si el horizonte no da para invertir en esto
+             */
+            no_invertir: boolean;
+            /** Partes */
+            partes: components["schemas"]["Parte"][];
+            /**
+             * Por Que
+             * @description Frases que citan las respuestas
+             */
+            por_que: string[];
         };
         /** RegistroPropuesta */
         RegistroPropuesta: {
@@ -1589,6 +2473,87 @@ export interface components {
             /** Necesita Atencion */
             necesita_atencion: boolean;
         };
+        /** ResultadoSimulado */
+        ResultadoSimulado: {
+            /** Aportado */
+            aportado: number;
+            /**
+             * Aviso
+             * @description P. ej. 'los datos empiezan en 2018'
+             */
+            aviso: string | null;
+            /** Clave */
+            clave: string;
+            /**
+             * Desde
+             * Format: date
+             * @description Primer día con datos (puede ser posterior a lo pedido)
+             */
+            desde: string;
+            /** Ganancia */
+            ganancia: number;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
+            /**
+             * Meses Por Debajo
+             * @description Meses en que valía menos de lo puesto
+             */
+            meses_por_debajo: number;
+            /** Nombre */
+            nombre: string;
+            /**
+             * Peor Caida
+             * @description Fracción negativa desde el máximo anterior
+             */
+            peor_caida: number;
+            /**
+             * Peor Momento Aportado
+             * @description Lo puesto hasta ese momento
+             */
+            peor_momento_aportado: number;
+            /**
+             * Peor Momento Fecha
+             * Format: date
+             */
+            peor_momento_fecha: string;
+            /**
+             * Peor Momento Valor
+             * @description El valor en el peor momento relativo
+             */
+            peor_momento_valor: number;
+            /**
+             * Puntos
+             * @description Muestreado semanalmente
+             */
+            puntos: components["schemas"]["PuntoSimulado"][];
+            /** Valor Final */
+            valor_final: number;
+        };
+        /** Saldo */
+        Saldo: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "simulacion" | "pruebas" | "real";
+            /** Saldo */
+            saldo: components["schemas"]["SaldoMoneda"][];
+        };
+        /** SaldoMoneda */
+        SaldoMoneda: {
+            /** Cantidad */
+            cantidad: string;
+            /** Moneda */
+            moneda: string;
+        };
         /** Seguimiento */
         Seguimiento: {
             /** Evaluadas */
@@ -1620,6 +2585,13 @@ export interface components {
              * @enum {string}
              */
             tramo: "3m" | "1a" | "5a" | "todo";
+        };
+        /** Simulacion */
+        Simulacion: {
+            /** Nota */
+            nota: string;
+            /** Resultados */
+            resultados: components["schemas"]["ResultadoSimulado"][];
         };
         /**
          * Tabla
@@ -1700,6 +2672,26 @@ export interface operations {
             };
         };
     };
+    movimientos_api_cartera_movimientos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Movimientos"];
+                };
+            };
+        };
+    };
     registrar_movimiento_api_cartera_movimientos_post: {
         parameters: {
             query?: never;
@@ -1766,6 +2758,152 @@ export interface operations {
             };
         };
     };
+    conexion_api_conexion_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conexion"];
+                };
+            };
+        };
+    };
+    guardar_claves_api_conexion_claves__red__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                red: "pruebas" | "real";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevasClaves"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    borrar_claves_api_conexion_claves__red__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                red: "pruebas" | "real";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cambiar_modo_api_conexion_modo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CambioModo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conexion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    probar_api_conexion_probar__red__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                red: "pruebas" | "real";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PruebaConexion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     estado_api_estado_get: {
         parameters: {
             query?: never;
@@ -1782,6 +2920,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Estado"];
+                };
+            };
+        };
+    };
+    catalogo_api_estrategias_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Catalogo"];
+                };
+            };
+        };
+    };
+    recomendar_api_estrategias_recomendar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Perfil"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recomendacion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simular_api_estrategias_simular_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeticionSimulacion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Simulacion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inicio_api_inicio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Inicio"];
                 };
             };
         };
@@ -2148,6 +3392,152 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ver_plan_api_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanGuardado"];
+                };
+            };
+        };
+    };
+    guardar_plan_api_plan_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevoPlan"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanGuardado"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    borrar_plan_api_plan_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    hoy_api_plan_hoy_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Hoy"];
+                };
+            };
+        };
+    };
+    hecho_api_plan_hoy__accion_id__hecho_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccionHecha"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovimientoRegistrado"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saldo_api_saldo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Saldo"];
+                };
             };
         };
     };
