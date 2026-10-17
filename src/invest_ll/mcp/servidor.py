@@ -15,6 +15,10 @@ herramienta más.
 
 Las herramientas puras usan el dominio directamente; las de bots hablan con el panel por su API
 local (`mcp.panel`). Los errores vuelven a Claude en llano (`ToolError`).
+
+**Dónde trabaja.** Claude Desktop lo lanza sin argumentos y desde una carpeta cualquiera: busca
+solo la raíz del proyecto (la del `pyproject.toml` de invest-ll, subiendo desde este paquete) y
+trabaja ahí, como el panel (`medida/`, `data/`, `config/`). `--raiz` y `--medida` lo fijan a mano.
 """
 
 from __future__ import annotations
@@ -34,7 +38,7 @@ from pydantic import Field
 
 from invest_ll.errors import InvestLLError
 from invest_ll.estrategias_custom import formato
-from invest_ll.estrategias_custom.biblioteca import Biblioteca
+from invest_ll.estrategias_custom.biblioteca import CARPETA, Biblioteca
 from invest_ll.estrategias_custom.disenar import HERRAMIENTAS, SERVIDOR
 from invest_ll.estrategias_custom.interprete import velas_necesarias
 from invest_ll.estrategias_custom.prueba import probar as probar_estrategia
@@ -542,6 +546,23 @@ def crear_servidor(h: Herramientas) -> MCPServer:
     return s
 
 
+def raiz_del_proyecto(desde: Path | None = None) -> Path | None:
+    """La carpeta del proyecto (la del `pyproject.toml` de invest-ll), subiendo desde este
+    paquete. Claude Desktop lanza el conector desde una carpeta cualquiera y sin argumentos: no se
+    puede depender del directorio de trabajo para encontrar `medida/`, `data/` o `config/`."""
+    for carpeta in (desde or Path(__file__)).resolve().parents:
+        pyproject = carpeta / "pyproject.toml"
+        if not pyproject.is_file():
+            continue
+        try:
+            texto = pyproject.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if 'name = "invest-ll"' in texto:
+            return carpeta
+    return None
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="invest-ll-mcp",
@@ -551,7 +572,10 @@ def main(argv: list[str] | None = None) -> None:
         "--raiz",
         type=Path,
         default=None,
-        help="La carpeta del panel (donde están medida/, bots/…). Por defecto, la actual.",
+        help=(
+            "La carpeta del proyecto (donde están medida/, data/, config/…). Por defecto, la del "
+            "proyecto donde está instalado el conector."
+        ),
     )
     parser.add_argument(
         "--medida",
@@ -561,8 +585,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--panel", default=URL, help=f"La API del panel (por defecto {URL})")
     args = parser.parse_args(argv)
-    if args.raiz is not None:
-        os.chdir(args.raiz)
-    biblioteca = Biblioteca(args.medida) if args.medida is not None else Biblioteca()
-    herramientas = Herramientas(biblioteca=biblioteca, panel=Panel(args.panel))
+    raiz: Path = args.raiz or raiz_del_proyecto() or Path.cwd()
+    # Las carpetas de datos del panel son relativas al directorio de trabajo (como en el panel).
+    os.chdir(raiz)
+    medida: Path = args.medida or raiz / CARPETA
+    herramientas = Herramientas(biblioteca=Biblioteca(medida.resolve()), panel=Panel(args.panel))
     crear_servidor(herramientas).run("stdio")

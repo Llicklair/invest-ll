@@ -19,8 +19,9 @@ from mcp.server.mcpserver.exceptions import ToolError
 from invest_ll.estrategias_custom.biblioteca import Biblioteca
 from invest_ll.estrategias_custom.disenar import HERRAMIENTAS
 from invest_ll.mcp import panel as modulo_panel
+from invest_ll.mcp import servidor as modulo_servidor
 from invest_ll.mcp.panel import RUTAS, Panel, PanelError
-from invest_ll.mcp.servidor import Herramientas, crear_servidor
+from invest_ll.mcp.servidor import Herramientas, crear_servidor, raiz_del_proyecto
 
 from .medida_apoyo import CRUCE, ConectorFalso, onda, serie
 
@@ -288,6 +289,44 @@ class TestSinPanel:
         h = Herramientas(biblioteca=Biblioteca(tmp_path), panel=Panel(), conector_publico=sin)
         with pytest.raises(ToolError, match="aún no trae los conectores"):
             llamar(crear_servidor(h), "monedas", {"exchange": "binance"})
+
+
+class TestDondeArranca:
+    """Claude Desktop lanza `invest-ll-mcp.exe` sin argumentos y desde una carpeta cualquiera."""
+
+    def test_encuentra_la_raiz_del_proyecto_desde_el_paquete(self, tmp_path: Path) -> None:
+        assert raiz_del_proyecto() == FUENTE.parents[2]
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "invest-ll"\n', encoding="utf-8"
+        )
+        dentro = tmp_path / "src" / "invest_ll" / "mcp" / "servidor.py"
+        assert raiz_del_proyecto(dentro) == tmp_path
+
+    def test_otro_proyecto_no_cuenta(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "otro"\n', encoding="utf-8")
+        assert raiz_del_proyecto(tmp_path / "a" / "b.py") is None
+
+    def test_sin_argumentos_trabaja_en_la_raiz_del_proyecto(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        visto: dict[str, object] = {}
+
+        class Servidor:
+            def run(self, transporte: str) -> None:
+                visto["transporte"] = transporte
+
+        def crear(h: Herramientas) -> Servidor:
+            visto["medida"] = h.biblioteca.raiz
+            return Servidor()
+
+        cambios: list[Path] = []
+        monkeypatch.setattr(modulo_servidor, "crear_servidor", crear)
+        monkeypatch.setattr(modulo_servidor.os, "chdir", cambios.append)
+        modulo_servidor.main([])
+        raiz = FUENTE.parents[2]
+        assert cambios == [raiz]
+        assert visto == {"medida": raiz / "medida", "transporte": "stdio"}
 
 
 def test_se_arranca_como_modulo() -> None:
