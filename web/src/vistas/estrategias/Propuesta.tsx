@@ -13,11 +13,11 @@ import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { TarjetaEstrategia } from "@/componentes/TarjetaEstrategia";
 import { Boton, CargandoLento, Chip, ErrorApiVista, Esqueleto, Segmentado, Tarjeta, clases } from "@/componentes/ui";
 import { useConsulta, useRetardado } from "@/lib/consulta";
-import { euros, fecha } from "@/lib/formato";
+import { euros, eurosNum, fecha, mesYAnio } from "@/lib/formato";
 import { leerImporte } from "@/lib/importe";
 
 import { Comparador } from "./Comparador";
-import { asignarHuecos, useCatalogo, useSimulaciones } from "./datos";
+import { CLAVE_REPARTO, asignarHuecos, useCatalogo, useSimulaciones } from "./datos";
 import { ANIOS, type Respuestas } from "./estado";
 import { HojaEstrategia } from "./HojaEstrategia";
 
@@ -196,9 +196,16 @@ export function Propuesta({
 
   const todas = useMemo(() => (catalogo.datos?.estrategias ?? []).filter((e) => !e.laboratorio && !e.retirada), [catalogo.datos]);
   const disponibles = todas.filter((e) => e.disponible).map((e) => e.clave);
-  const sims = useSimulaciones(disponibles, ini, men, desdeAnio);
-
   const r = rec.datos;
+  // La propuesta entera, como una sola curva ("Tu reparto"), si tiene mas de una parte y todas se
+  // pueden calcular.
+  const reparto =
+    r && !r.no_invertir && r.partes.length > 1 && r.partes.every((p) => disponibles.includes(p.estrategia))
+      ? r.partes.map((p) => ({ estrategia: p.estrategia, porcentaje: p.porcentaje }))
+      : [];
+  const sims = useSimulaciones(disponibles, ini, men, desdeAnio, reparto);
+  const combinado = reparto.length ? (sims.datos?.get(CLAVE_REPARTO) ?? null) : null;
+
   const recomendadas = r ? r.partes.map((p) => p.estrategia) : [];
   const enGrafica = (recomendadas.length ? recomendadas : POR_DEFECTO_CATALOGO).filter((c) => disponibles.includes(c));
   const huecosGrafica = asignarHuecos(enGrafica, {});
@@ -300,16 +307,34 @@ export function Propuesta({
               <GraficaTusNumeros
                 titulo={r ? "Lo que habrías tenido con lo que te proponemos" : "Dos ejemplos: una de bolsa y una de cripto"}
                 series={resultadosGrafica.map((x) => ({ resultado: x, hueco: huecosGrafica[x.clave] ?? 0 }))}
+                combinado={combinado}
                 atenuada={sims.cargando}
                 pie={
                   <>
-                    Desde el {fecha(resultadosGrafica[0]?.desde)}. Cada línea es una estrategia con todo tu dinero, por separado.{" "}
+                    Desde el {fecha(resultadosGrafica[0]?.desde)}.{" "}
+                    {combinado
+                      ? "La línea gruesa es tu reparto: tu dinero repartido como te proponemos. Las de color, cada estrategia con todo tu dinero, por separado."
+                      : "Cada línea es una estrategia con todo tu dinero, por separado."}{" "}
                     <TextoAnio anio={desdeAnio} />
                   </>
                 }
               />
             ) : sims.cargando ? (
               <Esqueleto className="h-[26rem]" />
+            ) : null}
+            {combinado ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:max-w-2xl">
+                <p className="rounded-xl bg-superficie-2 px-4 py-3 text-[0.9375rem] text-tinta">
+                  Con tu reparto <strong className="cifras font-semibold">tendrías {eurosNum(combinado.valor_final)}</strong>
+                  <span className="cifras block text-sm text-tinta-suave">Pusiste {eurosNum(combinado.aportado)}</span>
+                </p>
+                <p className="rounded-xl bg-superficie-2 px-4 py-3 text-[0.9375rem] text-tinta">
+                  En el peor momento <strong className="cifras font-semibold">valía {eurosNum(combinado.peor_momento_valor)}</strong>
+                  <span className="cifras block text-sm text-tinta-suave">
+                    En {mesYAnio(combinado.peor_momento_fecha)}, cuando habías puesto {eurosNum(combinado.peor_momento_aportado)}
+                  </span>
+                </p>
+              </div>
             ) : null}
             {resultadosGrafica.some((x) => x.aviso) ? (
               <p className="text-sm text-tinta-suave">{resultadosGrafica.map((x) => x.aviso).filter(Boolean).join(" ")}</p>

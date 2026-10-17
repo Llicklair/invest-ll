@@ -1,10 +1,10 @@
 "use client";
 
-import { Bot, History, Info, Hand, Sparkles, TriangleAlert, Timer } from "lucide-react";
+import { Bot, CalendarClock, History, Info, Hand, Sparkles, TriangleAlert, Timer } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Estrategia, ResultadoSimulado } from "@/api/tipos";
-import { eurosNum, fecha, mesYAnio } from "@/lib/formato";
+import { eurosNum, fecha, frecuenciaCambios, mesYAnio } from "@/lib/formato";
 
 import { MedidorRiesgo } from "./MedidorRiesgo";
 import { TeclaLinea } from "./graficas/comun";
@@ -147,6 +147,12 @@ export function TarjetaEstrategia({
 
       <div className="space-y-3">
         <Ejecucion estrategia={e} />
+        {e.historico ? (
+          <p className="flex items-start gap-2 text-[0.9375rem] text-tinta">
+            <CalendarClock aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-tinta-suave" strokeWidth={1.75} />
+            {frecuenciaCambios(e.historico.cambios_al_anio)}
+          </p>
+        ) : null}
         <ChipEvidencia estrategia={e} />
       </div>
 

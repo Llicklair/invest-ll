@@ -9,7 +9,7 @@ import { MedidorRiesgo } from "@/componentes/MedidorRiesgo";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { ChipEvidencia, Ejecucion } from "@/componentes/TarjetaEstrategia";
 import { Cargando, ErrorApiVista } from "@/componentes/ui";
-import { duracion, eurosNum, fecha, fraccion, mesYAnio, numero } from "@/lib/formato";
+import { duracion, eurosNum, fecha, fraccion, frecuenciaCambios, mesYAnio } from "@/lib/formato";
 
 import { useSimulaciones } from "./datos";
 
@@ -22,7 +22,8 @@ function Cifras({ e }: { e: Estrategia }) {
     ["Su peor caída", `${fraccion(h.peor_caida, 0)} desde su máximo, en ${mesYAnio(h.peor_caida_fecha)}.`],
     ["Lo más que tardó en recuperarse", `${duracion(h.peor_racha_anios)} hasta volver a su máximo.`],
     ["Tiempo invertido", `${fraccion(h.tiempo_invertido, 0, false)} del tiempo; el resto, en liquidez.`],
-    ["Operaciones", `Unas ${numero(h.operaciones_al_anio, 0)} al año.`],
+    // Lo que te toca hacer a ti (v2.1), no las operaciones del motor (eso es de Laboratorio).
+    ["Cuánto te tocará hacer", frecuenciaCambios(h.cambios_al_anio)],
   ];
   return (
     <dl className="divide-y divide-linea rounded-xl border border-linea">
