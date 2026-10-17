@@ -499,8 +499,10 @@ class Motor:
                 continue
             try:
                 hecha = self._ejecutar(bot, orden, libro)
-            except LibroInsuficienteError as error:
-                esperando = f"La {orden.lado} de {orden.coin} espera: {error}."
+            except LibroInsuficienteError:
+                esperando = (
+                    f"El libro de {orden.coin} no da para la {orden.lado} ahora mismo: espera."
+                )
                 continue
             except OrdenPequenaError:
                 continue  # por debajo del mínimo de Hyperliquid: no se hace, y no hay que esperar

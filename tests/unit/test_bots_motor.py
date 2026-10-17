@@ -121,6 +121,21 @@ class TestTendencia:
         assert m.aviso(bot) is None
 
 
+def test_un_libro_que_no_da_para_la_orden_la_deja_esperando(tmp_path: Path) -> None:
+    mercado = Mercado()
+    mercado.precio("BTC", 100)
+    m = nuevo_motor(mercado, tmp_path)
+    bot = m.desplegar("periodica", "P", ["BTC"], D(1000), {})
+    mercado.fuente.libros["BTC"] = libro("BTC", 100, cantidad="0.001")
+    m.paso()
+    assert bot.estado.operaciones == 0
+    assert bot.cuenta.efectivo == D(1000)
+    assert m.aviso(bot) == "El libro de BTC no da para la compra ahora mismo: espera."
+    mercado.precio("BTC", 100)
+    m.paso()
+    assert bot.estado.operaciones == 1
+
+
 class TestRejilla:
     def desplegar(self, mercado: Mercado, raiz: Path) -> tuple[Motor, Bot]:
         mercado.precio("BTC", 100)
