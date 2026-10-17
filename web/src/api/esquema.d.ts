@@ -151,6 +151,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado Datos
+         * @description De cuándo son los datos que usa el panel y cómo va la última actualización.
+         */
+        get: operations["estado_datos_api_datos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datos/actualizar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Actualizar Datos
+         * @description Empieza a actualizarlo todo en segundo plano. 409 si ya hay una actualización en marcha.
+         */
+        post: operations["actualizar_datos_api_datos_actualizar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/estado": {
         parameters: {
             query?: never;
@@ -904,6 +944,16 @@ export interface components {
             precio_fecha: string | null;
             /** Precio Ref */
             precio_ref: string | null;
+            /**
+             * Precio Ref Moneda
+             * @description Moneda de `precio_ref`: 'USD', 'USDT'
+             */
+            precio_ref_moneda: string | null;
+            /**
+             * Referencia
+             * @description Bróker: el fondo de EE.UU. con que se calcula (p. ej. 'SPY'); `cantidad` y `precio_ref` son de ese fondo, no del que compras.
+             */
+            referencia: string | null;
             /** Simbolo */
             simbolo: string;
             /**
@@ -1028,6 +1078,12 @@ export interface components {
             abiertas: components["schemas"]["PosicionAbierta"][];
             /** Avisos */
             avisos: string[];
+            /**
+             * Cartera
+             * @description 'pruebas' = dinero ficticio
+             * @enum {string}
+             */
+            cartera: "real" | "pruebas";
             /** Efectivo */
             efectivo: string;
             /**
@@ -1282,6 +1338,23 @@ export interface components {
             reserva: string | null;
         };
         /**
+         * EstadoDatos
+         * @description Lo que usa el panel (mercado, estrategias, plan) y de cuándo es.
+         */
+        EstadoDatos: {
+            /** Al Dia */
+            al_dia: boolean;
+            /**
+             * Aviso
+             * @description En llano, si algo está viejo o falta
+             */
+            aviso: string | null;
+            /** Fuentes */
+            fuentes: components["schemas"]["FuenteDatos"][];
+            /** @description La última actualización (en curso o hecha) */
+            trabajo: components["schemas"]["TrabajoDatos"] | null;
+        };
+        /**
          * EstadoEnvio
          * @description Si se puede enviar. El botón del frontend se habilita SOLO con `puede` en True.
          */
@@ -1457,6 +1530,16 @@ export interface components {
             lado: string;
             /** Modo */
             modo: string;
+            /**
+             * Moneda
+             * @description Moneda del precio y la comisión: 'USDT'
+             */
+            moneda: string;
+            /**
+             * Nombre
+             * @description Nombre llano: 'Bitcoin'
+             */
+            nombre: string;
             /** Pedida */
             pedida: string;
             /** Precio */
@@ -1486,6 +1569,16 @@ export interface components {
              * @description La columna que más importa
              */
             desde_maximo: number | null;
+            /**
+             * Moneda
+             * @description Moneda del precio: 'USD', 'USDT'
+             */
+            moneda: string;
+            /**
+             * Nombre
+             * @description Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'
+             */
+            nombre: string;
             /** Que Es */
             que_es: string;
             /**
@@ -1540,6 +1633,31 @@ export interface components {
              */
             slippage: number | string;
         };
+        /** FuenteDatos */
+        FuenteDatos: {
+            /** Al Dia */
+            al_dia: boolean;
+            /**
+             * Clave
+             * @description historicos | fondos | cripto
+             */
+            clave: string;
+            /**
+             * Dias
+             * @description Días desde ese último dato
+             */
+            dias: number | null;
+            /**
+             * Hasta
+             * @description Último día con datos
+             */
+            hasta: string | null;
+            /**
+             * Nombre
+             * @description En llano: 'Precios de bolsa y cripto', 'Fondos', ...
+             */
+            nombre: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1550,6 +1668,11 @@ export interface components {
          * @description Lo que hizo con 10.000 desde el principio de los datos. Calculado, no escrito a mano.
          */
         Historico: {
+            /**
+             * Cambios Al Anio
+             * @description Veces al año que, siguiendo esta estrategia, te tocaría hacer algo además de tus aportaciones (entrar, salir o cambiar el reparto de forma apreciable). Es la cifra que se le enseña al usuario, no `operaciones_al_anio`.
+             */
+            cambios_al_anio: number;
             /**
              * Crecimiento Anual
              * @description Fracción media anual compuesta
@@ -1565,7 +1688,10 @@ export interface components {
              * Format: date
              */
             hasta: string;
-            /** Operaciones Al Anio */
+            /**
+             * Operaciones Al Anio
+             * @description Operaciones del motor (técnico: Laboratorio)
+             */
             operaciones_al_anio: number;
             /**
              * Peor Caida
@@ -1773,6 +1899,11 @@ export interface components {
             /** Comision */
             comision: string;
             /**
+             * Es Referencia
+             * @description True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)
+             */
+            es_referencia: boolean;
+            /**
              * Fecha
              * Format: date-time
              */
@@ -1784,6 +1915,13 @@ export interface components {
              * @description Cantidad por precio (o el importe si es efectivo)
              */
             importe: string;
+            /** Moneda */
+            moneda: string;
+            /**
+             * Nota
+             * @description En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'
+             */
+            nota: string | null;
             /**
              * Origen
              * @description manual, panel, csv:…, ledger:…, plan
@@ -1858,7 +1996,7 @@ export interface components {
              * Tipo
              * @enum {string}
              */
-            tipo: "compra" | "venta" | "deposito" | "retirada";
+            tipo: "compra" | "venta" | "ingreso" | "retirada";
         };
         /**
          * NuevoPlan
@@ -1968,6 +2106,18 @@ export interface components {
             /** Valor */
             valor: string | null;
         };
+        /** PasoDatos */
+        PasoDatos: {
+            /** Detalle */
+            detalle: string | null;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "pendiente" | "en_marcha" | "bien" | "mal";
+            /** Nombre */
+            nombre: string;
+        };
         /**
          * Patrimonio
          * @description Tu dinero hoy. `valor` es None si falta el precio de algo (y `incompleto` lo dice).
@@ -1979,6 +2129,11 @@ export interface components {
              * @enum {string}
              */
             cartera: "real" | "pruebas";
+            /**
+             * Efectivo
+             * @description Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)
+             */
+            efectivo: string;
             /**
              * Fecha Precios
              * @description Fecha del cierre más antiguo usado
@@ -1996,6 +2151,16 @@ export interface components {
             ganancia_pct: number | null;
             /** Incompleto */
             incompleto: boolean;
+            /**
+             * Moneda
+             * @description Moneda en que se expresan las cifras ('EUR'). Bolsa y cripto cotizan en dólares; se suman sin convertir y `nota_moneda` lo dice.
+             */
+            moneda: string;
+            /**
+             * Nota Moneda
+             * @description P. ej. 'Aproximado: sin contar el cambio euro-dólar.'
+             */
+            nota_moneda: string | null;
             /**
              * Puesto
              * @description Lo que has puesto (coste de lo que tienes)
@@ -2169,6 +2334,11 @@ export interface components {
             inicial: number | string;
             /** Mensual */
             mensual: number | string;
+            /**
+             * Reparto
+             * @description Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia.
+             */
+            reparto?: components["schemas"]["PorcentajeEstrategia"][] | null;
         };
         /** PeticionUnActivo */
         PeticionUnActivo: {
@@ -2251,6 +2421,13 @@ export interface components {
         PlanGuardado: {
             plan: components["schemas"]["Plan"] | null;
         };
+        /** PorcentajeEstrategia */
+        PorcentajeEstrategia: {
+            /** Estrategia */
+            estrategia: string;
+            /** Porcentaje */
+            porcentaje: number;
+        };
         /**
          * PosicionAbierta
          * @description Su P&L es una VALORACIÓN, con la fecha de los datos al lado.
@@ -2267,8 +2444,23 @@ export interface components {
             cantidad: string;
             /** Coste Medio */
             coste_medio: string;
+            /**
+             * Es Referencia
+             * @description True si la posición se anotó en unidades del fondo de EE.UU. de referencia (compras de tu bróker hechas desde el plan): `cantidad` y `coste_medio` NO son tus participaciones ni tu precio; enseña importes, no unidades.
+             */
+            es_referencia: boolean;
             /** Invertido */
             invertido: string;
+            /**
+             * Moneda
+             * @description Moneda de precio, valor e importes: 'USD', 'USDT'
+             */
+            moneda: string;
+            /**
+             * Nombre
+             * @description Nombre llano del activo
+             */
+            nombre: string;
             /** Pnl No Realizado */
             pnl_no_realizado: string | null;
             /** Precio */
@@ -2294,6 +2486,13 @@ export interface components {
             dias: number;
             /** Invertido */
             invertido: string;
+            /** Moneda */
+            moneda: string;
+            /**
+             * Nombre
+             * @description Nombre llano del activo
+             */
+            nombre: string;
             /** Pnl Realizado */
             pnl_realizado: string;
             /** Recuperado */
@@ -2462,14 +2661,43 @@ export interface components {
         };
         /** ResultadoOrden */
         ResultadoOrden: {
-            /** Descripcion */
+            /** Comision */
+            comision: string | null;
+            /**
+             * Descripcion
+             * @description El texto técnico de siempre (registro, terminal)
+             */
             descripcion: string;
-            /** Estado */
+            /** Ejecutada */
+            ejecutada: string;
+            /**
+             * En Cartera
+             * @description True si lo ejecutado ya se anotó en tu cartera
+             */
+            en_cartera: boolean;
+            /**
+             * Estado
+             * @description filled | partial | rejected | unknown
+             */
             estado: string;
             /** Modo */
             modo: string;
+            /**
+             * Moneda
+             * @description Moneda del precio y la comisión: 'USDT'
+             */
+            moneda: string;
             /** Necesita Atencion */
             necesita_atencion: boolean;
+            /** Pedida */
+            pedida: string;
+            /** Precio */
+            precio: string | null;
+            /**
+             * Resumen
+             * @description En llano, para el usuario: 'Compraste 0,00122 Bitcoin a 82.245,93 USDT. Ya está en tu cartera.' / 'No se sabe si se ejecutó: compruébalo en Binance antes de volver a operar.'
+             */
+            resumen: string;
         };
         /** ResultadoSimulado */
         ResultadoSimulado: {
@@ -2586,6 +2814,8 @@ export interface components {
         };
         /** Simulacion */
         Simulacion: {
+            /** @description Tu reparto entero (clave 'reparto'), si se pidió en la petición */
+            combinado: components["schemas"]["ResultadoSimulado"] | null;
             /** Nota */
             nota: string;
             /** Resultados */
@@ -2600,6 +2830,20 @@ export interface components {
             columnas: string[];
             /** Filas */
             filas: (string | number | boolean | null)[][];
+        };
+        /** TrabajoDatos */
+        TrabajoDatos: {
+            /**
+             * Empezado
+             * Format: date-time
+             */
+            empezado: string;
+            /** En Marcha */
+            en_marcha: boolean;
+            /** Pasos */
+            pasos: components["schemas"]["PasoDatos"][];
+            /** Terminado */
+            terminado: string | null;
         };
         /** TriggerArmado */
         TriggerArmado: {
@@ -2898,6 +3142,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    estado_datos_api_datos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoDatos"];
+                };
+            };
+        };
+    };
+    actualizar_datos_api_datos_actualizar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoDatos"];
                 };
             };
         };

@@ -231,6 +231,8 @@ interface Curva {
   valores: number[];
   dentro: number;
   operaciones: number;
+  /** Veces que al usuario le toca hacer algo aparte de aportar (entrar, salir, cambiar el reparto). */
+  cambios: number;
 }
 
 const COSTE = 0.0015;
@@ -267,6 +269,7 @@ function cartera(simbolos: string[], pesos: number[], filtro: number | null): Cu
   let partes = pesos.map((p) => p * 10000);
   let dentro = 0;
   let operaciones = 0;
+  let cambiosUsuario = 0;
   let estado = simbolos.map(() => true);
   for (let i = 1; i < fechas.length; i++) {
     partes = partes.map((v, k) => {
@@ -286,6 +289,8 @@ function cartera(simbolos: string[], pesos: number[], filtro: number | null): Cu
       });
       const cambios = nuevo.filter((x, k) => x !== estado[k]).length;
       operaciones += cambios + 1;
+      // Volver al reparto cada mes lo hace la aportacion; solo cuenta cuando el filtro saca o mete algo.
+      if (cambios) cambiosUsuario++;
       estado = nuevo;
       total *= 1 - COSTE * (cambios ? 0.3 : 0.02);
       partes = pesos.map((p) => p * total);
@@ -293,7 +298,7 @@ function cartera(simbolos: string[], pesos: number[], filtro: number | null): Cu
     if (estado.some(Boolean)) dentro++;
     valores.push(total);
   }
-  return { fechas, valores, dentro: dentro / Math.max(1, fechas.length - 1), operaciones };
+  return { fechas, valores, dentro: dentro / Math.max(1, fechas.length - 1), operaciones, cambios: cambiosUsuario };
 }
 
 /**
@@ -324,6 +329,7 @@ function conFreno(simbolos: string[], k: number | null, banda = 0, exponente = 1
   let dentroAhora = true;
   let dias = 0;
   let operaciones = 0;
+  let cambios = 0;
   for (let i = 1; i < fechas.length; i++) {
     const j = i + arranque;
     const prev = valores[i - 1] ?? 10000;
@@ -340,6 +346,7 @@ function conFreno(simbolos: string[], k: number | null, banda = 0, exponente = 1
         if (quiere !== dentroAhora) {
           dentroAhora = quiere;
           operaciones += simbolos.length;
+          cambios++;
           void v;
         }
       }
@@ -347,7 +354,13 @@ function conFreno(simbolos: string[], k: number | null, banda = 0, exponente = 1
   }
   const base0 = indice[arranque] ?? 1;
   const amortiguada = fechas.map((_, i) => 10000 * ((indice[i + arranque] ?? base0) / base0) ** exponente);
-  return { fechas, valores: k === null ? valores : amortiguada, dentro: k === null ? 1 : dias / Math.max(1, fechas.length - 1), operaciones: Math.max(1, operaciones) };
+  return {
+    fechas,
+    valores: k === null ? valores : amortiguada,
+    dentro: k === null ? 1 : dias / Math.max(1, fechas.length - 1),
+    operaciones: Math.max(1, operaciones),
+    cambios,
+  };
 }
 
 function rotacion(): Curva {
@@ -358,6 +371,7 @@ function rotacion(): Curva {
   const valores = [10000];
   let elegido = 0;
   let operaciones = 0;
+  let cambios = 0;
   for (let i = 1; i < fechas.length; i++) {
     const j = i + 63;
     const serieElegida = c[elegido] ?? [];
@@ -374,11 +388,14 @@ function rotacion(): Curva {
           mejor = k;
         }
       });
-      if (mejor !== elegido) operaciones += 2;
+      if (mejor !== elegido) {
+        operaciones += 2;
+        cambios++;
+      }
       elegido = mejor;
     }
   }
-  return { fechas, valores, dentro: 1, operaciones };
+  return { fechas, valores, dentro: 1, operaciones, cambios };
 }
 
 export function curva(clave: string): Curva | null {
@@ -470,6 +487,7 @@ export function historico(clave: string): S["Historico"] | null {
     peor_racha_anios: Math.round((p.racha / diasPorAnio) * 10) / 10,
     tiempo_invertido: Math.round(c.dentro * 100) / 100,
     operaciones_al_anio: Math.round((c.operaciones / Math.max(a, 0.1)) * 10) / 10,
+    cambios_al_anio: Math.round((c.cambios / Math.max(a, 0.1)) * 10) / 10,
   };
 }
 
@@ -491,7 +509,7 @@ export function estrategia(d: Def, escasez: Escasez): S["Estrategia"] {
     laboratorio: d.laboratorio,
     retirada: d.retirada,
     disponible: !sinDatos,
-    motivo: sinDatos ? "Faltan los datos de Binance para calcularla. Descárgalos con uv run invest-ll-quant download." : null,
+    motivo: sinDatos ? "Faltan los datos de Binance para calcularla. Actualízalos en Ajustes · Datos." : null,
     historico: sinDatos ? null : historico(d.clave),
   };
 }
@@ -584,6 +602,61 @@ export function simular(clave: string, inicial: number, mensual: number, desdeAn
     peor_caida: caida.caida,
     meses_por_debajo: mesesDebajo,
     aviso,
+  };
+}
+
+/**
+ * `combinado` (contrato v2.1): tu dinero repartido segun `reparto` (porcentajes que suman 100),
+ * cada parte en su estrategia, sumadas semana a semana. Clave "reparto", nombre "Tu reparto".
+ */
+export function simularCombinado(
+  reparto: readonly { estrategia: string; porcentaje: number }[],
+  inicial: number,
+  mensual: number,
+  desdeAnio: number,
+): S["ResultadoSimulado"] | null {
+  const partes = reparto
+    .map((r) => simular(r.estrategia, (inicial * r.porcentaje) / 100, (mensual * r.porcentaje) / 100, desdeAnio))
+    .filter((x): x is S["ResultadoSimulado"] => x !== null);
+  if (!partes.length) return null;
+  const fechas = [...new Set(partes.flatMap((p) => p.puntos.map((x) => x.fecha)))].sort();
+  const indices = partes.map(() => 0);
+  const vistos: (S["PuntoSimulado"] | null)[] = partes.map(() => null);
+  const puntos: S["PuntoSimulado"][] = fechas.map((f) => {
+    partes.forEach((p, k) => {
+      while ((indices[k] ?? 0) < p.puntos.length && (p.puntos[indices[k] ?? 0]?.fecha ?? "") <= f) {
+        vistos[k] = p.puntos[indices[k] ?? 0] ?? null;
+        indices[k] = (indices[k] ?? 0) + 1;
+      }
+    });
+    const valor = vistos.reduce((s, v) => s + (v?.valor ?? 0), 0);
+    const aportado = vistos.reduce((s, v) => s + (v?.aportado ?? 0), 0);
+    return { fecha: f, valor: Math.round(valor * 100) / 100, aportado: Math.round(aportado * 100) / 100 };
+  });
+  const primero = puntos[0];
+  const ultimo = puntos[puntos.length - 1];
+  if (!primero || !ultimo) return null;
+  let peor = primero;
+  for (const p of puntos) if (p.aportado > 0 && p.valor / p.aportado < peor.valor / Math.max(peor.aportado, 1)) peor = p;
+  const caida = peorCaida(
+    puntos.map((p) => p.valor),
+    puntos.map((p) => p.fecha),
+  );
+  return {
+    clave: "reparto",
+    nombre: "Tu reparto",
+    desde: primero.fecha,
+    hasta: ultimo.fecha,
+    puntos,
+    aportado: ultimo.aportado,
+    valor_final: ultimo.valor,
+    ganancia: Math.round((ultimo.valor - ultimo.aportado) * 100) / 100,
+    peor_momento_fecha: peor.fecha,
+    peor_momento_valor: peor.valor,
+    peor_momento_aportado: peor.aportado,
+    peor_caida: caida.caida,
+    meses_por_debajo: new Set(puntos.filter((p) => p.valor < p.aportado - 0.005).map((p) => mes(p.fecha))).size,
+    aviso: null,
   };
 }
 

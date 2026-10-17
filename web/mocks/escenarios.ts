@@ -16,6 +16,8 @@ export const ESCENARIOS = [
   "vacio",
   "modo-roto",
   "en-frio",
+  "datos-viejos",
+  "datos-actualizando",
 ] as const;
 export type Escenario = (typeof ESCENARIOS)[number];
 
@@ -33,4 +35,6 @@ export const DESCRIPCION_ESCENARIOS: Record<Escenario, string> = {
   vacio: "Todo vacío (también Laboratorio)",
   "modo-roto": "La API no sabe en qué modo está",
   "en-frio": "Primera vez tras arrancar la API: las estrategias tardan en calcularse",
+  "datos-viejos": "Los precios tienen más de dos semanas; al actualizar, los fondos fallan",
+  "datos-actualizando": "Una actualización de los datos en marcha, paso a paso",
 };
