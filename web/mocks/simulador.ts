@@ -18,6 +18,7 @@ import * as panel from "./panel";
 import { type Escenario } from "./panel";
 import { DEFINICIONES, monedaDe, nombreDe, serie, type SerieGenerada } from "./series";
 import { esRutaVivo, responderVivo } from "./vivo";
+import { esRutaV4, responderV4 } from "./v4";
 
 type S = components["schemas"];
 
@@ -859,6 +860,8 @@ export async function responder(peticion: Request): Promise<Response> {
   const ruta = url.pathname;
   // Panel v3 (Operar y Bots): su propio mundo en vivo, en mocks/vivo.ts.
   if (esRutaVivo(ruta)) return responderVivo(peticion, url);
+  // Panel v4 (conexiones con exchanges, estrategias a medida y disenar con Claude): mocks/v4.ts.
+  if (esRutaV4(ruta)) return responderV4(peticion, url);
   const metodo = peticion.method.toUpperCase();
   const m = elMundo();
   await esperar(150 + Math.random() * 250);

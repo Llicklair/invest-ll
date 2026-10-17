@@ -30,6 +30,7 @@ export function ConfirmacionTecleada({
   ayuda,
   tono = "normal",
   mayusculas = false,
+  texto = false,
 }: {
   /** Lo que hay que escribir, tal cual se ensena. */
   esperado: string;
@@ -41,6 +42,8 @@ export function ConfirmacionTecleada({
   tono?: "normal" | "real";
   /** Para "DINERO REAL": teclado en mayusculas en el movil. */
   mayusculas?: boolean;
+  /** Un texto con minusculas ("ACTIVAR Rebote ETH"): teclado normal, sin corregir ni capitalizar. */
+  texto?: boolean;
 }) {
   const id = useId();
   const idEstado = `${id}-estado`;
@@ -93,7 +96,7 @@ export function ConfirmacionTecleada({
         autoCorrect="off"
         autoCapitalize={mayusculas ? "characters" : "off"}
         spellCheck={false}
-        inputMode={mayusculas ? "text" : "decimal"}
+        inputMode={mayusculas || texto ? "text" : "decimal"}
         aria-describedby={`${idEstado}${ayuda ? ` ${idAyuda}` : ""}`}
         // Sin placeholder: con la cifra en gris dentro del campo bastaba con copiarla sin leerla.
         className={clases(

@@ -67,6 +67,24 @@ export function monedaSupuesta(simbolo: string): string {
   return "USD";
 }
 
+/**
+ * El nombre de un exchange por su id ("binance" -> "Binance"). `ResumenBot.exchange` trae solo el
+ * id; la lista buena es `GET /api/conexiones/disponibles`, y esto es su respaldo para las tarjetas.
+ */
+const EXCHANGES: Record<string, string> = {
+  binance: "Binance",
+  hyperliquid: "Hyperliquid",
+  bybit: "Bybit",
+  okx: "OKX",
+  kraken: "Kraken",
+  coinbase: "Coinbase",
+};
+
+export function nombreExchange(id: string | null | undefined): string {
+  if (!id) return "";
+  return EXCHANGES[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+}
+
 /** "en dólares (USD)", "en euros", "en dólares digitales (USDT)". */
 export function enLaMoneda(moneda: string): string {
   const m = moneda.toUpperCase();

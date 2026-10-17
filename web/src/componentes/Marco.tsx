@@ -49,7 +49,7 @@ const BARRA_MOVIL: readonly string[] = ["/", "/estrategias/", "/bots/", "/operar
 export const MAS: readonly (Destino & { bajada: string })[] = [
   { ruta: "/mercado/", texto: "Mercado", icono: ChartLine, bajada: "Cómo van el oro, la bolsa o el bitcoin, con su fecha" },
   { ruta: "/laboratorio/", texto: "Laboratorio", icono: Microscope, bajada: "Para quien sabe: pruebas, investigación y alertas" },
-  { ruta: "/ajustes/", texto: "Ajustes", icono: Settings, bajada: "Conexión con Binance, tema y datos" },
+  { ruta: "/ajustes/", texto: "Ajustes", icono: Settings, bajada: "Exchanges, el conector con Claude, tema y datos" },
 ];
 
 function normalizar(ruta: string): string {

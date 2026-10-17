@@ -11,12 +11,13 @@ import { EstadoEnVivo } from "@/componentes/EnVivo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { MedidorRiesgo } from "@/componentes/MedidorRiesgo";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
-import { Aviso, BotonEnlace, Encabezado, Esqueleto, Segmentado, Tarjeta } from "@/componentes/ui";
+import { Aviso, BotonEnlace, Encabezado, Esqueleto, Segmentado, Tarjeta, clases } from "@/componentes/ui";
 import { formatoImporte } from "@/lib/decimal";
 import { fraccion } from "@/lib/formato";
 import { horaSegundos } from "@/lib/vivo";
 
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, MiniCurva, NotaBots, PctColor, diasTexto, usdc } from "./comun";
+import { ChipModo, LimitesConsumo, PanelReal, bordeModo, hayNoFicticio, pausadoSolo } from "./real";
 
 const CANALES: readonly CanalVivo[] = ["bots", "estado"];
 
@@ -34,12 +35,15 @@ export function Bots() {
   );
 }
 
+const PESO_MODO: Record<ResumenBot["modo"], number> = { real: 0, pruebas: 1, ficticio: 2 };
+
+/** Lo real primero, luego pruebas y ficticio; dentro de cada modo, el orden elegido. */
 function ordenar(bots: readonly ResumenBot[], orden: Orden): ResumenBot[] {
   const copia = [...bots];
   if (orden === "ganancia") copia.sort((a, b) => (b.ganancia_pct ?? -Infinity) - (a.ganancia_pct ?? -Infinity));
   if (orden === "dias") copia.sort((a, b) => b.dias - a.dias);
   if (orden === "riesgo") copia.sort((a, b) => a.riesgo - b.riesgo || (b.ganancia_pct ?? 0) - (a.ganancia_pct ?? 0));
-  return copia;
+  return copia.sort((a, b) => PESO_MODO[a.modo] - PESO_MODO[b.modo]);
 }
 
 function ListaBots() {
@@ -52,7 +56,7 @@ function ListaBots() {
       <Encabezado
         antetitulo="En vivo"
         titulo="Bots"
-        bajada="Bots que compran y venden solos con dinero ficticio. Aquí ves, en vivo, cuánto genera cada uno y si lo hace mejor que solo mantener sus monedas."
+        bajada="Bots que compran y venden solos: con dinero ficticio, en la red de pruebas de un exchange o, si tú lo activas, con dinero real y los límites que pongas. Aquí ves, en vivo, cuánto genera cada uno y si lo hace mejor que solo mantener."
         accion={
           // Sin bots, el boton es el del estado vacio (un solo primario por pantalla).
           datos && !datos.bots.length ? undefined : (
@@ -67,6 +71,8 @@ function ListaBots() {
         <NotaBots texto={datos?.nota} />
         <EstadoEnVivo />
       </div>
+
+      {datos && hayNoFicticio(datos) ? <PanelReal datos={datos} /> : null}
 
       {!datos ? (
         <div className="space-y-4">
@@ -128,6 +134,8 @@ function ListaBots() {
 }
 
 function Resumen({ datos }: { datos: DatosBots }) {
+  // El total de la API junta todos los modos: si hay bots que no son ficticios, se dice.
+  const mezcla = datos.bots.some((b) => b.modo !== "ficticio");
   return (
     <Tarjeta como="section" aria-label="El total de tus bots" className="p-5 sm:p-6">
       <div className="grid gap-5 sm:grid-cols-[1.3fr_1fr_1fr]">
@@ -139,7 +147,7 @@ function Resumen({ datos }: { datos: DatosBots }) {
           <Variacion importe={datos.ganancia} pct={datos.ganancia_pct} moneda="USDC" coletilla="entre todos" className="mt-3" />
         </div>
         <dl className="cifras grid content-start gap-1 text-[0.9375rem]">
-          <dt className="text-sm text-tinta-suave">Capital ficticio puesto</dt>
+          <dt className="text-sm text-tinta-suave">{mezcla ? "Capital puesto, todos los modos juntos" : "Capital ficticio puesto"}</dt>
           <dd className="font-semibold text-tinta">{usdc(datos.capital)}</dd>
           <dt className="mt-2 text-sm text-tinta-suave">En marcha</dt>
           <dd className="font-semibold text-tinta">
@@ -148,6 +156,7 @@ function Resumen({ datos }: { datos: DatosBots }) {
         </dl>
         <p className="self-end text-sm leading-relaxed text-tinta-suave">
           Valorado a precios de las {horaSegundos(datos.at)}. Cada bot se compara con solo mantener sus monedas desde que arrancó.
+          {mezcla ? " Estas cifras suman dinero ficticio, de pruebas y real: lo real, en su tarjeta y arriba." : ""}
         </p>
       </div>
     </Tarjeta>
@@ -158,8 +167,9 @@ function Resumen({ datos }: { datos: DatosBots }) {
 export function TarjetaBot({ bot }: { bot: ResumenBot }) {
   const capital = Number(bot.capital);
   return (
-    <Tarjeta como="article" className="relative flex flex-col gap-4 p-5 hover:border-linea-control/60">
-      <header className="flex items-start justify-between gap-3">
+    <Tarjeta como="article" className={clases("relative flex flex-col gap-4 p-5 hover:border-linea-control/60", bordeModo(bot.modo), bot.modo === "real" && "border-real/50")}>
+      <ChipModo modo={bot.modo} exchange={bot.exchange} className="self-start" />
+      <header className="-mt-1 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="titular text-xl leading-snug font-semibold text-tinta">
             <Link href={`/bots/ficha/?id=${encodeURIComponent(bot.id)}`} className="after:absolute after:inset-0 after:rounded-tarjeta hover:underline focus-visible:outline-none">
@@ -177,6 +187,10 @@ export function TarjetaBot({ bot }: { bot: ResumenBot }) {
         <Aviso tipo="critico" className="relative z-10 text-sm">
           {bot.motivo_error}
         </Aviso>
+      ) : pausadoSolo(bot) ? (
+        <Aviso tipo="critico" titulo="Necesita que lo mires" className="relative z-10 text-sm">
+          {bot.aviso}
+        </Aviso>
       ) : bot.aviso ? (
         <Aviso tipo="aviso" className="relative z-10 text-sm">
           {bot.aviso}
@@ -192,6 +206,13 @@ export function TarjetaBot({ bot }: { bot: ResumenBot }) {
           <span>Puso {usdc(bot.capital, { decimales: 0 })}</span>
         </p>
       </div>
+
+      {bot.limites ? (
+        <div className="rounded-xl border border-linea px-3 py-3">
+          <p className="mb-2 text-sm font-semibold text-tinta">Sus límites</p>
+          <LimitesConsumo bot={bot} />
+        </div>
+      ) : null}
 
       <dl className="grid grid-cols-4 gap-2 border-y border-linea py-3">
         <Dato etiqueta="Hoy">

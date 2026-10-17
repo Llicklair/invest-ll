@@ -38,7 +38,7 @@ import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { compararDecimal, formatoCantidad, signoDecimal } from "@/lib/decimal";
-import { enMoneda, fecha, fechaCorta, hoyLocal, mesYAnioCorto, momento, simboloMoneda } from "@/lib/formato";
+import { enMoneda, fecha, fechaCorta, hoyLocal, mesYAnioCorto, momento, signoImporteVisible, simboloMoneda } from "@/lib/formato";
 import { leerImporte } from "@/lib/importe";
 import { base, enLaMoneda, unidad } from "@/lib/nombres";
 
@@ -55,7 +55,7 @@ function cuanto(p: PosicionAbierta): string {
  * ensenan importes ("pusiste 3.536 €"), nunca "4,63 participaciones a 763 €".
  */
 function FilaTienes({ p }: { p: PosicionAbierta }) {
-  const s = p.pnl_no_realizado === null ? null : signoDecimal(p.pnl_no_realizado);
+  const s = signoImporteVisible(p.pnl_no_realizado);
   return (
     <li className="grid gap-1 py-4 sm:grid-cols-[1fr_auto] sm:items-baseline sm:gap-6">
       <div className="min-w-0">
@@ -93,7 +93,7 @@ function FilaTienes({ p }: { p: PosicionAbierta }) {
 }
 
 function FilaVendido({ r }: { r: PosicionRetirada }) {
-  const s = signoDecimal(r.pnl_realizado);
+  const s = signoImporteVisible(r.pnl_realizado);
   const palabra = s === 1 ? "Ganaste" : s === -1 ? "Perdiste" : "Ni ganaste ni perdiste";
   const importe = s === -1 ? r.pnl_realizado.replace(/^-/, "") : r.pnl_realizado;
   return (

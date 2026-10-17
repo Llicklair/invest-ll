@@ -14,6 +14,7 @@ import type { components } from "@/api/esquema";
 import { COMISION_CREADOR, COMISION_TOMADOR, decimalesPrecio, esIntervalo, msIntervalo, pasoPrecio, truncar } from "@/lib/vivo";
 
 import { escenarioActual, type Escenario } from "./escenarios";
+import { alDesplegarFicticio, anotarBotEstrategia, anotarOrdenPruebas, estrategiaMock, exchangeEn, nombreExchange, type InfoEstrategia } from "./v4";
 
 type S = components["schemas"];
 
@@ -92,6 +93,7 @@ const DEFS: DefMoneda[] = [
   { coin: "AAVE", nombre: "Aave", precio: 146.31, volumen: 1.2e7, dec: 2, vol: 0.06, var24: 2.81 },
   { coin: "ARB", nombre: "Arbitrum", precio: 0.54312, volumen: 1.1e7, dec: 1, vol: 0.065, var24: -1.9 },
   { coin: "OP", nombre: "Optimism", precio: 1.6122, volumen: 9.1e6, dec: 1, vol: 0.065, var24: -2.6 },
+  { coin: "PURR", nombre: "Purr", precio: 0.18321, volumen: 2.1e6, dec: 0, vol: 0.08, var24: 1.2 },
   { coin: "NEAR", nombre: "NEAR Protocol", precio: 4.8712, volumen: 8.2e6, dec: 1, vol: 0.06, var24: 1.6 },
 ];
 
@@ -217,6 +219,16 @@ interface BotMock {
   escalon: number | null;
   /** Compra periodica: cuando toca la siguiente compra. */
   proxima: number | null;
+  // Panel v4 (docs/panel-v4-real.md §3).
+  modo: S["ResumenBot"]["modo"];
+  exchange: string | null;
+  estrategia: string | null;
+  limites: S["LimitesBot-Output"] | null;
+  operacionesHoy: number;
+  /** Dias que su estrategia lleva en ficticio (los ficticios: los suyos). */
+  probadoDias: number | null;
+  /** Estrategia a medida: fraccion del capital que entra. */
+  tamano: number;
 }
 
 interface MundoVivo {
@@ -232,6 +244,9 @@ interface MundoVivo {
   bots: BotMock[];
   siguiente: number;
   ultimaCurva: number;
+  /** "Parar todo lo real" pulsado y sin reanudar: desde cuando. */
+  paradoTodo: number | null;
+  limiteDiario: string | null;
 }
 
 let mundo: MundoVivo | null = null;
@@ -258,6 +273,8 @@ function elMundo(): MundoVivo {
     bots: [],
     siguiente: 1,
     ultimaCurva: ahora,
+    paradoTodo: e === "parado-todo" ? ahora - 4 * 60_000 : null,
+    limiteDiario: e === "bots-reales" || e === "parado-todo" ? "100.00" : null,
   };
   mundo = m;
   if (!SIN_BOTS.includes(e)) m.bots = botsEjemplo(m, ahora);
@@ -938,6 +955,16 @@ interface PlanBot {
   motivo_error?: string;
   aviso?: string;
   hueco?: [number, number];
+  // Panel v4: por defecto, ficticio sin exchange ni limites (como en v3).
+  modo?: S["ResumenBot"]["modo"];
+  exchange?: string;
+  estrategia?: string;
+  limites?: S["LimitesBot-Output"];
+  operacionesHoy?: number;
+  probadoDias?: number;
+  tamano?: number;
+  /** Eventos propios, ademas de los de siempre (el mas reciente primero). */
+  eventos?: S["EventoBot"][];
 }
 
 /** El porque de cada operacion, en llano (`OperacionBot.motivo`). */
@@ -953,6 +980,8 @@ function motivo(clave: string, lado: "compra" | "venta", nombre: string, paramet
         : `la media de ${parametros.corta ?? "20"} velas cruzó por debajo de la de ${parametros.larga ?? "50"}.`;
     case "rejilla":
       return lado === "compra" ? `el precio bajó al escalón ${extra}: compra un trozo.` : `el precio subió al escalón ${extra}: vende el trozo comprado en el de abajo.`;
+    case "medida":
+      return lado === "compra" ? `su estrategia dice entrar (${extra || "la regla de entrada se cumple con la última vela cerrada"}).` : `su estrategia dice salir (${extra || "la regla de salida se cumple con la última vela cerrada"}).`;
     default:
       return `toca la compra de cada ${parametros.cada_horas ?? "24"} horas.`;
   }
@@ -985,7 +1014,14 @@ function crearBot(m: MundoVivo, plan: PlanBot, ahora: number): BotMock {
   for (let k = 0; k < n; k++) {
     const p = indice[k] ?? 1;
     if (plan.plantilla === "btc-freno") exp.push(k / n > 0.36 && k / n < 0.58 ? 0 : 1);
-    else if (plan.plantilla === "tendencia") {
+    else if (plan.plantilla === "medida") {
+      // La regla de la estrategia, resumida: dentro con su fraccion del capital mientras sube.
+      const media = (v: number) => {
+        const tramo = indice.slice(Math.max(0, k - v), k + 1);
+        return tramo.reduce((s, x) => s + x, 0) / tramo.length;
+      };
+      exp.push(k < 6 ? 0 : (media(3) > media(9) || k > n - 8 ? 1 : 0) * (plan.tamano ?? 1));
+    } else if (plan.plantilla === "tendencia") {
       const media = (v: number) => {
         const tramo = indice.slice(Math.max(0, k - v), k + 1);
         return tramo.reduce((s, x) => s + x, 0) / tramo.length;
@@ -1027,6 +1063,13 @@ function crearBot(m: MundoVivo, plan: PlanBot, ahora: number): BotMock {
     ultimaActividad: null,
     escalon: plan.plantilla === "rejilla" ? (escalonDe[n - 1] ?? 0) * FINO : null,
     proxima: plan.plantilla === "periodica" ? ahora + Number(plan.parametros.cada_horas ?? "24") * 3_600_000 * 0.4 : null,
+    modo: plan.modo ?? "ficticio",
+    exchange: plan.exchange ?? null,
+    estrategia: plan.estrategia ?? null,
+    limites: plan.limites ?? null,
+    operacionesHoy: plan.operacionesHoy ?? 0,
+    probadoDias: plan.probadoDias ?? ((plan.modo ?? "ficticio") === "ficticio" ? plan.dias : null),
+    tamano: plan.tamano ?? 1,
   };
 
   // Se recorre la historia: el valor sigue a lo invertido y cada cambio de exposicion es una
@@ -1072,16 +1115,29 @@ function crearBot(m: MundoVivo, plan: PlanBot, ahora: number): BotMock {
     b.curvaMantener.push({ t, v: plan.capital * (indice[k] ?? 1) });
   }
 
-  b.eventos.push({ at: iso(desde), tipo: "arranque", texto: `Desplegado con ${eur(plan.capital)} USDC ficticios.` });
+  b.eventos.push({ at: iso(desde), tipo: "arranque", texto: textoArranque(b) });
   if (plan.hueco) {
     const a = desde + plan.hueco[0] * (ahora - desde);
     const z = desde + plan.hueco[1] * (ahora - desde);
     b.eventos.unshift({ at: iso(z), tipo: "hueco", texto: `Panel cerrado de ${DIA_HORA.format(new Date(a))} a ${HORA.format(new Date(z))}: no pudo operar.` });
   }
   if (plan.dias > 2) b.eventos.unshift({ at: iso(ahora - plan.dias * 0.3 * DIA_MS), tipo: "info", texto: "Hyperliquid cortó la conexión 40 s; el panel se reconectó solo y el bot siguió." });
-  if (plan.estado === "parado") b.eventos.unshift({ at: iso(ahora - 2 * 3_600_000), tipo: "parada", texto: "Parado a mano. Conserva lo que tiene, que sigue valorándose a precios de ahora." });
+  if (plan.estado === "parado" && !plan.eventos?.some((e) => e.tipo === "parada" || e.tipo === "error")) b.eventos.unshift({ at: iso(ahora - 2 * 3_600_000), tipo: "parada", texto: "Parado a mano. Conserva lo que tiene, que sigue valorándose a precios de ahora." });
   if (plan.estado === "error" && plan.motivo_error) b.eventos.unshift({ at: iso(ahora - 50 * 60_000), tipo: "error", texto: plan.motivo_error });
+  if (plan.eventos) b.eventos.unshift(...plan.eventos);
   return b;
+}
+
+function textoArranque(b: Pick<BotMock, "capital" | "modo" | "exchange">): string {
+  const donde = nombreExchange(b.exchange);
+  if (b.modo === "pruebas") return `Desplegado en la red de pruebas de ${donde ?? "su exchange"} con ${eur(b.capital)} USDC de prueba (dinero ficticio, órdenes de verdad).`;
+  if (b.modo === "real") return `Desplegado con ${eur(b.capital)} USDC en ${donde ?? "su exchange"}.`;
+  return `Desplegado con ${eur(b.capital)} USDC ficticios.`;
+}
+
+/** Los limites de ejemplo de un bot de pruebas o real. */
+function limites(capital: number, orden: number, perdida: number, ops: number, vender = true): S["LimitesBot-Output"] {
+  return { capital_max: usd(capital), orden_max: usd(orden), perdida_max_pct: perdida, vender_al_parar: vender, operaciones_max_dia: ops };
 }
 
 function operacionBot(m: MundoVivo, coin: string, lado: "compra" | "venta", cantidad: number, precio: number, comision: number, t: number, porque: string): S["OperacionBot"] {
@@ -1142,9 +1198,100 @@ function botsEjemplo(m: MundoVivo, ahora: number): BotMock[] {
       motivo_error: "El libro de HYPE no tenía bastante para vender 26,4 HYPE a mercado: el bot se ha parado para no inventarse un precio. Revísalo y reanúdalo.",
     },
   ];
+  if (m.escenario === "bots-reales" || m.escenario === "parado-todo") planes.unshift(...planesReales(m, ahora));
   // Los ids nuevos siguen a los del ejemplo.
   m.siguiente = 100;
   return planes.map((p) => crearBot(m, p, ahora));
+}
+
+/**
+ * Panel v4: dos bots con dinero real en Binance (uno con sus limites a medio gastar; otro pausado
+ * solo porque se corto la red con una orden enviada: estado desconocido), uno en la red de pruebas
+ * y uno ficticio con una estrategia a medida de hace tres dias. En "parado-todo", los reales ya
+ * estan parados por el interruptor general.
+ */
+function planesReales(m: MundoVivo, ahora: number): PlanBot[] {
+  const parado = m.escenario === "parado-todo";
+  const hora = (min: number) => HORA.format(new Date(ahora - min * 60_000));
+  const eventoParada: S["EventoBot"][] = parado
+    ? [{ at: iso(ahora - 4 * 60_000), tipo: "parada", texto: "Parado por «Parar todo lo real». Conserva lo que tiene; no vuelve a operar hasta que lo reanudes tú." }]
+    : [];
+  return [
+    {
+      id: "eth-rebote-real",
+      nombre: "Rebote ETH · Binance",
+      plantilla: "medida",
+      estrategia: "rebote-eth",
+      monedas: ["ETH"],
+      estado: parado ? "parado" : "en_marcha",
+      dias: 9.2,
+      capital: 500,
+      movimiento: [-0.07],
+      parametros: {},
+      modo: "real",
+      exchange: "binance",
+      limites: limites(500, 100, 0.1, 6),
+      operacionesHoy: 4,
+      probadoDias: 16,
+      tamano: 0.5,
+      eventos: [
+        ...eventoParada,
+        { at: iso(ahora - 9.2 * DIA_MS + 60_000), tipo: "info", texto: "Dinero real activado desde el panel («ACTIVAR Rebote ETH · Binance»). Su estrategia llevaba 7 días en ficticio." },
+      ],
+    },
+    {
+      id: "sol-rejilla-real",
+      nombre: "Rejilla SOL · Binance",
+      plantilla: "rejilla",
+      monedas: ["SOL"],
+      estado: "parado",
+      dias: 5.6,
+      capital: 300,
+      movimiento: [-0.021],
+      parametros: { abajo: "6", arriba: "6", escalones: "8" },
+      modo: "real",
+      exchange: "binance",
+      limites: limites(300, 40, 0.08, 30, false),
+      operacionesHoy: 11,
+      probadoDias: 21,
+      aviso: `Pausado solo: envió a Binance una compra de 0,9 SOL a las ${hora(38)} y se cortó la red antes de saber si se ejecutó. No se adivina: mira en Binance si esa compra está y, cuando lo sepas, reanúdalo.`,
+      eventos: [
+        { at: iso(ahora - 37 * 60_000), tipo: "error", texto: `Estado desconocido: la compra de 0,9 SOL (id de cliente rejilla-sol-0142) se envió a las ${hora(38)} y la conexión se cortó sin respuesta. El bot se pausa y no vuelve a operar hasta que lo reanudes.` },
+        { at: iso(ahora - 3 * 3_600_000), tipo: "info", texto: "Conciliación: lo que el bot cree tener cuadra con el saldo de Binance (1,8 SOL y 196,40 USDC)." },
+      ],
+    },
+    {
+      id: "fuerza-pruebas",
+      nombre: "Las tres más fuertes · pruebas",
+      plantilla: "medida",
+      estrategia: "fuerza-tres",
+      monedas: ["BTC", "ETH", "SOL"],
+      estado: "en_marcha",
+      dias: 2.4,
+      capital: 1000,
+      movimiento: [0.012, 0.018, -0.006],
+      parametros: {},
+      modo: "pruebas",
+      exchange: "binance",
+      limites: limites(1000, 200, 0.15, 10),
+      operacionesHoy: 1,
+      probadoDias: 0,
+      tamano: 0.9,
+    },
+    {
+      id: "cruce-btc-ficticio",
+      nombre: "Cruce BTC 4 h · ficticio",
+      plantilla: "medida",
+      estrategia: "cruce-btc-4h",
+      monedas: ["BTC"],
+      estado: "en_marcha",
+      dias: 3.1,
+      capital: 1000,
+      movimiento: [0.009],
+      parametros: {},
+      tamano: 1,
+    },
+  ];
 }
 
 function anotarCurva(m: MundoVivo, b: BotMock, t: number): void {
@@ -1266,12 +1413,14 @@ function resumenBot(m: MundoVivo, b: BotMock): S["ResumenBot"] {
   const curva = curvaConAhora(b.curva, { t: ahora, v: valor });
   const hace24 = valorEn(b.curva, ahora - DIA_MS) ?? b.capital;
   const p = plantilla(b.plantilla);
+  const e = b.estrategia ? estrategiaMock(b.estrategia) : null;
   const avisoDesconexion = m.conectado ? null : "Sin datos de Hyperliquid: el bot no opera hasta que vuelvan.";
+  const invertido = valor - b.efectivo;
   return {
     id: b.id,
     nombre: b.nombre,
     plantilla: b.plantilla,
-    nombre_plantilla: p?.nombre ?? b.plantilla,
+    nombre_plantilla: e ? `A medida: ${e.nombre}` : (p?.nombre ?? b.plantilla),
     monedas: b.monedas,
     estado: b.estado,
     motivo_error: b.motivo_error,
@@ -1285,11 +1434,19 @@ function resumenBot(m: MundoVivo, b: BotMock): S["ResumenBot"] {
     mantener_pct: valorMantener(m, b) / b.capital - 1,
     peor_caida: peorCaida([...b.curva, { t: ahora, v: valor }]),
     operaciones: b.operaciones.length,
-    evidencia: p?.evidencia ?? { tipo: "ninguna", texto: "Ninguna prueba." },
+    evidencia: e ? evidenciaMedida(e) : (p?.evidencia ?? { tipo: "ninguna", texto: "Ninguna prueba." }),
     riesgo: p?.riesgo ?? 3,
     curva,
     ultima_actividad: b.ultimaActividad === null ? null : iso(b.ultimaActividad),
     aviso: avisoDesconexion ?? b.aviso,
+    modo: b.modo,
+    exchange: b.exchange,
+    estrategia: b.estrategia,
+    limites: b.limites,
+    consumo: b.limites
+      ? { gastado: usd(Math.max(0, invertido)), perdida_pct: Math.max(0, 1 - valor / b.capital), operaciones_hoy: b.operacionesHoy }
+      : null,
+    probado_en_ficticio_dias: e ? e.diasFicticio : b.modo === "ficticio" ? Math.round(((ahora - b.desde) / DIA_MS) * 10) / 10 : b.probadoDias,
   };
 }
 
@@ -1311,35 +1468,113 @@ function bots(m: MundoVivo): S["Bots"] {
   const lista = m.bots.map((b) => resumenBot(m, b));
   const capital = m.bots.reduce((s, b) => s + b.capital, 0);
   const valor = m.bots.reduce((s, b) => s + valorBot(b, (coin) => precioVivo(m, coin)), 0);
+  const hayReales = m.bots.some((b) => b.modo === "real");
   return {
     bots: lista,
     capital: usd(capital),
     valor: usd(valor),
     ganancia: usd(valor - capital),
     ganancia_pct: capital > 0 ? valor / capital - 1 : null,
+    real: estadoReal(m),
     at: at(m),
-    nota: "Dinero ficticio. Los bots solo funcionan mientras el panel está abierto.",
+    nota: hayReales
+      ? "Hay bots con dinero real: operan solos, dentro de sus límites. Todos los bots solo funcionan mientras el panel está abierto."
+      : "Dinero ficticio. Los bots solo funcionan mientras el panel está abierto.",
   };
+}
+
+function evidenciaMedida(e: InfoEstrategia): S["EvidenciaBot"] {
+  const u = e.ultima;
+  if (!u) return { tipo: "ninguna", texto: `Su estrategia («${e.nombre}») aún no se ha probado sobre el pasado.` };
+  const p = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toLocaleString("es-ES", { maximumFractionDigits: 0 })} %`;
+  return { tipo: "pasado", texto: `Su estrategia, sobre el pasado: ${p(u.ganancia_pct)} (solo mantener: ${p(u.mantener_pct)}; en el peor momento, ${p(u.peor_caida)}).` };
+}
+
+/** Lo perdido hoy por los bots reales: lo que valian hace 24 h menos lo que valen (si es perdida). */
+function perdidaHoy(m: MundoVivo): number {
+  const ahora = m.conectado ? m.t : m.desde;
+  return m.bots
+    .filter((b) => b.modo === "real")
+    .reduce((s, b) => {
+      const antes = valorEn(b.curva, ahora - DIA_MS) ?? b.capital;
+      return s + Math.max(0, antes - valorBot(b, (coin) => precioVivo(m, coin)));
+    }, 0);
+}
+
+function estadoReal(m: MundoVivo): S["EstadoReal"] {
+  const reales = m.bots.filter((b) => b.modo === "real");
+  const perdida = perdidaHoy(m);
+  const limite = m.limiteDiario === null ? null : Number(m.limiteDiario);
+  let aviso: string | null = null;
+  if (m.paradoTodo !== null) aviso = `Todo lo real está parado desde las ${HORA.format(new Date(m.paradoTodo))}. Ningún bot real opera hasta que quites el interruptor y lo reanudes tú.`;
+  else if (limite !== null && perdida >= limite) aviso = "Se llegó a la pérdida máxima de hoy: los bots reales no envían más órdenes hasta mañana.";
+  else if (limite !== null && perdida >= limite * 0.8) aviso = `Hoy ya se ha perdido el ${Math.round((perdida / limite) * 100)} % de la pérdida máxima diaria.`;
+  return {
+    bots_reales: reales.length,
+    en_marcha: reales.filter((b) => b.estado === "en_marcha").length,
+    perdida_hoy: usd(perdida),
+    limite_diario: m.limiteDiario,
+    parado_todo: m.paradoTodo !== null,
+    aviso,
+  };
+}
+
+/** Los limites que llegan al desplegar o al cambiarlos, validados en llano. */
+function leerLimites(v: unknown): { ok: true; l: S["LimitesBot-Output"] } | { ok: false; motivo: string } {
+  if (typeof v !== "object" || v === null) return { ok: false, motivo: "Faltan los límites." };
+  const o = v as Objeto;
+  const capitalMax = numero(o, "capital_max");
+  const ordenMax = numero(o, "orden_max");
+  const perdida = numero(o, "perdida_max_pct");
+  const ops = numero(o, "operaciones_max_dia");
+  if (capitalMax === null || capitalMax <= 0) return { ok: false, motivo: "El capital máximo tiene que ser mayor que cero." };
+  if (ordenMax === null || ordenMax <= 0) return { ok: false, motivo: "El tamaño máximo por orden tiene que ser mayor que cero." };
+  if (ordenMax > capitalMax) return { ok: false, motivo: "Una orden no puede ser mayor que el capital máximo del bot." };
+  if (perdida === null || perdida <= 0 || perdida >= 1) return { ok: false, motivo: "La pérdida máxima tiene que estar entre el 0 y el 100 %." };
+  if (ops === null || !Number.isInteger(ops) || ops < 1 || ops > 1000) return { ok: false, motivo: "Las operaciones por día tienen que ser un número entero entre 1 y 1.000." };
+  return { ok: true, l: { capital_max: usd(capitalMax), orden_max: usd(ordenMax), perdida_max_pct: perdida, vender_al_parar: o.vender_al_parar === true, operaciones_max_dia: ops } };
 }
 
 function desplegar(m: MundoVivo, o: Objeto): Response {
   const clave = texto(o, "plantilla") ?? "";
+  const idEstrategia = texto(o, "estrategia");
+  const estrategia = clave === "medida" && idEstrategia ? estrategiaMock(idEstrategia) : null;
+  if (clave === "medida" && !estrategia) return fallo(404, "No hay ninguna estrategia a medida con ese id: puede que la hayas borrado.");
   const p = plantilla(clave);
-  if (!p) return fallo(422, `No hay ninguna plantilla «${clave}».`);
+  if (!p && !estrategia) return fallo(422, `No hay ninguna plantilla «${clave}».`);
   const nombre = (texto(o, "nombre") ?? "").trim();
   if (!nombre) return fallo(422, "Ponle un nombre al bot.");
   if (nombre.length > 60) return fallo(422, "El nombre puede tener como mucho 60 letras.");
-  const lista = Array.isArray(o.monedas) ? o.monedas.filter((x): x is string => typeof x === "string") : [];
+  if (m.bots.some((b) => b.nombre === nombre)) return fallo(422, `Ya tienes un bot que se llama «${nombre}»: ponle otro nombre (al activar el dinero real se escribe tal cual).`);
+  const modoPedido = texto(o, "modo") ?? "ficticio";
+  if (modoPedido === "real") return fallo(422, "Un bot no se crea con dinero real: créalo en pruebas o en ficticio y actívalo desde su ficha, con sus límites y escribiendo la confirmación.");
+  if (modoPedido !== "ficticio" && modoPedido !== "pruebas") return fallo(422, "El modo tiene que ser «ficticio» o «pruebas».");
+  const modo: "ficticio" | "pruebas" = modoPedido === "pruebas" ? "pruebas" : "ficticio";
+  const exchange = texto(o, "exchange");
+  if (modo === "pruebas") {
+    if (!exchange) return fallo(422, "En pruebas, elige en qué exchange opera.");
+    const x = exchangeEn(exchange, "pruebas");
+    if (!x) return fallo(422, `No conozco ningún exchange «${exchange}».`);
+    if (!x.ok) return fallo(422, `${x.nombre} no está conectado en pruebas: guarda y prueba sus claves de pruebas en Ajustes → Conexiones.`);
+  }
+  let lim: S["LimitesBot-Output"] | null = null;
+  if (o.limites !== undefined && o.limites !== null) {
+    const r = leerLimites(o.limites);
+    if (!r.ok) return fallo(422, r.motivo);
+    lim = r.l;
+  } else if (modo === "pruebas") return fallo(422, "En pruebas los límites son obligatorios: capital máximo, tamaño por orden, pérdida máxima y operaciones por día.");
+  const lista = estrategia ? estrategia.monedas : Array.isArray(o.monedas) ? o.monedas.filter((x): x is string => typeof x === "string") : [];
   if (!lista.length) return fallo(422, "Elige al menos una moneda.");
-  if (p.monedas === "una" && lista.length > 1) return fallo(422, `«${p.nombre}» opera con una sola moneda.`);
+  if (p && p.monedas === "una" && lista.length > 1) return fallo(422, `«${p.nombre}» opera con una sola moneda.`);
   const rara = lista.find((c) => !m.monedas.has(c));
   if (rara) return fallo(422, `No hay ninguna moneda «${rara}» en Hyperliquid.`);
   const capital = numero(o, "capital");
   if (capital === null || capital <= 0) return fallo(422, "El capital tiene que ser mayor que cero.");
   if (capital < 10) return fallo(422, "Con menos de 10 USDC el bot no llega ni a pagar las comisiones: pon al menos 10.");
+  if (lim && Number(lim.capital_max) < capital) return fallo(422, "El capital del bot no puede pasar de su capital máximo.");
   const pedidos = typeof o.parametros === "object" && o.parametros !== null ? (o.parametros as Record<string, unknown>) : {};
   const parametros: Record<string, string> = {};
-  for (const def of p.parametros) {
+  for (const def of p?.parametros ?? []) {
     const bruto = pedidos[def.clave];
     const valor = typeof bruto === "string" && bruto.trim() !== "" ? bruto.trim() : def.defecto;
     if (def.tipo === "entero" || def.tipo === "decimal") {
@@ -1371,13 +1606,24 @@ function desplegar(m: MundoVivo, o: Objeto): Response {
     curva: [{ t: ahora, v: capital }],
     curvaMantener: [{ t: ahora, v: capital }],
     operaciones: [],
-    eventos: [{ at: iso(ahora), tipo: "arranque", texto: `Desplegado con ${eur(capital)} USDC ficticios.` }],
+    eventos: [{ at: iso(ahora), tipo: "arranque", texto: textoArranque({ capital, modo, exchange }) }],
     parametros,
     aviso: null,
     ultimaActividad: null,
     escalon: null,
     proxima: clave === "periodica" ? ahora : null,
+    modo,
+    exchange: modo === "pruebas" ? exchange : null,
+    estrategia: estrategia?.id ?? null,
+    limites: lim,
+    operacionesHoy: 0,
+    probadoDias: modo === "ficticio" ? 0 : null,
+    tamano: 1,
   };
+  if (estrategia) {
+    anotarBotEstrategia(estrategia.id, b.id, modo);
+    b.eventos.unshift({ at: iso(ahora), tipo: "info", texto: `Sigue la estrategia a medida «${estrategia.nombre}»: decide con cada vela cerrada de su intervalo.` });
+  }
   // Lo primero que hace cada plantilla al arrancar.
   const primera = b.monedas[0] ?? "BTC";
   const x = m.monedas.get(primera);
@@ -1396,6 +1642,8 @@ function desplegar(m: MundoVivo, o: Objeto): Response {
           : motivo("btc-freno", "compra", x.def.nombre, parametros);
       b.operaciones.unshift(operacionBot(m, primera, "compra", cantidad, precio, comision, ahora, porque));
       b.ultimaActividad = ahora;
+      b.operacionesHoy = 1;
+      if (modo === "pruebas" && exchange) anotarOrdenPruebas(exchange);
     } else {
       b.eventos.unshift({ at: iso(ahora), tipo: "info", texto: `${x.def.nombre} no sube en ${parametros.dias ?? "30"} días: el bot espera en USDC.` });
     }
@@ -1454,8 +1702,132 @@ function esperar(ms: number): Promise<void> {
 
 /** ¿Es una ruta del panel v3? (las enruta `responderVivo`). */
 export function esRutaVivo(ruta: string): boolean {
-  return /^\/api\/(vivo|practica|bots)(\/|$)/.test(ruta);
+  return /^\/api\/(vivo|practica|bots|bots-real)(\/|$)/.test(ruta);
 }
+
+// -- Dinero real (docs/panel-v4-real.md §3) -------------------------------------------------------
+
+function activarReal(m: MundoVivo, b: BotMock, o: Objeto): Response {
+  if (b.modo === "real") return fallo(409, "Ese bot ya opera con dinero real.");
+  if (m.paradoTodo !== null) return fallo(409, "Está puesto «Parar todo lo real»: quítalo antes de activar otro bot con dinero real.");
+  if ((texto(o, "confirmacion") ?? "") !== `ACTIVAR ${b.nombre}`) return fallo(422, `Para activarlo, escribe exactamente «ACTIVAR ${b.nombre}».`);
+  if (!b.exchange) return fallo(422, "Este bot no tiene exchange (es ficticio, con precios de Hyperliquid). Despliega uno en pruebas con su misma estrategia y actívalo cuando esté listo.");
+  if (!b.limites) return fallo(422, "Ponle límites antes de activar el dinero real: capital máximo, tamaño por orden, pérdida máxima y operaciones por día.");
+  const x = exchangeEn(b.exchange, "real");
+  if (!x?.ok) return fallo(422, `${x?.nombre ?? b.exchange} no está activado con dinero real: actívalo antes en Ajustes → Conexiones.`);
+  const e = b.estrategia ? estrategiaMock(b.estrategia) : null;
+  const dias = e ? e.diasFicticio : (b.probadoDias ?? 0);
+  const sinFicticio = dias < 7;
+  if (sinFicticio && (texto(o, "sin_ficticio") ?? "") !== "SIN PRUEBA EN FICTICIO") {
+    return fallo(422, `Su estrategia lleva ${dias.toLocaleString("es-ES", { maximumFractionDigits: 1 })} días en ficticio (se recomiendan 7). Si aun así quieres usar dinero real, escribe también «SIN PRUEBA EN FICTICIO».`);
+  }
+  b.modo = "real";
+  b.estado = "en_marcha";
+  b.motivo_error = null;
+  b.aviso = null;
+  b.eventos.unshift({
+    at: iso(m.t),
+    tipo: "info",
+    texto: `Dinero real activado desde el panel («ACTIVAR ${b.nombre}»).${sinFicticio ? ` Sin prueba en ficticio (${dias.toLocaleString("es-ES", { maximumFractionDigits: 1 })} días): decisión registrada.` : ""}`,
+  });
+  if (b.estrategia) anotarBotEstrategia(b.estrategia, b.id, "real");
+  return json(detalleBot(m, b) satisfies S["DetalleBot"]);
+}
+
+function cambiarLimites(m: MundoVivo, b: BotMock, o: Objeto): Response {
+  const r = leerLimites(o.limites);
+  if (!r.ok) return fallo(422, r.motivo);
+  const nuevo = r.l;
+  const viejo = b.limites;
+  const sube =
+    viejo !== null &&
+    (Number(nuevo.capital_max) > Number(viejo.capital_max) ||
+      Number(nuevo.orden_max) > Number(viejo.orden_max) ||
+      nuevo.perdida_max_pct > viejo.perdida_max_pct ||
+      nuevo.operaciones_max_dia > viejo.operaciones_max_dia ||
+      (viejo.vender_al_parar && !nuevo.vender_al_parar));
+  if (b.modo === "real" && sube && (texto(o, "confirmacion") ?? "") !== `ACTIVAR ${b.nombre}`) {
+    return fallo(422, `Subir los límites de un bot con dinero real exige escribir «ACTIVAR ${b.nombre}». Bajarlos no.`);
+  }
+  if (Number(nuevo.capital_max) < b.capital && b.modo !== "ficticio") {
+    // Se puede bajar por debajo de lo puesto: el bot no comprara mas, pero no vende lo que tiene.
+    b.eventos.unshift({ at: iso(m.t), tipo: "info", texto: "El capital máximo queda por debajo de lo que tiene invertido: no comprará más hasta que baje de ahí." });
+  }
+  b.limites = nuevo;
+  b.eventos.unshift({ at: iso(m.t), tipo: "info", texto: sube ? "Límites subidos a mano, con la confirmación tecleada." : "Límites cambiados a mano." });
+  return json(detalleBot(m, b) satisfies S["DetalleBot"]);
+}
+
+function pararTodo(m: MundoVivo): S["ParadaGeneral"] {
+  const parados: string[] = [];
+  const avisos: string[] = [];
+  let canceladas = 0;
+  for (const b of m.bots) {
+    if (b.modo !== "real") continue;
+    if (b.estado === "en_marcha") {
+      b.estado = "parado";
+      parados.push(b.id);
+      if (b.plantilla === "rejilla") canceladas += 2;
+      b.eventos.unshift({ at: iso(m.t), tipo: "parada", texto: "Parado por «Parar todo lo real». Conserva lo que tiene; no vuelve a operar hasta que lo reanudes tú." });
+    } else if (b.aviso) {
+      avisos.push(`«${b.nombre}» ya estaba pausado: ${b.aviso}`);
+    }
+  }
+  if (m.bots.some((b) => b.modo === "real" && b.plantilla === "medida")) canceladas += 1;
+  m.paradoTodo = m.t;
+  return { parados, ordenes_canceladas: canceladas, avisos };
+}
+
+function limiteDiario(m: MundoVivo, o: Objeto): Response {
+  const nuevo = numero(o, "limite");
+  if (nuevo === null || nuevo <= 0) return fallo(422, "La pérdida máxima diaria tiene que ser mayor que cero.");
+  const viejo = m.limiteDiario === null ? null : Number(m.limiteDiario);
+  if (viejo !== null && nuevo > viejo && (texto(o, "confirmacion") ?? "") !== "DINERO REAL") {
+    return fallo(422, "Subir la pérdida máxima diaria exige escribir DINERO REAL. Bajarla no.");
+  }
+  m.limiteDiario = usd(nuevo);
+  return json(estadoReal(m) satisfies S["EstadoReal"]);
+}
+
+/** El conector MCP despliega en ficticio (mocks/v4.ts lo usa desde "Disenar con Claude"). */
+alDesplegarFicticio((e: InfoEstrategia, nombre: string, capital: number): string => {
+  const m = elMundo();
+  const ahora = m.t;
+  const id = `bot-${m.siguiente++}`;
+  m.bots.unshift({
+    id,
+    nombre,
+    plantilla: "medida",
+    monedas: e.monedas.filter((c) => m.monedas.has(c)),
+    estado: "en_marcha",
+    motivo_error: null,
+    desde: ahora,
+    capital,
+    efectivo: capital,
+    posiciones: new Map(),
+    precioInicio: Object.fromEntries(e.monedas.map((c) => [c, precioVivo(m, c)])),
+    curva: [{ t: ahora, v: capital }],
+    curvaMantener: [{ t: ahora, v: capital }],
+    operaciones: [],
+    eventos: [
+      { at: iso(ahora), tipo: "info", texto: "Desplegado por Claude desde «Diseñar con Claude», con dinero ficticio." },
+      { at: iso(ahora), tipo: "arranque", texto: textoArranque({ capital, modo: "ficticio", exchange: null }) },
+    ],
+    parametros: {},
+    aviso: null,
+    ultimaActividad: null,
+    escalon: null,
+    proxima: null,
+    modo: "ficticio",
+    exchange: null,
+    estrategia: e.id,
+    limites: null,
+    operacionesHoy: 0,
+    probadoDias: 0,
+    tamano: 1,
+  });
+  return id;
+});
 
 export async function responderVivo(peticion: Request, url: URL): Promise<Response> {
   const m = elMundo();
@@ -1506,6 +1878,16 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
       return json(bots(m) satisfies S["Bots"]);
     case "POST /api/bots":
       return desplegar(m, await cuerpo(peticion));
+    case "GET /api/bots-real":
+      return json(estadoReal(m) satisfies S["EstadoReal"]);
+    case "POST /api/bots-real/parar-todo":
+      // Parar tiene que ser facil y rapido: sin confirmacion y sin esperas de adorno.
+      return json(pararTodo(m) satisfies S["ParadaGeneral"]);
+    case "POST /api/bots-real/reanudar-todo":
+      m.paradoTodo = null;
+      return json(estadoReal(m) satisfies S["EstadoReal"]);
+    case "PUT /api/bots-real/limite-diario":
+      return limiteDiario(m, await cuerpo(peticion));
     default:
       break;
   }
@@ -1518,6 +1900,17 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
     m.cuenta.saldo += o.apartado;
     m.cuenta.ordenes = m.cuenta.ordenes.filter((x) => x.id !== id);
     return json(cuenta(m) satisfies S["CuentaPractica"]);
+  }
+
+  const real = /^\/api\/bots\/([^/]+)\/(activar-real|limites)$/.exec(ruta);
+  if (real) {
+    const b = m.bots.find((x) => x.id === decodeURIComponent(real[1] ?? ""));
+    if (!b) return fallo(404, "No hay ningún bot con ese id: puede que lo hayas borrado.");
+    if (real[2] === "activar-real" && metodo === "POST") {
+      await esperar(600);
+      return activarReal(m, b, await cuerpo(peticion));
+    }
+    if (real[2] === "limites" && metodo === "PUT") return cambiarLimites(m, b, await cuerpo(peticion));
   }
 
   const accion = /^\/api\/bots\/([^/]+)(?:\/(parar|reanudar))?$/.exec(ruta);
@@ -1539,8 +1932,10 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
     }
     if (metodo === "POST" && que === "reanudar") {
       if (b.estado === "en_marcha") return fallo(409, "Ese bot ya estaba en marcha.");
+      if (b.modo === "real" && m.paradoTodo !== null) return fallo(409, "Está puesto «Parar todo lo real»: quítalo antes (arriba, en Bots) y luego reanuda cada bot.");
       b.estado = "en_marcha";
       b.motivo_error = null;
+      b.aviso = null;
       b.eventos.unshift({ at: iso(m.t), tipo: "arranque", texto: "Reanudado a mano: vuelve a operar en su próxima decisión." });
       return json(detalleBot(m, b) satisfies S["DetalleBot"]);
     }

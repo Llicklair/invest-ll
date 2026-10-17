@@ -26,6 +26,11 @@ export const ESCENARIOS = [
   "desconectado",
   "intermitente",
   "sin-stream",
+  // Panel v4 (varios exchanges, estrategias a medida, bots reales).
+  "bots-reales",
+  "parado-todo",
+  "sin-conexiones",
+  "sin-claude",
 ] as const;
 export type Escenario = (typeof ESCENARIOS)[number];
 
@@ -52,6 +57,10 @@ export const DESCRIPCION_ESCENARIOS: Record<Escenario, string> = {
   desconectado: "En vivo: el panel no recibe datos de Hyperliquid; los precios se quedan quietos",
   intermitente: "En vivo: el stream se corta cada ~20 s y se reconecta solo",
   "sin-stream": "En vivo: no hay stream (como la API de antes); el panel pregunta cada pocos segundos",
+  "bots-reales": "v4: dos bots con dinero real en Binance (uno con los límites a medio gastar, otro pausado por un estado desconocido), uno en pruebas, estrategias a medida y una conversación con Claude",
+  "parado-todo": "v4: se acaba de pulsar «Parar todo lo real»: los reales parados y cómo reanudar",
+  "sin-conexiones": "v4: ningún exchange conectado ni ninguna estrategia a medida: el primer paso",
+  "sin-claude": "v4: el programa claude no está instalado: diseñar con Claude responde 422",
 };
 
 const CLAVE = "invest-ll.mock.escenario";

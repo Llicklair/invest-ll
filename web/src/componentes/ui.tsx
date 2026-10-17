@@ -147,7 +147,10 @@ export function ErrorApiVista({
     <div data-http={error.estado ?? "sin-respuesta"} className={className}>
       <Aviso tipo="critico" vivo>
         {prefijo ? <span className="font-semibold">{prefijo} </span> : null}
-        <span className="whitespace-pre-wrap">{error.detalle}</span>
+        {/* Los `comandos` entre comillas invertidas (p. ej. `claude login`) se ven como codigo. */}
+        <span className="whitespace-pre-wrap">
+          <TextoApi texto={error.detalle} />
+        </span>
         {reintentar ? (
           <button
             type="button"

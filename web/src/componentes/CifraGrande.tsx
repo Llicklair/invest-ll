@@ -1,8 +1,8 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { formatoImporte, signoDecimal } from "@/lib/decimal";
-import { enMoneda, fraccionCoherente, menos, SIN_DATO, simboloMoneda } from "@/lib/formato";
+import { formatoImporte } from "@/lib/decimal";
+import { enMoneda, fraccionCoherente, menos, SIN_DATO, signoImporteVisible, simboloMoneda } from "@/lib/formato";
 
 import { clases } from "./ui";
 
@@ -86,7 +86,8 @@ export function Variacion({
   coletilla?: ReactNode;
   className?: string;
 }) {
-  const s = importe === null ? null : signoDecimal(importe);
+  // El signo de lo que se ve: "−0,001 €" se ensena "0,00 €" y es "ni ganas ni pierdes".
+  const s = signoImporteVisible(importe);
   if (importe === null || s === null) {
     return <p className={clases("text-[0.9375rem] text-tinta-suave", className)}>Sin datos para saber cuánto ganas o pierdes.</p>;
   }
