@@ -110,6 +110,30 @@
             ],
             "title": "Precio Ref"
           },
+          "precio_ref_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda de `precio_ref`: 'USD', 'USDT'",
+            "title": "Precio Ref Moneda"
+          },
+          "referencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bróker: el fondo de EE.UU. con que se calcula (p. ej. 'SPY'); `cantidad` y `precio_ref` son de ese fondo, no del que compras.",
+            "title": "Referencia"
+          },
           "simbolo": {
             "title": "Simbolo",
             "type": "string"
@@ -134,6 +158,8 @@
           "importe",
           "moneda",
           "precio_ref",
+          "precio_ref_moneda",
+          "referencia",
           "precio_fecha",
           "equivalente"
         ],
@@ -422,6 +448,15 @@
             "title": "Avisos",
             "type": "array"
           },
+          "cartera": {
+            "description": "'pruebas' = dinero ficticio",
+            "enum": [
+              "real",
+              "pruebas"
+            ],
+            "title": "Cartera",
+            "type": "string"
+          },
           "efectivo": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Efectivo",
@@ -475,6 +510,7 @@
           }
         },
         "required": [
+          "cartera",
           "vacia",
           "error",
           "avisos",
@@ -1123,6 +1159,53 @@
         "title": "Estado",
         "type": "object"
       },
+      "EstadoDatos": {
+        "description": "Lo que usa el panel (mercado, estrategias, plan) y de cuándo es.",
+        "properties": {
+          "al_dia": {
+            "title": "Al Dia",
+            "type": "boolean"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En llano, si algo está viejo o falta",
+            "title": "Aviso"
+          },
+          "fuentes": {
+            "items": {
+              "$ref": "#/components/schemas/FuenteDatos"
+            },
+            "title": "Fuentes",
+            "type": "array"
+          },
+          "trabajo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrabajoDatos"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La última actualización (en curso o hecha)"
+          }
+        },
+        "required": [
+          "fuentes",
+          "al_dia",
+          "aviso",
+          "trabajo"
+        ],
+        "title": "EstadoDatos",
+        "type": "object"
+      },
       "EstadoEnvio": {
         "description": "Si se puede enviar. El botón del frontend se habilita SOLO con `puede` en True.",
         "properties": {
@@ -1499,6 +1582,16 @@
             "title": "Modo",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda del precio y la comisión: 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "pedida": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Pedida",
@@ -1525,6 +1618,8 @@
           "cuando",
           "modo",
           "activo",
+          "nombre",
+          "moneda",
           "lado",
           "pedida",
           "ejecutada",
@@ -1564,6 +1659,16 @@
             ],
             "description": "La columna que más importa",
             "title": "Desde Maximo"
+          },
+          "moneda": {
+            "description": "Moneda del precio: 'USD', 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'",
+            "title": "Nombre",
+            "type": "string"
           },
           "que_es": {
             "title": "Que Es",
@@ -1661,7 +1766,9 @@
         },
         "required": [
           "activo",
+          "nombre",
           "que_es",
+          "moneda",
           "ultimo",
           "var_1d",
           "var_1s",
@@ -1751,6 +1858,58 @@
         "title": "Friccion",
         "type": "object"
       },
+      "FuenteDatos": {
+        "properties": {
+          "al_dia": {
+            "title": "Al Dia",
+            "type": "boolean"
+          },
+          "clave": {
+            "description": "historicos | fondos | cripto",
+            "title": "Clave",
+            "type": "string"
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Días desde ese último dato",
+            "title": "Dias"
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Último día con datos",
+            "title": "Hasta"
+          },
+          "nombre": {
+            "description": "En llano: 'Precios de bolsa y cripto', 'Fondos', ...",
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "hasta",
+          "dias",
+          "al_dia"
+        ],
+        "title": "FuenteDatos",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1767,6 +1926,11 @@
       "Historico": {
         "description": "Lo que hizo con 10.000 desde el principio de los datos. Calculado, no escrito a mano.",
         "properties": {
+          "cambios_al_anio": {
+            "description": "Veces al año que, siguiendo esta estrategia, te tocaría hacer algo además de tus aportaciones (entrar, salir o cambiar el reparto de forma apreciable). Es la cifra que se le enseña al usuario, no `operaciones_al_anio`.",
+            "title": "Cambios Al Anio",
+            "type": "number"
+          },
           "crecimiento_anual": {
             "description": "Fracción media anual compuesta",
             "title": "Crecimiento Anual",
@@ -1783,6 +1947,7 @@
             "type": "string"
           },
           "operaciones_al_anio": {
+            "description": "Operaciones del motor (técnico: Laboratorio)",
             "title": "Operaciones Al Anio",
             "type": "number"
           },
@@ -1821,7 +1986,8 @@
           "peor_caida_fecha",
           "peor_racha_anios",
           "tiempo_invertido",
-          "operaciones_al_anio"
+          "operaciones_al_anio",
+          "cambios_al_anio"
         ],
         "title": "Historico",
         "type": "object"
@@ -2340,6 +2506,11 @@
             "title": "Comision",
             "type": "string"
           },
+          "es_referencia": {
+            "description": "True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)",
+            "title": "Es Referencia",
+            "type": "boolean"
+          },
           "fecha": {
             "format": "date-time",
             "title": "Fecha",
@@ -2354,6 +2525,22 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe",
             "type": "string"
+          },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'",
+            "title": "Nota"
           },
           "origen": {
             "description": "manual, panel, csv:…, ledger:…, plan",
@@ -2404,7 +2591,10 @@
           "precio",
           "comision",
           "importe",
-          "origen"
+          "origen",
+          "moneda",
+          "es_referencia",
+          "nota"
         ],
         "title": "Movimiento",
         "type": "object"
@@ -2534,7 +2724,7 @@
             "enum": [
               "compra",
               "venta",
-              "deposito",
+              "ingreso",
               "retirada"
             ],
             "title": "Tipo",
@@ -2858,6 +3048,42 @@
         "title": "ParteResumen",
         "type": "object"
       },
+      "PasoDatos": {
+        "properties": {
+          "detalle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalle"
+          },
+          "estado": {
+            "enum": [
+              "pendiente",
+              "en_marcha",
+              "bien",
+              "mal"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "estado",
+          "detalle"
+        ],
+        "title": "PasoDatos",
+        "type": "object"
+      },
       "Patrimonio": {
         "description": "Tu dinero hoy. `valor` es None si falta el precio de algo (y `incompleto` lo dice).",
         "properties": {
@@ -2868,6 +3094,12 @@
               "pruebas"
             ],
             "title": "Cartera",
+            "type": "string"
+          },
+          "efectivo": {
+            "description": "Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Efectivo",
             "type": "string"
           },
           "fecha_precios": {
@@ -2912,6 +3144,23 @@
             "title": "Incompleto",
             "type": "boolean"
           },
+          "moneda": {
+            "description": "Moneda en que se expresan las cifras ('EUR'). Bolsa y cripto cotizan en dólares; se suman sin convertir y `nota_moneda` lo dice.",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nota_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'Aproximado: sin contar el cambio euro-dólar.'",
+            "title": "Nota Moneda"
+          },
           "puesto": {
             "description": "Lo que has puesto (coste de lo que tienes)",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -2946,7 +3195,10 @@
           "realizado",
           "fecha_precios",
           "incompleto",
-          "cartera"
+          "cartera",
+          "efectivo",
+          "moneda",
+          "nota_moneda"
         ],
         "title": "Patrimonio",
         "type": "object"
@@ -3411,6 +3663,21 @@
               }
             ],
             "title": "Mensual"
+          },
+          "reparto": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PorcentajeEstrategia"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia.",
+            "title": "Reparto"
           }
         },
         "required": [
@@ -3610,6 +3877,26 @@
         "title": "PlanGuardado",
         "type": "object"
       },
+      "PorcentajeEstrategia": {
+        "properties": {
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "porcentaje": {
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Porcentaje",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "estrategia",
+          "porcentaje"
+        ],
+        "title": "PorcentajeEstrategia",
+        "type": "object"
+      },
       "PosicionAbierta": {
         "description": "Su P&L es una VALORACIÓN, con la fecha de los datos al lado.",
         "properties": {
@@ -3632,9 +3919,24 @@
             "title": "Coste Medio",
             "type": "string"
           },
+          "es_referencia": {
+            "description": "True si la posición se anotó en unidades del fondo de EE.UU. de referencia (compras de tu bróker hechas desde el plan): `cantidad` y `coste_medio` NO son tus participaciones ni tu precio; enseña importes, no unidades.",
+            "title": "Es Referencia",
+            "type": "boolean"
+          },
           "invertido": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Invertido",
+            "type": "string"
+          },
+          "moneda": {
+            "description": "Moneda de precio, valor e importes: 'USD', 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano del activo",
+            "title": "Nombre",
             "type": "string"
           },
           "pnl_no_realizado": {
@@ -3688,6 +3990,9 @@
         },
         "required": [
           "activo",
+          "nombre",
+          "moneda",
+          "es_referencia",
           "cantidad",
           "coste_medio",
           "invertido",
@@ -3721,6 +4026,15 @@
             "title": "Invertido",
             "type": "string"
           },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano del activo",
+            "title": "Nombre",
+            "type": "string"
+          },
           "pnl_realizado": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Pnl Realizado",
@@ -3739,6 +4053,8 @@
         },
         "required": [
           "activo",
+          "nombre",
+          "moneda",
           "abierta",
           "retirada",
           "dias",
@@ -4131,11 +4447,35 @@
       },
       "ResultadoOrden": {
         "properties": {
+          "comision": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision"
+          },
           "descripcion": {
+            "description": "El texto técnico de siempre (registro, terminal)",
             "title": "Descripcion",
             "type": "string"
           },
+          "ejecutada": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ejecutada",
+            "type": "string"
+          },
+          "en_cartera": {
+            "description": "True si lo ejecutado ya se anotó en tu cartera",
+            "title": "En Cartera",
+            "type": "boolean"
+          },
           "estado": {
+            "description": "filled | partial | rejected | unknown",
             "title": "Estado",
             "type": "string"
           },
@@ -4143,16 +4483,50 @@
             "title": "Modo",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda del precio y la comisión: 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
           "necesita_atencion": {
             "title": "Necesita Atencion",
             "type": "boolean"
+          },
+          "pedida": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Pedida",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "resumen": {
+            "description": "En llano, para el usuario: 'Compraste 0,00122 Bitcoin a 82.245,93 USDT. Ya está en tu cartera.' / 'No se sabe si se ejecutó: compruébalo en Binance antes de volver a operar.'",
+            "title": "Resumen",
+            "type": "string"
           }
         },
         "required": [
           "estado",
           "descripcion",
+          "resumen",
           "necesita_atencion",
-          "modo"
+          "modo",
+          "pedida",
+          "ejecutada",
+          "precio",
+          "comision",
+          "moneda",
+          "en_cartera"
         ],
         "title": "ResultadoOrden",
         "type": "object"
@@ -4394,6 +4768,17 @@
       },
       "Simulacion": {
         "properties": {
+          "combinado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultadoSimulado"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tu reparto entero (clave 'reparto'), si se pidió en la petición"
+          },
           "nota": {
             "title": "Nota",
             "type": "string"
@@ -4408,6 +4793,7 @@
         },
         "required": [
           "resultados",
+          "combinado",
           "nota"
         ],
         "title": "Simulacion",
@@ -4455,6 +4841,46 @@
           "filas"
         ],
         "title": "Tabla",
+        "type": "object"
+      },
+      "TrabajoDatos": {
+        "properties": {
+          "empezado": {
+            "format": "date-time",
+            "title": "Empezado",
+            "type": "string"
+          },
+          "en_marcha": {
+            "title": "En Marcha",
+            "type": "boolean"
+          },
+          "pasos": {
+            "items": {
+              "$ref": "#/components/schemas/PasoDatos"
+            },
+            "title": "Pasos",
+            "type": "array"
+          },
+          "terminado": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminado"
+          }
+        },
+        "required": [
+          "en_marcha",
+          "empezado",
+          "terminado",
+          "pasos"
+        ],
+        "title": "TrabajoDatos",
         "type": "object"
       },
       "TriggerArmado": {
@@ -4903,6 +5329,50 @@
         "summary": "Probar",
         "tags": [
           "conexion"
+        ]
+      }
+    },
+    "/api/datos": {
+      "get": {
+        "description": "De cuándo son los datos que usa el panel y cómo va la última actualización.",
+        "operationId": "estado_datos_api_datos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoDatos"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estado Datos",
+        "tags": [
+          "datos"
+        ]
+      }
+    },
+    "/api/datos/actualizar": {
+      "post": {
+        "description": "Empieza a actualizarlo todo en segundo plano. 409 si ya hay una actualización en marcha.",
+        "operationId": "actualizar_datos_api_datos_actualizar_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoDatos"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Actualizar Datos",
+        "tags": [
+          "datos"
         ]
       }
     },

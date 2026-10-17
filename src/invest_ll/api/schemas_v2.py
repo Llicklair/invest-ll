@@ -35,6 +35,18 @@ class Patrimonio(BaseModel):
     fecha_precios: date | None = Field(description="Fecha del cierre más antiguo usado")
     incompleto: bool
     cartera: CarteraDelModo = Field(description="'pruebas' = dinero ficticio")
+    efectivo: Decimal = Field(
+        description="Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)"
+    )
+    moneda: str = Field(
+        description=(
+            "Moneda en que se expresan las cifras ('EUR'). Bolsa y cripto cotizan en dólares; "
+            "se suman sin convertir y `nota_moneda` lo dice."
+        )
+    )
+    nota_moneda: str | None = Field(
+        description="P. ej. 'Aproximado: sin contar el cambio euro-dólar.'"
+    )
 
 
 class ParteResumen(BaseModel):
@@ -83,7 +95,14 @@ class Historico(BaseModel):
     peor_caida_fecha: date
     peor_racha_anios: float = Field(description="Lo más que tardó en volver a su máximo, en años")
     tiempo_invertido: float = Field(description="Fracción del tiempo dentro del mercado")
-    operaciones_al_anio: float
+    operaciones_al_anio: float = Field(description="Operaciones del motor (técnico: Laboratorio)")
+    cambios_al_anio: float = Field(
+        description=(
+            "Veces al año que, siguiendo esta estrategia, te tocaría hacer algo además de tus "
+            "aportaciones (entrar, salir o cambiar el reparto de forma apreciable). Es la cifra "
+            "que se le enseña al usuario, no `operaciones_al_anio`."
+        )
+    )
 
 
 class Estrategia(BaseModel):
@@ -111,8 +130,20 @@ class Catalogo(BaseModel):
     nota: str = Field(description="El aviso general: el pasado no es una promesa")
 
 
+class PorcentajeEstrategia(BaseModel):
+    estrategia: str
+    porcentaje: int = Field(ge=1, le=100)
+
+
 class PeticionSimulacion(BaseModel):
     estrategias: list[str] = Field(min_length=1, max_length=4)
+    reparto: list[PorcentajeEstrategia] | None = Field(
+        default=None,
+        description=(
+            "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con "
+            "cada parte en su estrategia."
+        ),
+    )
     inicial: Decimal = Field(ge=0)
     mensual: Decimal = Field(ge=0)
     desde_anio: int = Field(ge=2008, le=2100, description="Año de inicio (1 de enero)")
@@ -143,6 +174,9 @@ class ResultadoSimulado(BaseModel):
 
 class Simulacion(BaseModel):
     resultados: list[ResultadoSimulado]
+    combinado: ResultadoSimulado | None = Field(
+        description="Tu reparto entero (clave 'reparto'), si se pidió en la petición"
+    )
     nota: str
 
 
@@ -217,6 +251,13 @@ class Accion(BaseModel):
     importe: Decimal = Field(description="Importe aproximado en la moneda de cotización")
     moneda: str = Field(description="USDT, USD...")
     precio_ref: Decimal | None
+    precio_ref_moneda: str | None = Field(description="Moneda de `precio_ref`: 'USD', 'USDT'")
+    referencia: str | None = Field(
+        description=(
+            "Bróker: el fondo de EE.UU. con que se calcula (p. ej. 'SPY'); `cantidad` y "
+            "`precio_ref` son de ese fondo, no del que compras."
+        )
+    )
     precio_fecha: date | None
     equivalente: str | None = Field(description="Qué comprar desde España (bróker)")
 
@@ -251,6 +292,13 @@ class Movimiento(BaseModel):
     comision: Decimal
     importe: Decimal = Field(description="Cantidad por precio (o el importe si es efectivo)")
     origen: str = Field(description="manual, panel, csv:…, ledger:…, plan")
+    moneda: str
+    es_referencia: bool = Field(
+        description="True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)"
+    )
+    nota: str | None = Field(
+        description="En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'"
+    )
 
 
 class Movimientos(BaseModel):
@@ -315,3 +363,36 @@ class Saldo(BaseModel):
     modo: ModoPanel
     saldo: list[SaldoMoneda]
     at: datetime
+
+
+# -- Datos: que estén al día sin abrir una terminal ----------------------------------------------
+
+
+class FuenteDatos(BaseModel):
+    clave: str = Field(description="historicos | fondos | cripto")
+    nombre: str = Field(description="En llano: 'Precios de bolsa y cripto', 'Fondos', ...")
+    hasta: date | None = Field(description="Último día con datos")
+    dias: int | None = Field(description="Días desde ese último dato")
+    al_dia: bool
+
+
+class PasoDatos(BaseModel):
+    nombre: str
+    estado: Literal["pendiente", "en_marcha", "bien", "mal"]
+    detalle: str | None
+
+
+class TrabajoDatos(BaseModel):
+    en_marcha: bool
+    empezado: datetime
+    terminado: datetime | None
+    pasos: list[PasoDatos]
+
+
+class EstadoDatos(BaseModel):
+    """Lo que usa el panel (mercado, estrategias, plan) y de cuándo es."""
+
+    fuentes: list[FuenteDatos]
+    al_dia: bool
+    aviso: str | None = Field(description="En llano, si algo está viejo o falta")
+    trabajo: TrabajoDatos | None = Field(description="La última actualización (en curso o hecha)")

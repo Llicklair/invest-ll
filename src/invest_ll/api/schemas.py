@@ -91,7 +91,9 @@ class FilaRendimiento(BaseModel):
     """Una fila de la mesa densa. `None` = no hay histórico suficiente, NO un 0%."""
 
     activo: str
+    nombre: str = Field(description="Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'")
     que_es: str
+    moneda: str = Field(description="Moneda del precio: 'USD', 'USDT'")
     ultimo: float
     var_1d: float | None
     var_1s: float | None
@@ -190,6 +192,15 @@ class PosicionAbierta(BaseModel):
     """Su P&L es una VALORACIÓN, con la fecha de los datos al lado."""
 
     activo: str
+    nombre: str = Field(description="Nombre llano del activo")
+    moneda: str = Field(description="Moneda de precio, valor e importes: 'USD', 'USDT'")
+    es_referencia: bool = Field(
+        description=(
+            "True si la posición se anotó en unidades del fondo de EE.UU. de referencia (compras "
+            "de tu bróker hechas desde el plan): `cantidad` y `coste_medio` NO son tus "
+            "participaciones ni tu precio; enseña importes, no unidades."
+        )
+    )
     cantidad: Decimal
     coste_medio: Decimal
     invertido: Decimal
@@ -204,6 +215,8 @@ class PosicionRetirada(BaseModel):
     """Su P&L es REALIZADO: un hecho que ya no cambia."""
 
     activo: str
+    nombre: str = Field(description="Nombre llano del activo")
+    moneda: str
     abierta: date
     retirada: date
     dias: int
@@ -213,6 +226,7 @@ class PosicionRetirada(BaseModel):
 
 
 class Cartera(BaseModel):
+    cartera: Literal["real", "pruebas"] = Field(description="'pruebas' = dinero ficticio")
     vacia: bool
     error: str | None = Field(description="El ledger cuenta una historia imposible")
     avisos: list[str]
@@ -227,7 +241,7 @@ class Cartera(BaseModel):
 class NuevoMovimiento(BaseModel):
     """Escribe en el ledger. NO envía ninguna orden."""
 
-    tipo: Literal["compra", "venta", "deposito", "retirada"]
+    tipo: Literal["compra", "venta", "ingreso", "retirada"]
     simbolo: str | None = Field(default=None, description="Solo compra/venta")
     fecha: date
     cantidad: Decimal = Field(description="Cantidad, o importe si es efectivo")
@@ -243,6 +257,8 @@ class FilaOrden(BaseModel):
     cuando: datetime
     modo: str
     activo: str
+    nombre: str = Field(description="Nombre llano: 'Bitcoin'")
+    moneda: str = Field(description="Moneda del precio y la comisión: 'USDT'")
     lado: str
     pedida: Decimal
     ejecutada: Decimal
@@ -283,10 +299,23 @@ class PeticionOrden(BaseModel):
 
 
 class ResultadoOrden(BaseModel):
-    estado: str
-    descripcion: str
+    estado: str = Field(description="filled | partial | rejected | unknown")
+    descripcion: str = Field(description="El texto técnico de siempre (registro, terminal)")
+    resumen: str = Field(
+        description=(
+            "En llano, para el usuario: 'Compraste 0,00122 Bitcoin a 82.245,93 USDT. Ya está en "
+            "tu cartera.' / 'No se sabe si se ejecutó: compruébalo en Binance antes de volver "
+            "a operar.'"
+        )
+    )
     necesita_atencion: bool
     modo: str
+    pedida: Decimal
+    ejecutada: Decimal
+    precio: Decimal | None
+    comision: Decimal | None
+    moneda: str = Field(description="Moneda del precio y la comisión: 'USDT'")
+    en_cartera: bool = Field(description="True si lo ejecutado ya se anotó en tu cartera")
 
 
 # --------------------------------------------------------------------------------------------
