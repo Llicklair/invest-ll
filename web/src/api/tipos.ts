@@ -109,3 +109,55 @@ export type Red = EstadoRed["red"];
 export type Horizonte = Perfil["horizonte"];
 export type AnteCaida = Perfil["ante_caida"];
 export type QuiereCripto = Perfil["cripto"];
+
+// -- Panel v3: en vivo (schemas_v3.py, docs/panel-v3-vivo.md) --------------------------------------
+
+export type EstadoVivo = S["EstadoVivo"];
+export type MonedaVivo = S["MonedaVivo"];
+export type Monedas = S["Monedas"];
+export type NivelLibro = S["NivelLibro"];
+export type LibroVivo = S["LibroVivo"];
+export type OperacionMercado = S["OperacionMercado"];
+export type Operaciones = S["Operaciones"];
+export type VelaVivo = S["VelaVivo"];
+export type Velas = S["Velas"];
+
+export type PosicionPractica = S["PosicionPractica"];
+export type OrdenPractica = S["OrdenPractica"];
+export type EjecucionPractica = S["EjecucionPractica"];
+export type CuentaPractica = S["CuentaPractica"];
+export type NuevaOrdenPractica = S["NuevaOrdenPractica"];
+export type ResultadoPractica = S["ResultadoPractica"];
+export type ReinicioPractica = S["ReinicioPractica"];
+export type LadoPractica = NuevaOrdenPractica["lado"];
+export type TipoOrden = NuevaOrdenPractica["tipo"];
+
+export type EvidenciaBot = S["EvidenciaBot"];
+export type ParametroBot = S["ParametroBot"];
+export type PlantillaBot = S["PlantillaBot"];
+export type Plantillas = S["Plantillas"];
+export type NuevoBot = S["NuevoBot"];
+export type PuntoBot = S["PuntoBot"];
+export type ResumenBot = S["ResumenBot"];
+export type Bots = S["Bots"];
+export type OperacionBot = S["OperacionBot"];
+export type EventoBot = S["EventoBot"];
+export type DetalleBot = S["DetalleBot"];
+export type EstadoBot = ResumenBot["estado"];
+
+/**
+ * Los eventos de `GET /api/vivo/stream` (docs/panel-v3-vivo.md, seccion 5). El OpenAPI no puede
+ * describir un text/event-stream, asi que el reparto evento -> modelo se escribe aqui, pero cada
+ * `data` es un tipo GENERADO: si un modelo cambia, el compilador lo dice igual que en REST.
+ */
+export interface EventosVivo {
+  monedas: Monedas;
+  libro: LibroVivo;
+  /** Las operaciones NUEVAS desde el evento anterior (la mas reciente primero). */
+  operaciones: OperacionMercado[];
+  vela: VelaVivo;
+  cuenta: CuentaPractica;
+  bots: Bots;
+  estado: EstadoVivo;
+}
+export type CanalVivo = keyof EventosVivo;

@@ -4,6 +4,109 @@
  */
 
 export interface paths {
+    "/api/bots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista
+         * @description Todos los bots con lo que llevan generado, valorados a precios de ahora.
+         */
+        get: operations["lista_api_bots_get"];
+        put?: never;
+        /**
+         * Desplegar
+         * @description Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los
+         *     parámetros no valen.
+         */
+        post: operations["desplegar_api_bots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bots/plantillas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plantillas */
+        get: operations["plantillas_api_bots_plantillas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bots/{bot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle
+         * @description 404 si no existe.
+         */
+        get: operations["detalle_api_bots__bot_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Borrar
+         * @description Borra el bot y su registro. 404 si no existe.
+         */
+        delete: operations["borrar_api_bots__bot_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bots/{bot_id}/parar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parar
+         * @description Deja de operar; conserva sus posiciones (siguen valorándose).
+         */
+        post: operations["parar_api_bots__bot_id__parar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bots/{bot_id}/reanudar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reanudar */
+        post: operations["reanudar_api_bots__bot_id__reanudar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cartera": {
         parameters: {
             query?: never;
@@ -606,6 +709,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/practica": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuenta
+         * @description La cuenta de práctica valorada a precios de ahora.
+         */
+        get: operations["cuenta_api_practica_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/practica/ordenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nueva Orden
+         * @description A mercado se ejecuta ya contra el libro; con límite queda pendiente. 422 en llano si no hay
+         *     saldo, si no tienes esa moneda o si el libro no da para tanto.
+         */
+        post: operations["nueva_orden_api_practica_ordenes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/practica/ordenes/{orden_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancelar
+         * @description Cancela una orden con límite pendiente. 404 si no existe.
+         */
+        delete: operations["cancelar_api_practica_ordenes__orden_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/practica/reiniciar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reiniciar
+         * @description Empieza de cero con ese saldo ficticio (el historial anterior se guarda aparte).
+         */
+        post: operations["reiniciar_api_practica_reiniciar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/saldo": {
         parameters: {
             query?: never;
@@ -881,6 +1065,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/vivo/estado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado Vivo
+         * @description Si llegan datos de Hyperliquid y desde cuándo.
+         */
+        get: operations["estado_vivo_api_vivo_estado_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vivo/libro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Libro
+         * @description El libro de órdenes de la moneda (empieza a seguirla si no se seguía). 404 si no existe.
+         */
+        get: operations["libro_api_vivo_libro_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vivo/monedas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monedas
+         * @description Todas las monedas con su precio, variación y volumen de 24 h; las más negociadas primero.
+         */
+        get: operations["monedas_api_vivo_monedas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vivo/operaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Operaciones
+         * @description Las últimas operaciones de la moneda.
+         */
+        get: operations["operaciones_api_vivo_operaciones_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vivo/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream
+         * @description Server-Sent Events: cada evento lleva el JSON de su ruta REST (docs/panel-v3-vivo.md §5).
+         */
+        get: operations["stream_api_vivo_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vivo/velas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Velas
+         * @description Velas de la moneda; la última puede estar en curso. 422 si el intervalo no existe.
+         */
+        get: operations["velas_api_vivo_velas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1081,6 +1385,29 @@ export interface components {
             hasta: string;
             /** Pares */
             pares: components["schemas"]["Par"][];
+        };
+        /** Bots */
+        Bots: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bots */
+            bots: components["schemas"]["ResumenBot"][];
+            /** Capital */
+            capital: string;
+            /** Ganancia */
+            ganancia: string | null;
+            /** Ganancia Pct */
+            ganancia_pct: number | null;
+            /**
+             * Nota
+             * @description 'Dinero ficticio. Los bots solo funcionan con el panel abierto.'
+             */
+            nota: string;
+            /** Valor */
+            valor: string | null;
         };
         /** CambioModo */
         CambioModo: {
@@ -1332,6 +1659,50 @@ export interface components {
             /** Errores */
             errores: string[];
         };
+        /**
+         * CuentaPractica
+         * @description Dinero ficticio en USDC. Nada sale al exterior.
+         */
+        CuentaPractica: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Ganancia */
+            ganancia: string | null;
+            /** Ganancia Pct */
+            ganancia_pct: number | null;
+            /**
+             * Historial
+             * @description La más reciente primero
+             */
+            historial: components["schemas"]["EjecucionPractica"][];
+            /** Inicial */
+            inicial: string;
+            /**
+             * Ordenes
+             * @description Órdenes con límite pendientes
+             */
+            ordenes: components["schemas"]["OrdenPractica"][];
+            /** Posiciones */
+            posiciones: components["schemas"]["PosicionPractica"][];
+            /**
+             * Reservado
+             * @description USDC apartados por órdenes de compra con límite
+             */
+            reservado: string;
+            /**
+             * Saldo
+             * @description USDC sin invertir (lo reservado por órdenes con límite no)
+             */
+            saldo: string;
+            /**
+             * Valor Total
+             * @description Saldo + reservado + posiciones a precio de ahora
+             */
+            valor_total: string | null;
+        };
         /** DatosDescargados */
         DatosDescargados: {
             /**
@@ -1341,6 +1712,105 @@ export interface components {
             desfasados: string[];
             /** Filas */
             filas: components["schemas"]["FilaDatos"][];
+        };
+        /** DetalleBot */
+        DetalleBot: {
+            /**
+             * Aviso
+             * @description P. ej. 'Panel cerrado de 14:02 a 18:30: no operó'
+             */
+            aviso: string | null;
+            /** Capital */
+            capital: string;
+            /**
+             * Curva
+             * @description Unos 100 puntos desde que arrancó
+             */
+            curva: components["schemas"]["PuntoBot"][];
+            /**
+             * Curva Mantener
+             * @description Mismo capital, solo manteniendo
+             */
+            curva_mantener: components["schemas"]["PuntoBot"][];
+            /**
+             * Desde
+             * Format: date-time
+             */
+            desde: string;
+            /** Dias */
+            dias: number;
+            /**
+             * Efectivo
+             * @description USDC sin invertir
+             */
+            efectivo: string;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "en_marcha" | "parado" | "error";
+            /**
+             * Eventos
+             * @description El más reciente primero
+             */
+            eventos: components["schemas"]["EventoBot"][];
+            evidencia: components["schemas"]["EvidenciaBot"];
+            /** Ganancia */
+            ganancia: string | null;
+            /**
+             * Ganancia 24H Pct
+             * @description Fracción
+             */
+            ganancia_24h_pct: number | null;
+            /**
+             * Ganancia Pct
+             * @description Fracción
+             */
+            ganancia_pct: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Lista Operaciones
+             * @description La más reciente primero
+             */
+            lista_operaciones: components["schemas"]["OperacionBot"][];
+            /**
+             * Mantener Pct
+             * @description Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)
+             */
+            mantener_pct: number | null;
+            /** Monedas */
+            monedas: string[];
+            /** Motivo Error */
+            motivo_error: string | null;
+            /** Nombre */
+            nombre: string;
+            /** Nombre Plantilla */
+            nombre_plantilla: string;
+            /** Operaciones */
+            operaciones: number;
+            /** Parametros */
+            parametros: {
+                [key: string]: string;
+            };
+            /**
+             * Peor Caida
+             * @description Fracción negativa desde su máximo
+             */
+            peor_caida: number | null;
+            /** Plantilla */
+            plantilla: string;
+            /** Posiciones */
+            posiciones: components["schemas"]["PosicionPractica"][];
+            /** Riesgo */
+            riesgo: number;
+            /** Ultima Actividad */
+            ultima_actividad: string | null;
+            /**
+             * Valor
+             * @description Lo que vale ahora (USDC + posiciones)
+             */
+            valor: string | null;
         };
         /** Disparo */
         Disparo: {
@@ -1371,6 +1841,41 @@ export interface components {
             trigger_id: string;
             /** Umbral */
             umbral: string;
+        };
+        /** EjecucionPractica */
+        EjecucionPractica: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Cantidad */
+            cantidad: string;
+            /** Coin */
+            coin: string;
+            /** Comision */
+            comision: string;
+            /** Id */
+            id: string;
+            /** Importe */
+            importe: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /** Nombre */
+            nombre: string;
+            /**
+             * Precio
+             * @description Precio medio de la ejecución
+             */
+            precio: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "mercado" | "limite";
         };
         /**
          * Error
@@ -1442,6 +1947,26 @@ export interface components {
              * @description Pruebas: hay al menos una orden ejecutada en el registro
              */
             verificada: boolean;
+        };
+        /** EstadoVivo */
+        EstadoVivo: {
+            /**
+             * Aviso
+             * @description En llano, si está desconectado o reconectando
+             */
+            aviso: string | null;
+            /** Conectado */
+            conectado: boolean;
+            /**
+             * Desde
+             * @description Desde cuándo llegan datos sin cortes
+             */
+            desde: string | null;
+            /**
+             * Fuente
+             * @description 'Hyperliquid'
+             */
+            fuente: string;
         };
         /** Estrategia */
         Estrategia: {
@@ -1518,6 +2043,21 @@ export interface components {
             /** Ruta */
             ruta: string;
         };
+        /** EventoBot */
+        EventoBot: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Texto */
+            texto: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "arranque" | "parada" | "error" | "hueco" | "info";
+        };
         /** Evidencia */
         Evidencia: {
             /**
@@ -1535,6 +2075,19 @@ export interface components {
              * @enum {string}
              */
             tipo: "pasado" | "prueba_real";
+        };
+        /** EvidenciaBot */
+        EvidenciaBot: {
+            /**
+             * Texto
+             * @description En llano, para la tarjeta del bot
+             */
+            texto: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "pasado" | "prueba_real" | "ninguna";
         };
         /** FilaDatos */
         FilaDatos: {
@@ -1879,6 +2432,31 @@ export interface components {
             /** Ultimo Dato */
             ultimo_dato: string | null;
         };
+        /** LibroVivo */
+        LibroVivo: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Coin */
+            coin: string;
+            /**
+             * Compras
+             * @description De mayor a menor precio
+             */
+            compras: components["schemas"]["NivelLibro"][];
+            /**
+             * Diferencial
+             * @description Venta más barata menos compra más cara
+             */
+            diferencial: number | null;
+            /**
+             * Ventas
+             * @description De menor a mayor precio
+             */
+            ventas: components["schemas"]["NivelLibro"][];
+        };
         /** MensajeChat */
         MensajeChat: {
             /**
@@ -1940,6 +2518,50 @@ export interface components {
             modo: "simulacion" | "pruebas" | "real";
             /** Que Falta */
             que_falta: string[];
+        };
+        /** MonedaVivo */
+        MonedaVivo: {
+            /**
+             * Coin
+             * @description Nombre en Hyperliquid: 'BTC', 'ETH', 'kPEPE'
+             */
+            coin: string;
+            /**
+             * Decimales Cantidad
+             * @description Cuántos decimales admite la cantidad
+             */
+            decimales_cantidad: number;
+            /**
+             * Nombre
+             * @description Nombre llano: 'Bitcoin'
+             */
+            nombre: string;
+            /** Precio */
+            precio: number;
+            /**
+             * Var 24H
+             * @description En %
+             */
+            var_24h: number | null;
+            /**
+             * Volumen 24H
+             * @description En USDC
+             */
+            volumen_24h: number | null;
+        };
+        /** Monedas */
+        Monedas: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            estado: components["schemas"]["EstadoVivo"];
+            /**
+             * Monedas
+             * @description Las más negociadas primero
+             */
+            monedas: components["schemas"]["MonedaVivo"][];
         };
         /** Movimiento */
         Movimiento: {
@@ -2012,12 +2634,72 @@ export interface components {
              */
             movimientos: components["schemas"]["Movimiento"][];
         };
+        /** NivelLibro */
+        NivelLibro: {
+            /** Cantidad */
+            cantidad: number;
+            /** Ordenes */
+            ordenes: number;
+            /** Precio */
+            precio: number;
+        };
+        /** NuevaOrdenPractica */
+        NuevaOrdenPractica: {
+            /**
+             * Cantidad
+             * @description En la moneda
+             */
+            cantidad?: number | string | null;
+            /** Coin */
+            coin: string;
+            /**
+             * Importe
+             * @description En USDC (solo a mercado)
+             */
+            importe?: number | string | null;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /**
+             * Precio Limite
+             * @description Solo con límite
+             */
+            precio_limite?: number | string | null;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "mercado" | "limite";
+        };
         /** NuevasClaves */
         NuevasClaves: {
             /** Clave */
             clave: string;
             /** Secreto */
             secreto: string;
+        };
+        /** NuevoBot */
+        NuevoBot: {
+            /**
+             * Capital
+             * @description USDC ficticios
+             */
+            capital: number | string;
+            /** Monedas */
+            monedas: string[];
+            /** Nombre */
+            nombre: string;
+            /**
+             * Parametros
+             * @description Por clave; lo que falte, su valor por defecto
+             */
+            parametros?: {
+                [key: string]: string;
+            };
+            /** Plantilla */
+            plantilla: string;
         };
         /**
          * NuevoMovimiento
@@ -2088,6 +2770,89 @@ export interface components {
              */
             sugeridos: string[];
         };
+        /** OperacionBot */
+        OperacionBot: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Cantidad */
+            cantidad: string;
+            /** Coin */
+            coin: string;
+            /** Comision */
+            comision: string;
+            /** Importe */
+            importe: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /**
+             * Motivo
+             * @description El porqué, en llano
+             */
+            motivo: string;
+            /** Nombre */
+            nombre: string;
+            /** Precio */
+            precio: string;
+        };
+        /** OperacionMercado */
+        OperacionMercado: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Cantidad */
+            cantidad: number;
+            /** Coin */
+            coin: string;
+            /**
+             * Lado
+             * @description 'compra' si la inició quien compraba
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /** Precio */
+            precio: number;
+        };
+        /** Operaciones */
+        Operaciones: {
+            /** Coin */
+            coin: string;
+            /**
+             * Operaciones
+             * @description La más reciente primero
+             */
+            operaciones: components["schemas"]["OperacionMercado"][];
+        };
+        /** OrdenPractica */
+        OrdenPractica: {
+            /** Cantidad */
+            cantidad: string;
+            /** Coin */
+            coin: string;
+            /**
+             * Creada
+             * Format: date-time
+             */
+            creada: string;
+            /** Id */
+            id: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /** Nombre */
+            nombre: string;
+            /** Precio Limite */
+            precio_limite: string;
+        };
         /** OrdenesEnviadas */
         OrdenesEnviadas: {
             /**
@@ -2115,6 +2880,31 @@ export interface components {
             correlacion: number;
             /** Par */
             par: string;
+        };
+        /** ParametroBot */
+        ParametroBot: {
+            /** Clave */
+            clave: string;
+            /** Defecto */
+            defecto: string;
+            /**
+             * Explicacion
+             * @description Qué cambia, en llano
+             */
+            explicacion: string;
+            /** Maximo */
+            maximo: string | null;
+            /** Minimo */
+            minimo: string | null;
+            /** Nombre */
+            nombre: string;
+            /** Opciones */
+            opciones: string[] | null;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "entero" | "decimal" | "opcion" | "intervalo";
         };
         /** Parte */
         Parte: {
@@ -2488,6 +3278,43 @@ export interface components {
         PlanGuardado: {
             plan: components["schemas"]["Plan"] | null;
         };
+        /** PlantillaBot */
+        PlantillaBot: {
+            /** Avisos */
+            avisos: string[];
+            /** Clave */
+            clave: string;
+            /** Como Funciona */
+            como_funciona: string[];
+            evidencia: components["schemas"]["EvidenciaBot"];
+            /** Frase */
+            frase: string;
+            /**
+             * Monedas
+             * @enum {string}
+             */
+            monedas: "una" | "varias";
+            /** Monedas Sugeridas */
+            monedas_sugeridas: string[];
+            /** Nombre */
+            nombre: string;
+            /**
+             * Operaciones Esperadas
+             * @description 'Una al mes', 'Decenas al día'…
+             */
+            operaciones_esperadas: string;
+            /** Parametros */
+            parametros: components["schemas"]["ParametroBot"][];
+            /** Riesgo */
+            riesgo: number;
+            /** Riesgo Texto */
+            riesgo_texto: string;
+        };
+        /** Plantillas */
+        Plantillas: {
+            /** Plantillas */
+            plantillas: components["schemas"]["PlantillaBot"][];
+        };
         /** PorcentajeEstrategia */
         PorcentajeEstrategia: {
             /** Estrategia */
@@ -2534,6 +3361,37 @@ export interface components {
             precio: string | null;
             /** Precio Fecha */
             precio_fecha: string | null;
+            /** Valor */
+            valor: string | null;
+        };
+        /** PosicionPractica */
+        PosicionPractica: {
+            /** Cantidad */
+            cantidad: string;
+            /** Coin */
+            coin: string;
+            /**
+             * Ganancia
+             * @description Lo que ganas o pierdes si vendieras ahora
+             */
+            ganancia: string | null;
+            /**
+             * Ganancia Pct
+             * @description Fracción
+             */
+            ganancia_pct: number | null;
+            /** Nombre */
+            nombre: string;
+            /**
+             * Precio
+             * @description Precio de ahora
+             */
+            precio: string | null;
+            /**
+             * Precio Medio
+             * @description Comisiones incluidas
+             */
+            precio_medio: string;
             /** Valor */
             valor: string | null;
         };
@@ -2638,6 +3496,16 @@ export interface components {
             /** Valor */
             valor: number;
         };
+        /** PuntoBot */
+        PuntoBot: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Valor */
+            valor: number;
+        };
         /** PuntoComparado */
         PuntoComparado: {
             /** Activo */
@@ -2693,6 +3561,15 @@ export interface components {
             problemas: string[];
             /** Registradas */
             registradas: number;
+        };
+        /** ReinicioPractica */
+        ReinicioPractica: {
+            /**
+             * Inicial
+             * @description USDC ficticios
+             * @default 10000
+             */
+            inicial: number | string;
         };
         /** Rendimiento */
         Rendimiento: {
@@ -2769,6 +3646,19 @@ export interface components {
              */
             resumen: string;
         };
+        /** ResultadoPractica */
+        ResultadoPractica: {
+            cuenta: components["schemas"]["CuentaPractica"];
+            /** @description Si se ejecutó ya */
+            ejecucion: components["schemas"]["EjecucionPractica"] | null;
+            /** @description Si queda pendiente (con límite) */
+            orden: components["schemas"]["OrdenPractica"] | null;
+            /**
+             * Resumen
+             * @description En llano: 'Compraste 0,0148 Bitcoin a 67.420,10 USDC…'
+             */
+            resumen: string;
+        };
         /** ResultadoSimulado */
         ResultadoSimulado: {
             /** Aportado */
@@ -2827,6 +3717,82 @@ export interface components {
             puntos: components["schemas"]["PuntoSimulado"][];
             /** Valor Final */
             valor_final: number;
+        };
+        /**
+         * ResumenBot
+         * @description Lo que enseña la tarjeta del bot (como un vault).
+         */
+        ResumenBot: {
+            /**
+             * Aviso
+             * @description P. ej. 'Panel cerrado de 14:02 a 18:30: no operó'
+             */
+            aviso: string | null;
+            /** Capital */
+            capital: string;
+            /**
+             * Curva
+             * @description Unos 100 puntos desde que arrancó
+             */
+            curva: components["schemas"]["PuntoBot"][];
+            /**
+             * Desde
+             * Format: date-time
+             */
+            desde: string;
+            /** Dias */
+            dias: number;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "en_marcha" | "parado" | "error";
+            evidencia: components["schemas"]["EvidenciaBot"];
+            /** Ganancia */
+            ganancia: string | null;
+            /**
+             * Ganancia 24H Pct
+             * @description Fracción
+             */
+            ganancia_24h_pct: number | null;
+            /**
+             * Ganancia Pct
+             * @description Fracción
+             */
+            ganancia_pct: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Mantener Pct
+             * @description Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)
+             */
+            mantener_pct: number | null;
+            /** Monedas */
+            monedas: string[];
+            /** Motivo Error */
+            motivo_error: string | null;
+            /** Nombre */
+            nombre: string;
+            /** Nombre Plantilla */
+            nombre_plantilla: string;
+            /** Operaciones */
+            operaciones: number;
+            /**
+             * Peor Caida
+             * @description Fracción negativa desde su máximo
+             */
+            peor_caida: number | null;
+            /** Plantilla */
+            plantilla: string;
+            /** Riesgo */
+            riesgo: number;
+            /** Ultima Actividad */
+            ultima_actividad: string | null;
+            /**
+             * Valor
+             * @description Lo que vale ahora (USDC + posiciones)
+             */
+            valor: string | null;
         };
         /** Saldo */
         Saldo: {
@@ -2947,6 +3913,45 @@ export interface components {
             /** Triggers */
             triggers: components["schemas"]["TriggerArmado"][];
         };
+        /** VelaVivo */
+        VelaVivo: {
+            /** Apertura */
+            apertura: number;
+            /**
+             * Cerrada
+             * @description False en la vela en curso, que aún se mueve
+             */
+            cerrada: boolean;
+            /** Cierre */
+            cierre: number;
+            /** Coin */
+            coin: string;
+            /**
+             * Inicio
+             * Format: date-time
+             */
+            inicio: string;
+            /** Intervalo */
+            intervalo: string;
+            /** Maximo */
+            maximo: number;
+            /** Minimo */
+            minimo: number;
+            /** Volumen */
+            volumen: number;
+        };
+        /** Velas */
+        Velas: {
+            /** Coin */
+            coin: string;
+            /** Intervalo */
+            intervalo: string;
+            /**
+             * Velas
+             * @description De la más antigua a la más reciente
+             */
+            velas: components["schemas"]["VelaVivo"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -2956,6 +3961,408 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    lista_api_bots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Bots"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    desplegar_api_bots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevoBot"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetalleBot"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    plantillas_api_bots_plantillas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plantillas"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    detalle_api_bots__bot_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetalleBot"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    borrar_api_bots__bot_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    parar_api_bots__bot_id__parar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetalleBot"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reanudar_api_bots__bot_id__reanudar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetalleBot"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     cartera_api_cartera_get: {
         parameters: {
             query?: never;
@@ -4972,6 +6379,240 @@ export interface operations {
             };
         };
     };
+    cuenta_api_practica_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CuentaPractica"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    nueva_orden_api_practica_ordenes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevaOrdenPractica"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultadoPractica"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelar_api_practica_ordenes__orden_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orden_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CuentaPractica"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reiniciar_api_practica_reiniciar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReinicioPractica"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CuentaPractica"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     saldo_api_saldo_get: {
         parameters: {
             query?: never;
@@ -5807,6 +7448,352 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Alertas"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    estado_vivo_api_vivo_estado_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoVivo"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    libro_api_vivo_libro_get: {
+        parameters: {
+            query: {
+                coin: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibroVivo"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    monedas_api_vivo_monedas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Monedas"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    operaciones_api_vivo_operaciones_get: {
+        parameters: {
+            query: {
+                coin: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operaciones"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    stream_api_vivo_stream_get: {
+        parameters: {
+            query?: {
+                coin?: string | null;
+                intervalo?: string;
+                canales?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    velas_api_vivo_velas_get: {
+        parameters: {
+            query: {
+                coin: string;
+                intervalo?: string;
+                limite?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Velas"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */
