@@ -74,6 +74,23 @@ def almacen_de_claves() -> Iterator[AlmacenEnMemoria]:
         keyring.set_keyring(anterior)
 
 
+@pytest.fixture(autouse=True)
+def conectores_de_exchanges_limpios() -> Iterator[None]:
+    """**Ningún conector falso ni guardado pasa de un test a otro** (`exchanges.registro`).
+
+    El registro guarda los conectores que construye (cargar los mercados cuesta) y los falsos que
+    inyecta un test (`registro.inyectar`). Sin esto, un falso de un test respondería en el
+    siguiente.
+    """
+    from invest_ll.exchanges import registro
+
+    registro.quitar_inyectados()
+    try:
+        yield
+    finally:
+        registro.quitar_inyectados()
+
+
 RAIZ_REPO = Path(__file__).resolve().parents[1]
 NO_SE_VIGILA = frozenset(
     {
