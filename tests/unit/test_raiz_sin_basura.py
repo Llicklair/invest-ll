@@ -19,6 +19,9 @@ if TYPE_CHECKING:  # pragma: no cover
 def test_ve_lo_nuevo_y_lo_escrito_en_una_carpeta_que_ya_estaba(tmp_path: Path) -> None:
     (tmp_path / "attempts").mkdir()
     (tmp_path / "README.md").write_text("hola", encoding="utf-8")
+    # De una pasada anterior: si la carpeta se acaba de crear, crear algo dentro en el mismo
+    # instante de reloj (NTFS cuenta de ~15 ms en ~15 ms) no le cambia la fecha.
+    os.utime(tmp_path / "attempts", ns=(0, 1_000_000_000_000_000_000))
     antes = foto_de_la_raiz(tmp_path)
 
     (tmp_path / "attempts" / "attempts.json").write_text("{}", encoding="utf-8")
