@@ -84,6 +84,12 @@ def panel(mercado: Mercado) -> Panel | None:
     return None if clave is None else _leer(mercado, clave)
 
 
+def olvidar() -> None:
+    """Suelta los paneles leídos. Una descarga nueva ya cambia la huella; esto además libera la
+    memoria de las versiones viejas (el de Binance ocupa cientos de MB) al acabar de actualizar."""
+    _leer.cache_clear()
+
+
 def precio_legible(valor: float) -> Decimal:
     """Un precio del panel con 8 cifras significativas: 90.42 y no 90.41999816894531.
 

@@ -56,6 +56,11 @@ def cargar_panel(klines: Path) -> Panel:
     return _panel(klines.resolve(), (estado.st_mtime_ns, estado.st_size))
 
 
+def olvidar_panel() -> None:
+    """Suelta el universo leído (al acabar de actualizar los datos: libera la versión vieja)."""
+    _panel.cache_clear()
+
+
 def _estudio() -> Estudio | None:
     informe = latest_report()
     if informe is None:

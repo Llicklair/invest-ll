@@ -106,6 +106,11 @@ def _completa(
     return serie
 
 
+def olvidar_series() -> None:
+    """Suelta las series leídas (al acabar de actualizar los históricos)."""
+    _completa.cache_clear()
+
+
 def discover_assets(root: Path = RAIZ_DATOS) -> list[AvailableAsset]:
     """Encuentra los históricos descargados.
 

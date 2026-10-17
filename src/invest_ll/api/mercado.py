@@ -11,14 +11,13 @@ corre sin red a propósito.
 
 from __future__ import annotations
 
-import os
-import subprocess
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Query
 
 from invest_ll.alerts.rules import datos_obsoletos
+from invest_ll.api import datos as actualizacion
 from invest_ll.api.activos import (
     ILEGIBLE,
     descargados,
@@ -26,7 +25,7 @@ from invest_ll.api.activos import (
     resolver_varios,
     serie_completa,
 )
-from invest_ll.api.errores import invalido
+from invest_ll.api.errores import conflicto, invalido
 from invest_ll.api.schemas import (
     Comparacion,
     Cotizacion,
@@ -102,22 +101,7 @@ def pedir_bolsa() -> list[LiveQuote]:
 
 def ejecutar_fetch(argumentos: list[str]) -> tuple[bool, str]:
     """Lanza `invest-ll-fetch` y devuelve (si salió bien, lo que dijo). Toca la red."""
-    try:
-        proceso = subprocess.run(
-            argumentos,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=TIMEOUT_DESCARGA,
-            check=False,
-            env={**os.environ, "PYTHONUTF8": "1"},
-        )
-    except subprocess.TimeoutExpired:
-        return False, f"la descarga no termino en {TIMEOUT_DESCARGA} s"
-    except OSError as error:
-        return False, f"no se pudo lanzar la descarga: {error}"
-    return proceso.returncode == 0, (proceso.stderr or proceso.stdout or "").strip()
+    return actualizacion.ejecutar(argumentos, timeout=TIMEOUT_DESCARGA)
 
 
 # -- Rutas -------------------------------------------------------------------------------------
@@ -274,6 +258,13 @@ def descargar(peticion: PeticionDescarga) -> ResultadoDescarga:
 @router.post("/mercado/actualizar", tags=["mercado"])
 def actualizar() -> ResultadoActualizacion:
     """Re-descarga todos los históricos con los parámetros de su procedencia (`fetch_args`)."""
+    # La de Laboratorio, de solo los históricos y esperando a que acabe. Con la de todo
+    # (`POST /datos/actualizar`) en marcha, serían dos descargas de los mismos ficheros a la vez.
+    if actualizacion.en_marcha():
+        raise conflicto(
+            "Ya se están actualizando todos los datos (precios, fondos y criptomonedas): espera "
+            "a que termine; incluye estos históricos."
+        )
     ahora = datetime.now(UTC)
     resultados: list[ResultadoDescarga] = []
     saltados: list[str] = []
