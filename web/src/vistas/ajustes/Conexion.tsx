@@ -14,6 +14,7 @@ import { useEstado } from "@/contexto/estado";
 import { NOMBRE_MODO, useModo } from "@/contexto/modo";
 import { useAccion } from "@/lib/consulta";
 import { formatoCantidad } from "@/lib/decimal";
+import { enUnaFrase } from "@/lib/formato";
 
 type EstadoEtapa = "hecha" | "actual" | "bloqueada";
 
@@ -208,7 +209,7 @@ function CambiarModo({ a, conexion, onCambio, texto }: { a: ModoPanel; conexion:
         {cambiar.enCurso ? "Cambiando…" : texto}
       </Boton>
       {disponible && !disponible.disponible && disponible.que_falta.length ? (
-        <p className="text-sm text-tinta-suave">Falta: {disponible.que_falta.join("; ")}.</p>
+        <p className="text-sm text-tinta-suave">Falta: {enUnaFrase(disponible.que_falta)}</p>
       ) : null}
       {cambiar.error ? <ErrorApiVista error={cambiar.error} prefijo="No se cambió el modo:" /> : null}
     </div>
@@ -313,8 +314,11 @@ export function Conexion() {
 
   const pruebas = conexion.redes.find((r) => r.red === "pruebas");
   const real = conexion.redes.find((r) => r.red === "real");
-  const etapa1: EstadoEtapa = pruebas?.claves_guardadas ? "hecha" : "actual";
-  const etapa2: EstadoEtapa = pruebas?.verificada ? "hecha" : pruebas?.claves_guardadas ? "actual" : "bloqueada";
+  // La etapa 1 esta hecha cuando el modo pruebas esta ACTIVO, no al guardar unas claves (que
+  // pueden no funcionar): plegarla entonces escondia Probar, Usar el modo pruebas y Borrar.
+  const enPruebasOMas = modo === "pruebas" || modo === "real";
+  const etapa1: EstadoEtapa = enPruebasOMas ? "hecha" : "actual";
+  const etapa2: EstadoEtapa = pruebas?.verificada ? "hecha" : modo === "pruebas" ? "actual" : "bloqueada";
   const etapa3: EstadoEtapa = modo === "real" ? "hecha" : pruebas?.verificada ? "actual" : "bloqueada";
   const disponibleReal = conexion.modos.find((m) => m.modo === "real");
 
@@ -360,7 +364,18 @@ export function Conexion() {
           </ol>
           <Claves red="pruebas" conexion={conexion} onCambio={refrescarDatos} />
           {modo === "simulacion" && pruebas?.claves_guardadas ? (
-            <CambiarModo a="pruebas" conexion={conexion} onCambio={refrescarDatos} texto="Usar el modo pruebas" />
+            <div className="space-y-2 border-t border-linea pt-5">
+              <p className="text-[0.9375rem] text-tinta">
+                Cuando la prueba diga que la conexión funciona, pasa al modo pruebas. Si las claves no sirven, el panel no
+                cambiará de modo y te dirá por qué.
+              </p>
+              <CambiarModo a="pruebas" conexion={conexion} onCambio={refrescarDatos} texto="Usar el modo pruebas" />
+            </div>
+          ) : modo === "pruebas" ? (
+            <p className="flex items-start gap-3 text-[0.9375rem] text-tinta">
+              <CircleCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-sube-texto" strokeWidth={1.75} />
+              Estás en modo pruebas: las órdenes salen de verdad a Binance, con dinero ficticio.
+            </p>
           ) : null}
           <QueEsEsto clave="pruebas" />
         </Etapa>
@@ -387,7 +402,7 @@ export function Conexion() {
                   Ir a Invertir
                 </BotonEnlace>
               ) : (
-                <p className="text-sm text-tinta-suave">Primero, activa el modo pruebas en la etapa 1.</p>
+                <p className="text-sm text-tinta-suave">Primero, pasa al modo pruebas en la etapa 1.</p>
               )}
             </>
           )}
@@ -430,7 +445,7 @@ export function Conexion() {
                 Activar el dinero real
               </Boton>
               {disponibleReal && !disponibleReal.disponible ? (
-                <p className="text-sm text-tinta-suave">Falta: {disponibleReal.que_falta.join("; ")}.</p>
+                <p className="text-sm text-tinta-suave">Falta: {enUnaFrase(disponibleReal.que_falta)}</p>
               ) : null}
             </div>
           ) : (

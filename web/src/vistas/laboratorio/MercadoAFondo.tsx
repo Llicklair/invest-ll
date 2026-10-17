@@ -10,7 +10,7 @@ import { SelectorActivos } from "@/componentes/SelectorActivos";
 import { Aviso, Boton, Cargando, ErrorApiVista, Nota, Seccion, Segmentado } from "@/componentes/ui";
 import { useEstado } from "@/contexto/estado";
 import { useConsulta } from "@/lib/consulta";
-import { numero } from "@/lib/formato";
+import { fecha, numero } from "@/lib/formato";
 
 import { Mesa } from "./Mesa";
 
@@ -54,7 +54,7 @@ function GraficaActivo({ simbolo, onCerrar }: { simbolo: string; onCerrar: () =>
           atenuada={consulta.cargando}
           pie={
             <>
-              {serie.sesiones.toLocaleString("es-ES")} sesiones, hasta el <strong>{serie.hasta}</strong>. Datos
+              {serie.sesiones.toLocaleString("es-ES")} sesiones, hasta el <strong>{fecha(serie.hasta)}</strong>. Datos
               históricos descargados, no precios en vivo.
             </>
           }

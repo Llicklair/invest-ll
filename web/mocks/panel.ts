@@ -817,7 +817,7 @@ export function cambiarModo(p: EstadoPanel, o: Record<string, unknown>): Respons
   if ((modo === "pruebas" || modo === "real") && rechazadas(p.claves[modo].clave)) {
     return fallo(
       422,
-      `No se ha cambiado de modo: Binance ha rechazado tus claves de ${modo === "pruebas" ? "pruebas" : "dinero real"}. ¿Creaste la clave de tipo HMAC-SHA256? Bórralas, crea otras y vuelve a probar.`,
+      `Binance ha rechazado tus claves de ${modo === "pruebas" ? "pruebas" : "dinero real"}. ¿Creaste la clave de tipo HMAC-SHA256? Bórralas, crea otras y vuelve a probar.`,
     );
   }
   if (modo === "real" && o.confirmacion !== "DINERO REAL") {
