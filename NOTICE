@@ -2,3 +2,11 @@ invest-ll
 Copyright 2026 Marcos Recio (Llicklair)
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The web panel (web/) includes TradingView Lightweight Charts(TM), Apache License 2.0:
+
+TradingView Lightweight Charts(TM)
+Copyright (c) 2025 TradingView, Inc. https://www.tradingview.com/
+
+The candlestick chart in Operar keeps the library's attribution logo, which links to
+https://www.tradingview.com/, as its license requires.

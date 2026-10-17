@@ -308,6 +308,39 @@ dialog.hoja[open] .hoja-panel {
   }
 }
 
+/* Selector de moneda de Operar (dialog nativo): bajo su boton en escritorio (top/left los pone
+   el componente), hoja desde abajo en el movil. */
+dialog.selector-moneda {
+  margin: 0;
+  padding: 0;
+  inset: auto;
+  width: min(600px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(72vh, 680px);
+  overflow: hidden;
+  border: 1px solid var(--linea);
+  border-radius: 16px;
+  background: var(--superficie);
+  color: var(--tinta);
+  box-shadow: var(--sombra-alta);
+}
+dialog.selector-moneda[open] {
+  display: flex;
+  flex-direction: column;
+}
+dialog.selector-moneda::backdrop {
+  background: var(--velo);
+}
+@media (max-width: 1023px) {
+  dialog.selector-moneda {
+    inset: auto 0 0 0;
+    width: 100%;
+    max-height: 86dvh;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 /* Campos de confirmacion tecleada: monoespaciada y amplia, para leer cifra a cifra. */
 .tecleo {
   font-family: var(--font-mono);
@@ -321,6 +354,21 @@ body[data-barra-accion] .boton-pregunta {
 @media (min-width: 1024px) {
   body[data-barra-accion] .boton-pregunta {
     bottom: 96px;
+  }
+}
+
+/* En Operar (pantalla ancha con carril estrecho) el boton de Pregunta va al pie del carril, solo
+   con su icono: abajo a la derecha tapaba el boleto y la cuenta. */
+@media (min-width: 1024px) {
+  body[data-ancha] .boton-pregunta {
+    left: 16px;
+    right: auto;
+    bottom: 24px;
+    width: 56px;
+    padding: 0;
+  }
+  body[data-ancha] .boton-pregunta > span {
+    display: none;
   }
 }
 
