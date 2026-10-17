@@ -41,8 +41,8 @@ CENTIMO: Final = Decimal("0.01")
 
 HORIZONTE_TEXTO: Final[dict[Horizonte, str]] = {
     "menos-2": "en menos de 2 años",
-    "2-5": "en entre 2 y 5 años",
-    "5-10": "en entre 5 y 10 años",
+    "2-5": "dentro de 2 a 5 años",
+    "5-10": "dentro de 5 a 10 años",
     "mas-10": "en más de 10 años",
 }
 CAIDA_TEXTO: Final[dict[AnteCaida, str]] = {
