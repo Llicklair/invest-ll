@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Banknote, NotebookPen, Plus, Sprout } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ArrowDownLeft, ArrowUpRight, Banknote, Landmark, NotebookPen, Plus, Sprout } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { api, pedir } from "@/api/cliente";
-import type { Movimiento, NuevoMovimiento, PosicionAbierta, PosicionRetirada } from "@/api/tipos";
+import type { Movimiento, NuevoMovimiento, PosicionAbierta, PosicionRetirada, TipoMovimiento } from "@/api/tipos";
+import { BuscadorActivo, type OpcionActivo } from "@/componentes/BuscadorActivo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { Hoja } from "@/componentes/Hoja";
 import { MarcoTabla, Td, Th } from "@/componentes/tabla";
@@ -20,7 +22,7 @@ import {
   ErrorApiVista,
   Esqueleto,
   Nota,
-  Selector,
+  Segmentado,
   Tarjeta,
   TextoApi,
   clases,
@@ -29,39 +31,54 @@ import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { formatoCantidad, signoDecimal } from "@/lib/decimal";
-import { euros, fecha, fechaCorta, hoyLocal, mesYAnioCorto, momento } from "@/lib/formato";
+import { enMoneda, fecha, fechaCorta, hoyLocal, mesYAnioCorto, momento, simboloMoneda } from "@/lib/formato";
 import { leerImporte } from "@/lib/importe";
-import { base, nombreLlano, unidad } from "@/lib/nombres";
+import { base, enLaMoneda, monedaSupuesta, nombreLlano, unidad } from "@/lib/nombres";
 
 import { Proteccion } from "./Proteccion";
-
-type TipoMovimiento = NuevoMovimiento["tipo"];
 
 function cuanto(p: PosicionAbierta): string {
   const u = unidad(p.activo);
   return `${formatoCantidad(p.cantidad)} ${u === "participaciones" ? (p.cantidad === "1" ? "participación" : "participaciones") : u}`;
 }
 
+/**
+ * Una fila de "Lo que tienes". Si la posicion es de referencia (una compra del broker hecha desde
+ * el plan), `cantidad` y `coste_medio` son del fondo de EE.UU. con que se calcula, no tuyos: se
+ * ensenan importes ("pusiste 3.536 €"), nunca "4,63 participaciones a 763 €".
+ */
 function FilaTienes({ p }: { p: PosicionAbierta }) {
   const s = p.pnl_no_realizado === null ? null : signoDecimal(p.pnl_no_realizado);
   return (
     <li className="grid gap-1 py-4 sm:grid-cols-[1fr_auto] sm:items-baseline sm:gap-6">
       <div className="min-w-0">
-        <p className="font-semibold text-tinta">{nombreLlano(p.activo)}</p>
+        <p className="font-semibold text-tinta">{p.nombre}</p>
         <p className="cifras text-[0.9375rem] text-tinta-suave">
-          Tienes {cuanto(p)} · pusiste {euros(p.invertido)}
+          {p.es_referencia ? (
+            <>Pusiste {enMoneda(p.invertido, p.moneda)} en tu bróker</>
+          ) : (
+            <>
+              Tienes {cuanto(p)} · pusiste {enMoneda(p.invertido, p.moneda)}
+            </>
+          )}
         </p>
       </div>
       <div className="sm:text-right">
-        <p className="cifras text-lg font-semibold text-tinta">{p.valor === null ? "Sin precio" : `Valen ${euros(p.valor)}`}</p>
+        <p className="cifras text-lg font-semibold text-tinta">
+          {p.valor === null ? "Sin precio" : `Valen ${p.es_referencia ? "unos " : ""}${enMoneda(p.valor, p.moneda)}`}
+        </p>
         {p.pnl_no_realizado !== null ? (
           <p className={clases("cifras text-[0.9375rem]", s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : "text-tinta-suave")}>
             {s === 1 ? "Ganas " : s === -1 ? "Pierdes " : ""}
-            {euros(p.pnl_no_realizado, { conSigno: true })} si vendieras hoy
+            {enMoneda(p.pnl_no_realizado, p.moneda, { conSigno: true })} si vendieras hoy
           </p>
         ) : null}
         <p className="text-sm text-tinta-suave">
-          {p.precio_fecha ? `Precio del cierre del ${fechaCorta(p.precio_fecha)}` : "Sin precio descargado: no se puede saber cuánto vale"}
+          {!p.precio_fecha
+            ? "Sin precio descargado: no se puede saber cuánto vale"
+            : p.es_referencia
+              ? `Calculado con el fondo de EE.UU. que sigue, al cierre del ${fechaCorta(p.precio_fecha)}`
+              : `Precio del cierre del ${fechaCorta(p.precio_fecha)}`}
         </p>
       </div>
     </li>
@@ -73,13 +90,13 @@ function FilaVendido({ r }: { r: PosicionRetirada }) {
   const palabra = s === 1 ? "Ganaste" : s === -1 ? "Perdiste" : "Ni ganaste ni perdiste";
   const importe = s === -1 ? r.pnl_realizado.replace(/^-/, "") : r.pnl_realizado;
   return (
-    <li className="flex items-baseline justify-between gap-4 py-3">
-      <p className="text-[0.9375rem] text-tinta">
+    <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
+      <p className="min-w-0 text-[0.9375rem] text-tinta">
         <span className={clases("font-semibold", s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : "")}>
           {palabra}
-          {s !== 0 ? <span className="cifras"> {euros(importe)}</span> : null}
+          {s !== 0 ? <span className="cifras"> {enMoneda(importe, r.moneda)}</span> : null}
         </span>{" "}
-        con {nombreLlano(r.activo)}
+        con {r.nombre}
       </p>
       <p className="shrink-0 text-sm text-tinta-suave">
         {mesYAnioCorto(r.abierta)} – {mesYAnioCorto(r.retirada)}
@@ -91,26 +108,40 @@ function FilaVendido({ r }: { r: PosicionRetirada }) {
 const ICONO_MOVIMIENTO = { compra: ArrowDownLeft, venta: ArrowUpRight, ingreso: Banknote, retirada: Banknote } as const;
 const TEXTO_MOVIMIENTO = { compra: "Compra", venta: "Venta", ingreso: "Ingreso", retirada: "Retirada" } as const;
 
+/** El detalle de un movimiento, en llano. Los de referencia cuentan lo que de verdad compraste (`nota`). */
+function detalleMovimiento(m: Movimiento): string | null {
+  if (m.tipo !== "compra" && m.tipo !== "venta") return m.nota;
+  if (m.es_referencia) return m.nota ?? "Compra de tu bróker anotada desde tu plan.";
+  const cuantas = m.simbolo?.includes("/") ? base(m.simbolo) : formatoCantidad(m.cantidad) === "1" ? "participación" : "participaciones";
+  return `${formatoCantidad(m.cantidad)} ${cuantas} a ${enMoneda(m.precio, m.moneda)}`;
+}
+
 function FilaMovimiento({ m }: { m: Movimiento }) {
-  const Icono = ICONO_MOVIMIENTO[m.tipo];
+  const Icono = m.es_referencia ? Landmark : ICONO_MOVIMIENTO[m.tipo];
   const conActivo = m.tipo === "compra" || m.tipo === "venta";
+  // La `nota` de la API es una frase con su punto: aqui va entre " · ", sin el.
+  const detalle = detalleMovimiento(m)?.replace(/\.\s*$/, "") ?? null;
+  const origen = m.origen === "panel" ? "desde el panel" : m.origen === "plan" ? "de tu plan" : null;
   return (
-    <li className="flex items-center gap-4 py-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-superficie-2 text-tinta-suave" aria-hidden="true">
+    <li className="flex items-start gap-3 py-3 sm:gap-4">
+      <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-superficie-2 text-tinta-suave" aria-hidden="true">
         <Icono className="h-4 w-4" strokeWidth={1.75} />
       </span>
+      {/* En el movil el detalle se parte en lineas: cortarlo con "…" escondia justo la cifra. */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[0.9375rem] text-tinta">
-          <span className="font-semibold">{TEXTO_MOVIMIENTO[m.tipo]}</span>
-          {conActivo && m.activo ? ` de ${m.activo}` : ""}
-        </p>
-        <p className="cifras truncate text-sm text-tinta-suave">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="min-w-0 text-[0.9375rem] text-tinta">
+            <span className="font-semibold">{TEXTO_MOVIMIENTO[m.tipo]}</span>
+            {conActivo && m.activo ? ` de ${m.activo}` : ""}
+          </p>
+          <p className="cifras shrink-0 text-right font-semibold text-tinta">{enMoneda(m.importe, m.moneda)}</p>
+        </div>
+        <p className="cifras text-sm text-tinta-suave [overflow-wrap:anywhere]">
           {fecha(m.fecha)}
-          {conActivo ? ` · ${formatoCantidad(m.cantidad)} ${m.simbolo?.includes("/") ? base(m.simbolo) : "part."} a ${euros(m.precio)}` : ""}
-          {m.origen === "panel" ? " · desde el panel" : m.origen === "plan" ? " · de tu plan" : ""}
+          {detalle ? ` · ${detalle}` : ""}
+          {origen ? ` · ${origen}` : ""}
         </p>
       </div>
-      <p className="cifras shrink-0 text-right font-semibold text-tinta">{euros(m.importe)}</p>
     </li>
   );
 }
@@ -124,14 +155,60 @@ function HojaAnotar({ abierta, onCerrar, alAnotar }: { abierta: boolean; onCerra
   );
 }
 
+const TIPOS: readonly { valor: TipoMovimiento; texto: string }[] = [
+  { valor: "compra", texto: "Compré" },
+  { valor: "venta", texto: "Vendí" },
+  { valor: "ingreso", texto: "Ingresé" },
+  { valor: "retirada", texto: "Retiré" },
+];
+
+/**
+ * Los activos que el panel conoce (`GET /api/estado`), con su nombre llano y la moneda de su
+ * precio. `GET /api/estado` solo trae el simbolo: el nombre y la moneda salen de la mesa de
+ * rendimiento (v2.1) y, si no esta, del respaldo de lib/nombres.ts.
+ */
+function useActivosConocidos(): OpcionActivo[] {
+  const { estado, versionDatos } = useEstado();
+  const rendimiento = useConsulta(`rendimiento:${versionDatos}`, () => pedir(api.GET("/api/mercado/rendimiento")));
+  return useMemo(() => {
+    const filas = rendimiento.datos ? [...rendimiento.datos.bolsa, ...rendimiento.datos.cripto] : [];
+    const porSimbolo = new Map(filas.map((f) => [f.activo, f]));
+    const vistos = new Set<string>();
+    const lista: OpcionActivo[] = [];
+    for (const a of estado?.activos ?? []) {
+      if (vistos.has(a.symbol)) continue;
+      vistos.add(a.symbol);
+      const f = porSimbolo.get(a.symbol);
+      lista.push({
+        simbolo: a.symbol,
+        nombre: f?.nombre ?? nombreLlano(a.symbol),
+        moneda: f?.moneda ?? monedaSupuesta(a.symbol),
+        cripto: a.is_crypto,
+      });
+    }
+    return lista.sort((x, y) => x.nombre.localeCompare(y.nombre, "es"));
+  }, [estado, rendimiento.datos]);
+}
+
 function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerrar: () => void }) {
+  const { versionDatos } = useEstado();
   const [tipo, setTipo] = useState<TipoMovimiento>("compra");
-  const [simbolo, setSimbolo] = useState("");
+  const [activo, setActivo] = useState<OpcionActivo | null>(null);
   const [dia, setDia] = useState(hoyLocal);
   const [cantidad, setCantidad] = useState("");
   const [precio, setPrecio] = useState("");
   const [comision, setComision] = useState("0");
   const conActivo = tipo === "compra" || tipo === "venta";
+  const conocidos = useActivosConocidos();
+  // Si es un fondo de tu plan, la compra se anota desde "Ya lo he comprado": asi cuenta en el plan
+  // y se guarda con lo que de verdad pagaste en tu broker.
+  const hoy = useConsulta(conActivo ? `hoy:${versionDatos}` : null, () => pedir(api.GET("/api/plan/hoy")));
+  const delPlan =
+    tipo === "compra" && activo
+      ? (hoy.datos?.acciones.find((a) => a.donde === "broker" && (a.referencia ?? a.simbolo) === activo.simbolo) ?? null)
+      : null;
+  const moneda = conActivo ? (activo?.moneda ?? "") : "EUR";
+  const sufijo = moneda ? simboloMoneda(moneda) : undefined;
 
   const registrar = useAccion(async (movimiento: NuevoMovimiento) => {
     const r = await pedir(api.POST("/api/cartera/movimientos", { body: movimiento }));
@@ -141,12 +218,13 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
+    if (conActivo && !activo) return;
     void registrar.ejecutar({
       tipo,
       fecha: dia,
       cantidad: leerImporte(cantidad) ?? cantidad.trim(),
       comision: leerImporte(comision === "" ? "0" : comision) ?? comision.trim(),
-      ...(conActivo ? { simbolo: simbolo.trim().toUpperCase(), precio: leerImporte(precio) ?? precio.trim() } : {}),
+      ...(conActivo && activo ? { simbolo: activo.simbolo, precio: leerImporte(precio) ?? precio.trim() } : {}),
     });
   };
 
@@ -165,25 +243,28 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
 
   return (
     <form onSubmit={enviar} className="space-y-5">
-      <Selector etiqueta="Qué hiciste" value={tipo} onChange={(e) => setTipo(e.target.value as TipoMovimiento)}>
-        <option value="compra">Compré algo</option>
-        <option value="venta">Vendí algo</option>
-        <option value="deposito">Ingresé dinero</option>
-        <option value="retirada">Retiré dinero</option>
-      </Selector>
+      <Segmentado etiqueta="Qué hiciste" opciones={TIPOS} valor={tipo} onCambio={setTipo} repartido />
       {conActivo ? (
-        <CampoTexto
-          etiqueta="Qué (símbolo)"
-          ayuda="Como aparece en tu bróker o en Binance: SPY, GLD, BTC/USDT…"
-          placeholder="GLD"
-          value={simbolo}
-          onChange={(e) => setSimbolo(e.target.value)}
-          required
+        <BuscadorActivo
+          etiqueta={tipo === "compra" ? "Qué compraste" : "Qué vendiste"}
+          ayuda="Busca por su nombre. Si no está en la lista, puedes escribirlo como aparece en tu bróker o en Binance."
+          opciones={conocidos}
+          valor={activo}
+          onCambio={setActivo}
         />
+      ) : null}
+      {delPlan ? (
+        <Aviso tipo="info" titulo="Es un fondo de tu plan">
+          Si lo compraste siguiendo tu plan, anótalo desde Invertir con «Ya lo he comprado»: así cuenta en tu plan y se guarda
+          con lo que pagaste en tu bróker.{" "}
+          <Link href={`/invertir/#accion-${delPlan.id}`} className="font-semibold underline underline-offset-4" onClick={onCerrar}>
+            Ir a «Ya lo he comprado»
+          </Link>
+        </Aviso>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoTexto
-          etiqueta={conActivo ? "Cantidad" : "Importe"}
+          etiqueta={conActivo ? (activo?.cripto ? `Cantidad (${base(activo.simbolo)})` : "Cantidad") : "Importe"}
           sufijo={conActivo ? undefined : "€"}
           value={cantidad}
           onChange={(e) => setCantidad(e.target.value)}
@@ -191,17 +272,26 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
           required
         />
         {conActivo ? (
-          <CampoTexto etiqueta="Precio por unidad" sufijo="€" value={precio} onChange={(e) => setPrecio(e.target.value)} inputMode="decimal" required />
+          <CampoTexto
+            etiqueta="Precio por unidad"
+            sufijo={sufijo}
+            ayuda={activo ? (activo.moneda ? `El de ${activo.nombre} va ${enLaMoneda(activo.moneda)}.` : "En la moneda en que lo pagaste.") : undefined}
+            value={precio}
+            onChange={(e) => setPrecio(e.target.value)}
+            inputMode="decimal"
+            required
+          />
         ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <CampoTexto etiqueta="Comisión" sufijo="€" value={comision} onChange={(e) => setComision(e.target.value)} inputMode="decimal" />
-        <CampoTexto etiqueta="Fecha" type="date" value={dia} onChange={(e) => setDia(e.target.value)} required />
+        <CampoTexto etiqueta="Comisión" sufijo={sufijo ?? "€"} value={comision} onChange={(e) => setComision(e.target.value)} inputMode="decimal" />
+        <CampoTexto etiqueta="Fecha" type="date" max={hoyLocal()} value={dia} onChange={(e) => setDia(e.target.value)} required />
       </div>
       {registrar.error ? <ErrorApiVista error={registrar.error} prefijo="No se anotó:" /> : null}
-      <Boton type="submit" variante="primario" className="w-full" disabled={registrar.enCurso}>
-        {registrar.enCurso ? "Anotando…" : "Anotar en mi registro"}
+      <Boton type="submit" variante={delPlan ? "secundario" : "primario"} className="w-full" disabled={registrar.enCurso || (conActivo && !activo)}>
+        {registrar.enCurso ? "Anotando…" : delPlan ? "Anotarlo aquí de todos modos" : "Anotar en mi registro"}
       </Boton>
+      {conActivo && !activo ? <p className="text-center text-sm text-tinta-suave">Elige primero qué {tipo === "compra" ? "compraste" : "vendiste"}.</p> : null}
     </form>
   );
 }
@@ -237,11 +327,11 @@ function OrdenesEnviadas({ version }: { version: number }) {
                     {f.modo.toUpperCase() === "REAL" ? "dinero real" : f.modo}
                   </Td>
                   <Td className="font-medium">
-                    {f.lado === "buy" ? "Compra" : "Venta"} de {nombreLlano(f.activo)}
+                    {f.lado === "buy" ? "Compra" : "Venta"} de {f.nombre}
                   </Td>
                   <Td numerica>{formatoCantidad(f.pedida)}</Td>
                   <Td numerica>{formatoCantidad(f.ejecutada)}</Td>
-                  <Td numerica>{f.precio === null ? "—" : formatoCantidad(f.precio)}</Td>
+                  <Td numerica>{f.precio === null ? "—" : enMoneda(f.precio, f.moneda)}</Td>
                   <Td>
                     {{ filled: "hecha", partial: "en parte", rejected: "rechazada", unknown: "desconocido" }[f.estado] ?? f.estado}
                   </Td>
@@ -250,7 +340,8 @@ function OrdenesEnviadas({ version }: { version: number }) {
             </tbody>
           </MarcoTabla>
           <Nota>
-            {o.total} orden(es) · <strong className="text-tinta">{o.reales} con dinero real</strong> · registro en <Codigo>{o.registro}</Codigo>
+            {o.total} {o.total === 1 ? "orden" : "órdenes"} · <strong className="text-tinta">{o.reales} con dinero real</strong> · registro en{" "}
+            <Codigo>{o.registro}</Codigo>
           </Nota>
           {o.atencion.map((a) => (
             <Aviso key={a} tipo={a.includes("DESCONOCIDO") ? "critico" : "aviso"}>
@@ -258,6 +349,41 @@ function OrdenesEnviadas({ version }: { version: number }) {
             </Aviso>
           ))}
         </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * La linea "En total". La API suma sin convertir (contrato v2.1: "sin contar el cambio
+ * euro-dolar"); si hay importes en varias monedas, se dice que la suma es aproximada.
+ */
+function Total({ abiertas, valor, invertido, efectivo }: { abiertas: PosicionAbierta[]; valor: string | null; invertido: string; efectivo: string }) {
+  const monedas = [...new Set(abiertas.map((p) => p.moneda))];
+  const moneda = monedas.length === 1 ? (monedas[0] ?? "EUR") : "EUR";
+  const mezcla = monedas.length > 1;
+  return (
+    <div className="space-y-1 border-t border-linea py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-[0.9375rem] text-tinta-suave">En total</p>
+        <p className="cifras text-right text-[0.9375rem] text-tinta">
+          {valor === null ? (
+            "No se puede sumar: falta algún precio"
+          ) : (
+            <>
+              Valen {mezcla ? "unos " : ""}
+              <strong className="font-semibold">{enMoneda(valor, moneda)}</strong> · pusiste {enMoneda(invertido, moneda)}
+            </>
+          )}
+        </p>
+      </div>
+      {signoDecimal(efectivo) === 1 ? (
+        <p className="cifras text-right text-sm text-tinta-suave">Además, {enMoneda(efectivo, "EUR")} sin invertir.</p>
+      ) : null}
+      {mezcla ? (
+        <p className="text-right text-sm text-tinta-suave">
+          Aproximado: suma {monedas.map((m) => enLaMoneda(m).replace(/^en /, "")).join(" y ")} sin contar el cambio.
+        </p>
       ) : null}
     </div>
   );
@@ -273,7 +399,7 @@ export function Cartera() {
   const cartera = useConsulta(`cartera:${clave}`, () => pedir(api.GET("/api/cartera")));
   const movs = useConsulta(`movimientos:${clave}`, () => pedir(api.GET("/api/cartera/movimientos")));
   const c = cartera.datos;
-  const ficticio = movs.datos?.cartera === "pruebas" || modo === "pruebas";
+  const ficticio = c?.cartera === "pruebas" || movs.datos?.cartera === "pruebas";
   const recargar = () => {
     setVersion((v) => v + 1);
     refrescarDatos();
@@ -335,19 +461,14 @@ export function Cartera() {
                   <FilaTienes key={p.activo} p={p} />
                 ))}
               </ul>
-              <div className="flex flex-wrap items-baseline justify-between gap-3 border-t border-linea py-4">
-                <p className="text-[0.9375rem] text-tinta-suave">En total</p>
-                <p className="cifras text-right text-[0.9375rem] text-tinta">
-                  {c.valor_total === null ? (
-                    "No se puede sumar: falta algún precio"
-                  ) : (
-                    <>
-                      Valen <strong className="font-semibold">{euros(c.valor_total)}</strong> · pusiste {euros(c.invertido_abiertas)}
-                    </>
-                  )}
-                </p>
-              </div>
+              <Total abiertas={c.abiertas} valor={c.valor_total} invertido={c.invertido_abiertas} efectivo={c.efectivo} />
             </Tarjeta>
+          ) : null}
+          {c?.abiertas.some((p) => p.es_referencia) ? (
+            <Nota>
+              Lo que compras en tu bróker desde el plan se sigue con el fondo de EE.UU. al que imita: por eso ves cuánto pusiste y
+              cuánto vale, no tus participaciones. Las tuyas están en cada movimiento.
+            </Nota>
           ) : null}
         </section>
 
@@ -382,7 +503,7 @@ export function Cartera() {
             </EstadoVacio>
           ) : null}
           {movs.datos && movs.datos.movimientos.length ? (
-            <Tarjeta className="px-5 sm:px-6">
+            <Tarjeta className="px-4 sm:px-6">
               <ul className="divide-y divide-linea">
                 {movs.datos.movimientos.map((m) => (
                   <FilaMovimiento key={m.id} m={m} />
@@ -392,7 +513,7 @@ export function Cartera() {
           ) : null}
         </section>
 
-        <Proteccion simbolos={c?.abiertas.map((p) => p.activo) ?? []} />
+        <Proteccion activos={c?.abiertas.map((p) => ({ simbolo: p.activo, nombre: p.nombre })) ?? []} />
 
         <Desplegable resumen="Órdenes enviadas a Binance">
           <OrdenesEnviadas version={version} />
@@ -403,4 +524,3 @@ export function Cartera() {
     </div>
   );
 }
-

@@ -40,6 +40,43 @@ export const DEFINICIONES: DefSerie[] = [
   def("SOL/USDT", true, "2020-08-11", "2026-10-15", "—", 0.9, [[0, 142.3], [1, 140.1], [5, 148.9], [21, 161.2], [63, 118.4], [252, 131.6], [400, 259.0], ["2024-03-18", 203], ["2023-12-25", 120], [1260, 22.4], ["2022-12-29", 9.8], ["2021-11-06", 258], ["2021-01-01", 1.5], [-1, 3.0]]),
 ];
 
+/** Nombres llanos del ejemplo, como los devuelve la API v2.1 (`nombre`). */
+const NOMBRES: Record<string, string> = {
+  IEF: "Bonos de EE.UU. a 7-10 años",
+  GLD: "Oro",
+  TLT: "Bonos de EE.UU. a largo plazo",
+  SPY: "Bolsa de EE.UU.",
+  QQQ: "Tecnológicas de EE.UU. (Nasdaq 100)",
+  XLE: "Energía de EE.UU.",
+  XLF: "Bancos de EE.UU.",
+  XLK: "Tecnología de EE.UU.",
+  XLV: "Salud de EE.UU.",
+  XLU: "Eléctricas de EE.UU.",
+  XLP: "Consumo básico de EE.UU.",
+  AAPL: "Apple",
+  NVDA: "Nvidia",
+  MSFT: "Microsoft",
+  "IBE.MC": "Iberdrola",
+  "SAN.MC": "Banco Santander",
+  "BTC/USDT": "Bitcoin",
+  "ETH/USDT": "Ethereum",
+  "SOL/USDT": "Solana",
+  "BNB/USDT": "BNB",
+  "XRP/USDT": "XRP",
+};
+
+export function nombreDe(simbolo: string): string {
+  return NOMBRES[simbolo] ?? simbolo;
+}
+
+/** La moneda del precio: la del par en cripto; euros en Madrid; dolares en EE.UU. */
+export function monedaDe(simbolo: string): string {
+  if (simbolo.includes("/")) return simbolo.split("/")[1] ?? "USDT";
+  if (/\.(MC|PA|DE|AS|MI)$/.test(simbolo)) return "EUR";
+  if (simbolo.endsWith(".SW")) return "CHF";
+  return "USD";
+}
+
 function def(
   simbolo: string,
   cripto: boolean,

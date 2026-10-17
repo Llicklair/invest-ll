@@ -1,11 +1,11 @@
 "use client";
 
-import { Coffee, Compass, PlugZap, Wallet } from "lucide-react";
+import { Compass, PlugZap, Wallet } from "lucide-react";
 import { useState } from "react";
 
 import { api, pedir } from "@/api/cliente";
 import type { Accion } from "@/api/tipos";
-import { EstadoVacio } from "@/componentes/EstadoVacio";
+import { EstadoVacio, NadaQueHacer } from "@/componentes/EstadoVacio";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { TarjetaAccion } from "@/componentes/TarjetaAccion";
 import {
@@ -144,9 +144,7 @@ export function Invertir() {
                     {h.resumen}
                   </EstadoVacio>
                 ) : h.acciones.length === 0 ? (
-                  <EstadoVacio icono={Coffee} titulo="No toca hacer nada">
-                    {h.resumen.replace(/^No toca hacer nada\.\s*/, "") || "Todo está como tiene que estar."}
-                  </EstadoVacio>
+                  <NadaQueHacer resumen={h.resumen} />
                 ) : (
                   <p className="text-[0.9375rem] text-tinta-suave">{h.resumen}</p>
                 )}

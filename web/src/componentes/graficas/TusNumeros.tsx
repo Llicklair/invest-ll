@@ -19,6 +19,8 @@ import { eurosNum, mesYAnio } from "@/lib/formato";
 import { CajaTooltip, EJE, Figura, REJILLA, TeclaLinea, colorSerie, ejeRedondo, fechaTexto, marcasTiempo } from "./comun";
 
 const PUESTO = "var(--tinta-suave)";
+/** Tu reparto: en el color del texto, que no es ninguno de los de las series ni el gris de lo puesto. */
+const REPARTO = "var(--tinta)";
 const CURSOR = { stroke: "var(--tinta-suave)", strokeWidth: 1 };
 
 /** Marcas del eje Y en euros enteros: "10.000 €" (la "K" es jerga para quien empieza). */
@@ -44,35 +46,50 @@ export interface SerieSimulada {
  */
 export function GraficaTusNumeros({
   series,
+  combinado = null,
   titulo,
   pie,
   atenuada,
   alto = 320,
 }: {
   series: readonly SerieSimulada[];
+  /**
+   * Tu reparto entero (`combinado`, contrato v2.1): la linea que importa, destacada (mas gruesa y
+   * en el color de la tinta). Las de cada estrategia son "todo tu dinero en una sola".
+   */
+  combinado?: ResultadoSimulado | null;
   titulo?: ReactNode;
   pie?: ReactNode;
   atenuada?: boolean;
   alto?: number;
 }) {
-  // Filas por fecha: una columna por estrategia (s0, s1...) y lo puesto (p).
-  const porFecha = new Map<number, { valores: (number | null)[]; puesto: number | null }>();
+  // Filas por fecha: una columna por estrategia (s0, s1...), tu reparto (c) y lo puesto (p).
+  // Lo puesto sale del reparto si lo hay: es el dinero que de verdad pondrias.
+  const porFecha = new Map<number, { valores: (number | null)[]; combinado: number | null; puesto: number | null }>();
+  const fila = (t: number) => {
+    let f = porFecha.get(t);
+    if (!f) {
+      f = { valores: series.map(() => null), combinado: null, puesto: null };
+      porFecha.set(t, f);
+    }
+    return f;
+  };
+  for (const p of combinado?.puntos ?? []) {
+    const f = fila(Date.parse(`${p.fecha}T00:00:00Z`));
+    f.combinado = p.valor;
+    f.puesto = p.aportado;
+  }
   series.forEach((s, i) => {
     for (const p of s.resultado.puntos) {
-      const t = Date.parse(`${p.fecha}T00:00:00Z`);
-      let fila = porFecha.get(t);
-      if (!fila) {
-        fila = { valores: series.map(() => null), puesto: null };
-        porFecha.set(t, fila);
-      }
-      fila.valores[i] = p.valor;
-      fila.puesto ??= p.aportado;
+      const f = fila(Date.parse(`${p.fecha}T00:00:00Z`));
+      f.valores[i] = p.valor;
+      f.puesto ??= p.aportado;
     }
   });
   const tiempos = [...porFecha.keys()].sort((a, b) => a - b);
   const filas = tiempos.map((t) => {
     const f = porFecha.get(t);
-    const fila: Record<string, number | null> = { t, p: f?.puesto ?? null };
+    const fila: Record<string, number | null> = { t, p: f?.puesto ?? null, c: f?.combinado ?? null };
     f?.valores.forEach((v, i) => {
       fila[`s${i}`] = v;
     });
@@ -90,8 +107,9 @@ export function GraficaTusNumeros({
   const finales = series.map((s) => s.resultado.puntos[s.resultado.puntos.length - 1] ?? null);
   const puestoFinal = filas.length ? (filas[filas.length - 1]?.p ?? null) : null;
 
-  const resumen = `Lo que habrías tenido: ${series
-    .map((s) => `${s.resultado.nombre} termina en ${eurosNum(s.resultado.valor_final)} y en su peor momento valió ${eurosNum(s.resultado.peor_momento_valor)} (${mesYAnio(s.resultado.peor_momento_fecha)})`)
+  const todas = combinado ? [combinado, ...series.map((s) => s.resultado)] : series.map((s) => s.resultado);
+  const resumen = `Lo que habrías tenido: ${todas
+    .map((r) => `${r.nombre} termina en ${eurosNum(r.valor_final)} y en su peor momento valió ${eurosNum(r.peor_momento_valor)} (${mesYAnio(r.peor_momento_fecha)})`)
     .join("; ")}. Lo que habrías puesto: ${eurosNum(puestoFinal)}.`;
 
   const tooltip = (p: TooltipContentProps) => {
@@ -101,6 +119,7 @@ export function GraficaTusNumeros({
       <CajaTooltip
         titulo={fechaTexto(p.label)}
         filas={[
+          ...(combinado ? [{ color: REPARTO, nombre: combinado.nombre, valor: eurosNum(f?.combinado) }] : []),
           ...series.map((s, i) => ({
             color: colorSerie(s.hueco),
             nombre: s.resultado.nombre,
@@ -126,6 +145,11 @@ export function GraficaTusNumeros({
               <th scope="col" className="px-3 py-2 font-medium">
                 Semana
               </th>
+              {combinado ? (
+                <th scope="col" className="px-3 py-2 text-right font-medium">
+                  {combinado.nombre}
+                </th>
+              ) : null}
               {series.map((s) => (
                 <th key={s.resultado.clave} scope="col" className="px-3 py-2 text-right font-medium">
                   {s.resultado.nombre}
@@ -142,6 +166,7 @@ export function GraficaTusNumeros({
               return (
                 <tr key={t} className="border-t border-linea">
                   <td className="px-3 py-1 whitespace-nowrap">{fechaTexto(t)}</td>
+                  {combinado ? <td className="px-3 py-1 text-right font-semibold whitespace-nowrap">{eurosNum(f?.combinado)}</td> : null}
                   {(f?.valores ?? []).map((v, i) => (
                     <td key={i} className="px-3 py-1 text-right whitespace-nowrap">
                       {v === null ? "—" : eurosNum(v)}
@@ -156,6 +181,13 @@ export function GraficaTusNumeros({
       )}
     >
       <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label="Leyenda">
+        {combinado ? (
+          <li className="flex items-center gap-2">
+            <TeclaLinea color={REPARTO} grosor={3.5} />
+            <span className="font-semibold text-tinta">{combinado.nombre}</span>
+            <span className="cifras font-semibold text-tinta">{eurosNum(combinado.valor_final)}</span>
+          </li>
+        ) : null}
         {series.map((s, i) => (
           <li key={s.resultado.clave} className="flex items-center gap-2">
             <TeclaLinea color={colorSerie(s.hueco)} />
@@ -218,6 +250,32 @@ export function GraficaTusNumeros({
               isAnimationActive={false}
             />
           ))}
+          {combinado ? (
+            <Line
+              type="linear"
+              dataKey="c"
+              name={combinado.nombre}
+              stroke={REPARTO}
+              strokeWidth={3.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              dot={false}
+              connectNulls
+              activeDot={{ r: 5, fill: REPARTO, stroke: "var(--superficie)", strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+          ) : null}
+          {combinado ? (
+            <ReferenceDot
+              x={Date.parse(`${combinado.peor_momento_fecha}T00:00:00Z`)}
+              y={combinado.peor_momento_valor}
+              r={6}
+              fill="var(--superficie)"
+              stroke={REPARTO}
+              strokeWidth={3}
+              ifOverflow="visible"
+            />
+          ) : null}
           {series.map((s) => (
             <ReferenceDot
               key={`peor-${s.resultado.clave}`}

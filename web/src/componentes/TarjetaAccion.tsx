@@ -4,7 +4,7 @@ import { ArrowRight, ChevronRight, Coins, Landmark, PlugZap } from "lucide-react
 import Link from "next/link";
 
 import type { Accion, ModoPanel } from "@/api/tipos";
-import { formatoCantidad, formatoImporte } from "@/lib/decimal";
+import { formatoCantidad } from "@/lib/decimal";
 import { enMoneda, fechaCorta } from "@/lib/formato";
 import { base } from "@/lib/nombres";
 
@@ -76,13 +76,14 @@ export function TarjetaAccion({
             <p className="cifras mt-2 text-sm text-tinta-suave">
               {binance ? (
                 <>
-                  Precio de referencia: {enMoneda(a.precio_ref, a.moneda)}
+                  Precio de referencia: {enMoneda(a.precio_ref, a.precio_ref_moneda ?? a.moneda)}
                   {a.precio_fecha ? ` (cierre del ${fechaCorta(a.precio_fecha)})` : ""}. El de la orden será el del momento.
                 </>
               ) : (
                 <>
-                  Referencia: el fondo de EE.UU. ({a.simbolo}) cerró a {formatoImporte(a.precio_ref)} $
-                  {a.precio_fecha ? ` el ${fechaCorta(a.precio_fecha)}` : ""}. El europeo que compras tiene otro precio, en euros.
+                  Para calcularlo se usa el fondo de EE.UU. al que imita ({a.referencia ?? a.simbolo}), que cerró a{" "}
+                  {enMoneda(a.precio_ref, a.precio_ref_moneda ?? "USD")}
+                  {a.precio_fecha ? ` el ${fechaCorta(a.precio_fecha)}` : ""}. El tuyo, el europeo, tiene otro precio y va en euros.
                 </>
               )}
             </p>

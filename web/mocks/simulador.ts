@@ -17,7 +17,7 @@ import { escribir } from "@/lib/almacen";
 import { correlacion, dinero, informe, media, rendimientos, simular } from "./calculo";
 import * as panel from "./panel";
 import { ESCENARIOS, type Escenario } from "./panel";
-import { DEFINICIONES, serie, type SerieGenerada } from "./series";
+import { DEFINICIONES, monedaDe, nombreDe, serie, type SerieGenerada } from "./series";
 
 type S = components["schemas"];
 
@@ -104,6 +104,11 @@ function trigger(id: string, symbol: string, regla: string, umbral: string, arma
   return { trigger_id: id, symbol, regla, umbral, armado, descripcion: `${symbol}: proponer la venta si ${condicion}` };
 }
 
+/** Una fila del registro de ordenes, con el nombre llano y la moneda del par (v2.1). */
+function filaOrden(f: Omit<S["FilaOrden"], "nombre" | "moneda">): S["FilaOrden"] {
+  return { ...f, nombre: nombreDe(f.activo), moneda: monedaDe(f.activo) };
+}
+
 function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
   if (!["pruebas", "fallo-red", "listo-para-real", "real", "entorno"].includes(e)) return [];
   const filas: S["FilaOrden"][] = [
@@ -111,6 +116,8 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
       cuando: "2026-10-15T16:40:10Z",
       modo: "pruebas",
       activo: "SOL/USDT",
+      nombre: "Solana",
+      moneda: "USDT",
       lado: "sell",
       pedida: "1",
       ejecutada: "0",
@@ -123,6 +130,8 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
       cuando: "2026-10-14T09:15:02Z",
       modo: "pruebas",
       activo: "ETH/USDT",
+      nombre: "Ethereum",
+      moneda: "USDT",
       lado: "buy",
       pedida: "0.05",
       ejecutada: "0.032",
@@ -135,6 +144,8 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
       cuando: "2026-10-14T09:12:33Z",
       modo: "pruebas",
       activo: "BTC/USDT",
+      nombre: "Bitcoin",
+      moneda: "USDT",
       lado: "buy",
       pedida: "0.001",
       ejecutada: "0.001",
@@ -147,18 +158,20 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
   // En pruebas todavia no hay ninguna ejecutada: es la etapa 2 que falta.
   if (e === "pruebas" || e === "fallo-red") return filas.slice(0, 1);
   if (e === "real") {
-    filas.unshift({
-      cuando: "2026-10-16T11:02:47Z",
-      modo: "REAL",
-      activo: "BTC/USDT",
-      lado: "buy",
-      pedida: "0.0005",
-      ejecutada: "0.0005",
-      precio: "81920.04",
-      comision: null,
-      estado: "filled",
-      referencia: "8829301144",
-    });
+    filas.unshift(
+      filaOrden({
+        cuando: "2026-10-16T11:02:47Z",
+        modo: "REAL",
+        activo: "BTC/USDT",
+        lado: "buy",
+        pedida: "0.0005",
+        ejecutada: "0.0005",
+        precio: "81920.04",
+        comision: null,
+        estado: "filled",
+        referencia: "8829301144",
+      }),
+    );
   }
   return filas;
 }
@@ -220,17 +233,7 @@ function listaTextos(o: Objeto, campo: string): string[] {
 function costeDe(o: Objeto): number | Response {
   const c = texto(o, "comision");
   const s = texto(o, "slippage");
-  if (c === null || s === null) {
-    return json(
-      {
-        detail: [
-          ...(c === null ? [{ loc: ["body", "comision"], msg: "Field required", type: "missing" }] : []),
-          ...(s === null ? [{ loc: ["body", "slippage"], msg: "Field required", type: "missing" }] : []),
-        ],
-      },
-      422,
-    );
-  }
+  if (c === null || s === null) return fallo(422, "Faltan los costes: pon la comisión y el deslizamiento en Laboratorio · Costes.");
   return Number(c) + Number(s);
 }
 
@@ -289,7 +292,9 @@ function rendimiento(): S["Rendimiento"] {
       d.cripto,
       {
         activo: d.simbolo,
+        nombre: nombreDe(d.simbolo),
         que_es: d.queEs,
+        moneda: monedaDe(d.simbolo),
         ultimo: ult,
         var_1d: variacion(c, 1),
         var_1s: variacion(c, 5),
@@ -314,9 +319,7 @@ const VENTANAS: Record<string, number> = { "1 mes": 21, "3 meses": 63, "1 año":
 function serieRuta(url: URL): Response {
   const simbolo = url.searchParams.get("symbol") ?? "";
   const tramo = url.searchParams.get("tramo") ?? "1a";
-  if (!(tramo in SESIONES)) {
-    return json({ detail: [{ loc: ["query", "tramo"], msg: "Input should be '3m', '1a', '5a' or 'todo'", type: "literal_error" }] }, 422);
-  }
+  if (!(tramo in SESIONES)) return fallo(422, `No hay ningún periodo «${tramo}»: son 3 meses, 1 año, 5 años o todo.`);
   const s = serie(simbolo);
   if (!s) return fallo(404, `No hay historico descargado de ${simbolo}`);
   const k = SESIONES[tramo];
@@ -333,9 +336,7 @@ function serieRuta(url: URL): Response {
 
 function comparacion(url: URL): Response {
   const ids = url.searchParams.getAll("activos");
-  if (!ids.length) {
-    return json({ detail: [{ loc: ["query", "activos"], msg: "Field required", type: "missing" }] }, 422);
-  }
+  if (!ids.length) return fallo(422, "Elige al menos un activo para comparar.");
   const ventana = url.searchParams.get("ventana");
   const series = ids.map((id) => serie(id)).filter((s): s is SerieGenerada => s !== null);
   const comun = series.reduce((max, s) => ((s.fechas[0] ?? "") > max ? (s.fechas[0] ?? "") : max), "");
@@ -436,14 +437,14 @@ function motivoNoEnviar(m: Mundo, cantidad: string, escrito: string): string | n
 
 function propuesta(m: Mundo, o: Objeto): Response {
   if (m.pausa) {
-    return fallo(409, `Pausa activa: ${m.pausa}. No se proponen entradas nuevas; las posiciones abiertas no se tocan. Retirala con invest-ll-triggers resume.`);
+    return fallo(409, `Las compras están en pausa: ${m.pausa}. No se proponen compras nuevas; lo que tienes no se toca. Quítala en Cartera · Protección.`);
   }
   const coste = costeDe(o);
   if (coste instanceof Response) return coste;
   const ids = listaTextos(o, "activos");
   const importe = numeroDe(o, "importe", 0);
   const frecuencia = texto(o, "frecuencia") ?? "";
-  if (!ids.length) return json({ detail: [{ loc: ["body", "activos"], msg: "List should have at least 1 item after validation, not 0", type: "too_short" }] }, 422);
+  if (!ids.length) return fallo(422, "Elige al menos un activo para la propuesta.");
   if (!["monthly", "quarterly", "weekly"].includes(frecuencia)) return fallo(422, `frecuencia desconocida: '${frecuencia}' (usa monthly, quarterly o weekly)`);
   const series = ids.map((id) => serie(id)).filter((s): s is SerieGenerada => s !== null);
   const parte = importe / series.length;
@@ -539,7 +540,7 @@ function universo(ids: string[]): { simbolos: string[]; fechas: string[]; cierre
 
 function analisis(o: Objeto): Response {
   const ids = listaTextos(o, "activos");
-  if (ids.length < 2) return json({ detail: [{ loc: ["body", "activos"], msg: "List should have at least 2 items after validation, not 1", type: "too_short" }] }, 422);
+  if (ids.length < 2) return fallo(422, "Para analizar una cartera hacen falta al menos dos activos.");
   const u = universo(ids);
   if (u.fechas.length < 30) return fallo(422, `Solo ${u.fechas.length} fechas comunes entre ${u.simbolos.join(", ")}: no hay solape suficiente para formar una cartera.`);
   const r = u.cierres.map(rendimientos);
@@ -844,7 +845,7 @@ table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px;text-
 
 function chat(m: Mundo, o: Objeto): Response {
   const pregunta = (texto(o, "pregunta") ?? "").trim();
-  if (!pregunta) return json({ detail: [{ loc: ["body", "pregunta"], msg: "String should have at least 1 character", type: "string_too_short" }] }, 422);
+  if (!pregunta) return fallo(422, "Escribe tu pregunta antes de enviarla.");
   const pedida = texto(o, "sesion");
   if (pedida !== null && !m.chats.has(pedida)) return fallo(404, `No hay ninguna sesion de chat con id ${pedida}`);
   const sesion = pedida ?? `ejemplo-${Math.floor(Math.random() * 1e6)}`;
@@ -893,12 +894,16 @@ export async function responder(peticion: Request): Promise<Response> {
         return json({
           ...h,
           acciones: [],
-          resumen: "No toca comprar nada: la pausa de compras está activa.",
-          avisos: [`Pausa de compras activa: ${m.pausa}. Quítala en Cartera · Protección cuando quieras seguir.`, ...h.avisos],
+          resumen: "No toca comprar nada: las compras están en pausa.",
+          avisos: [panel.avisoPausa(m.pausa), ...h.avisos],
         } satisfies S["Hoy"]);
       }
       return json(h);
     }
+    case "GET /api/datos":
+      return json(panel.estadoDatos(m.panel));
+    case "POST /api/datos/actualizar":
+      return panel.actualizarDatos(m.panel);
     case "GET /api/cartera/movimientos":
       return json(panel.movimientos(m.panel));
     case "GET /api/conexion":
@@ -954,9 +959,14 @@ export async function responder(peticion: Request): Promise<Response> {
       const o = await cuerpo(peticion);
       const tipo = texto(o, "tipo") ?? "";
       const cantidad = texto(o, "cantidad") ?? "";
-      if (leerDecimal(cantidad) === null || compararDecimal(cantidad, "0") <= 0) return fallo(422, `la cantidad debe ser un numero positivo, recibido '${cantidad}'`);
+      if (tipo !== "compra" && tipo !== "venta" && tipo !== "ingreso" && tipo !== "retirada") {
+        return fallo(422, `No hay ningún tipo de movimiento «${tipo}»: compra, venta, ingreso o retirada.`);
+      }
+      if (leerDecimal(cantidad) === null || compararDecimal(cantidad, "0") <= 0) {
+        return fallo(422, `${tipo === "compra" || tipo === "venta" ? "La cantidad" : "El importe"} tiene que ser un número mayor que 0 (has puesto «${cantidad}»).`);
+      }
       if ((tipo === "compra" || tipo === "venta") && (!texto(o, "simbolo") || !texto(o, "precio"))) {
-        return fallo(422, `una ${tipo} necesita activo y precio unitario`);
+        return fallo(422, `Para anotar una ${tipo} hace falta saber qué y a qué precio.`);
       }
       m.movimientos += 1;
       const precioMov = texto(o, "precio");
@@ -982,10 +992,10 @@ export async function responder(peticion: Request): Promise<Response> {
           .filter((f) => f.estado !== "filled" || f.ejecutada !== f.pedida)
           .map((f) =>
             f.estado === "rejected"
-              ? `${f.activo}: rechazada.`
+              ? `${f.nombre}: Binance la rechazó.`
               : f.estado === "unknown"
-                ? `${f.activo}: ESTADO DESCONOCIDO. Se envio la orden y se perdio la conexion. NO se asume que se ejecuto ni que fallo — compruebalo en el exchange antes de volver a operar.`
-                : `${f.activo}: ejecutada solo en parte (${f.ejecutada} de ${f.pedida}).`,
+                ? `${f.nombre}: ESTADO DESCONOCIDO. Se envió la orden y se perdió la conexión: no se sabe si se ejecutó. Compruébalo en Binance antes de volver a operar.`
+                : `${f.nombre}: se hizo solo una parte (${f.ejecutada} de ${f.pedida}).`,
           ),
         sin_comision: filas.filter((f) => f.comision === null && f.ejecutada !== "0").length,
         registro: "ledger/ejecuciones.jsonl",
@@ -1010,46 +1020,67 @@ export async function responder(peticion: Request): Promise<Response> {
       const lado = texto(o, "lado") ?? "buy";
       await esperar(800);
       const precio = ultimo(serie(par)?.cierres ?? []) ?? 100;
+      const moneda = monedaDe(par);
       if (m.panel.falloRed) {
         await esperar(1500);
-        m.ordenes.unshift({
+        m.ordenes.unshift(
+          filaOrden({
+            cuando: new Date().toISOString(),
+            modo: modo(m).nombre,
+            activo: par,
+            lado,
+            pedida: cantidad,
+            ejecutada: "0",
+            precio: null,
+            comision: null,
+            estado: "unknown",
+            referencia: "",
+          }),
+        );
+        const desconocida: S["ResultadoOrden"] = {
+          estado: "unknown",
+          descripcion: `${par}: ESTADO DESCONOCIDO. Se envió la orden y se perdió la conexión antes de la respuesta. NO se asume que se ejecutó ni que falló.`,
+          resumen: "No se sabe si se ejecutó: se envió la orden y se perdió la conexión antes de la respuesta. Compruébalo en Binance antes de volver a operar.",
+          necesita_atencion: true,
+          modo: modo(m).nombre,
+          pedida: cantidad,
+          ejecutada: "0",
+          precio: null,
+          comision: null,
+          moneda,
+          en_cartera: false,
+        };
+        return json(desconocida);
+      }
+      panel.ordenEjecutada(m.panel, par, lado, Number(cantidad), precio);
+      const comision = (Number(cantidad) * precio * 0.001).toFixed(8);
+      m.ordenes.unshift(
+        filaOrden({
           cuando: new Date().toISOString(),
           modo: modo(m).nombre,
           activo: par,
           lado,
           pedida: cantidad,
-          ejecutada: "0",
-          precio: null,
-          comision: null,
-          estado: "unknown",
-          referencia: "",
-        });
-        const desconocida: S["ResultadoOrden"] = {
-          estado: "unknown",
-          descripcion: `${par}: ESTADO DESCONOCIDO. Se envió la orden y se perdió la conexión antes de la respuesta. NO se asume que se ejecutó ni que falló.`,
-          necesita_atencion: true,
-          modo: modo(m).nombre,
-        };
-        return json(desconocida);
-      }
-      panel.ordenEjecutada(m.panel, par, lado, Number(cantidad), precio);
-      m.ordenes.unshift({
-        cuando: new Date().toISOString(),
+          ejecutada: cantidad,
+          precio: precio.toFixed(2),
+          comision,
+          estado: "filled",
+          referencia: `ejemplo-${Math.floor(Math.random() * 1e7)}`,
+        }),
+      );
+      const cifra = (v: number, d: number) => v.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+      const r: S["ResultadoOrden"] = {
+        estado: "filled",
+        descripcion: `${par}: ejecutada ${cantidad} a ${precio.toFixed(2)} (comisión ${comision} ${moneda}).`,
+        resumen: `${lado === "buy" ? "Compraste" : "Vendiste"} ${cifra(Number(cantidad), String(cantidad).split(".")[1]?.length ?? 0)} ${nombreDe(par)} a ${cifra(precio, 2)} ${moneda}. ${lado === "buy" ? "Ya está en tu cartera" : "Ya está fuera de tu cartera"}${modo(m).nombre === "pruebas" ? " de pruebas" : ""}.`,
+        necesita_atencion: false,
         modo: modo(m).nombre,
-        activo: par,
-        lado,
         pedida: cantidad,
         ejecutada: cantidad,
         precio: precio.toFixed(2),
-        comision: (Number(cantidad) * precio * 0.001).toFixed(8),
-        estado: "filled",
-        referencia: `ejemplo-${Math.floor(Math.random() * 1e7)}`,
-      });
-      const r: S["ResultadoOrden"] = {
-        estado: "filled",
-        descripcion: `${par}: ejecutada ${cantidad} a ${precio.toFixed(2)}.`,
-        necesita_atencion: false,
-        modo: modo(m).nombre,
+        comision,
+        moneda,
+        en_cartera: true,
       };
       return json(r);
     }

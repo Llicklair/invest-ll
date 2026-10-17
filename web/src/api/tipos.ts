@@ -95,6 +95,15 @@ export type Saldo = S["Saldo"];
 export type SaldoMoneda = S["SaldoMoneda"];
 export type Simulacion = S["Simulacion"];
 
+// -- Contrato v2.1 -------------------------------------------------------------------------------
+
+export type EstadoDatos = S["EstadoDatos"];
+export type FuenteDatos = S["FuenteDatos"];
+export type PasoDatos = S["PasoDatos"];
+export type TrabajoDatos = S["TrabajoDatos"];
+export type PorcentajeEstrategia = S["PorcentajeEstrategia"];
+export type TipoMovimiento = NuevoMovimiento["tipo"];
+
 export type ModoPanel = Conexion["modo"];
 export type Red = EstadoRed["red"];
 export type Horizonte = Perfil["horizonte"];

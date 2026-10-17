@@ -8,8 +8,8 @@
  */
 import type { components } from "@/api/esquema";
 
-import { DEFS, catalogo, definicion, recomendar, simular, type Escasez } from "./estrategias";
-import { serie } from "./series";
+import { DEFS, catalogo, definicion, recomendar, simular, simularCombinado, type Escasez } from "./estrategias";
+import { monedaDe, nombreDe, serie } from "./series";
 
 type S = components["schemas"];
 type ModoPanel = S["Conexion"]["modo"];
@@ -23,12 +23,19 @@ interface Pos {
   cantidad: number;
   coste: number;
   abierta: string;
+  /**
+   * Compra del broker hecha desde el plan: `cantidad` son unidades del fondo de EE.UU. de
+   * referencia (no tus participaciones) y `coste`, lo que pagaste en euros (contrato v2.1).
+   */
+  referencia?: boolean;
 }
 
 interface CarteraMock {
   posiciones: Pos[];
   retiradas: S["PosicionRetirada"][];
   movimientos: S["Movimiento"][];
+  /** Lo ingresado y aun sin invertir. */
+  efectivo: number;
 }
 
 interface Claves {
@@ -51,7 +58,20 @@ export interface EstadoPanel {
   /** La API recien arrancada: el primer catalogo tarda (~25 s en la de verdad; aqui, 9). */
   frio: boolean;
   siguiente: number;
+  datos: DatosMock;
 }
+
+/** `/api/datos` del ejemplo: de cuando es cada fuente y la ultima actualizacion (en curso o hecha). */
+interface DatosMock {
+  hasta: Record<ClaveFuente, string>;
+  /** `Date.now()` al pulsar "Actualizar ahora"; `null` si no se ha actualizado en esta sesion. */
+  empezado: number | null;
+  /** La actualizacion falla al bajar los fondos (para ver como se ensena un paso que sale mal). */
+  fallaFondos: boolean;
+  aplicada: boolean;
+}
+
+type ClaveFuente = "historicos" | "fondos" | "cripto";
 
 const HOY = "2026-10-17";
 
@@ -65,8 +85,9 @@ export function fallo(status: number, detail: string): Response {
   return json({ detail }, status);
 }
 
-function validacion(campo: string[], msg: string): Response {
-  return json({ detail: [{ loc: ["body", ...campo], msg, type: "value_error" }] }, 422);
+/** Contrato v2.1: tambien los errores de validacion llegan como `{"detail": "texto en llano"}`. */
+export function validacion(texto: string): Response {
+  return fallo(422, texto);
 }
 
 const d2 = (v: number) => v.toFixed(2);
@@ -90,20 +111,31 @@ function variacionMes(simbolo: string): number | null {
   return a && b ? Math.round((b / a - 1) * 1000) / 10 : null;
 }
 
-const NOMBRES: Record<string, string> = {
-  "BTC/USDT": "Bitcoin",
-  "ETH/USDT": "Ethereum",
-  SPY: "Bolsa de EE.UU.",
-  IEF: "Bonos de EE.UU. a 7-10 años",
-  GLD: "Oro",
-  TLT: "Bonos de EE.UU. a largo plazo",
-  "IBE.MC": "Iberdrola",
-};
-const nombre = (s: string) => NOMBRES[s] ?? s;
+const nombre = nombreDe;
+
+/** "5,437" o "650,00": las cifras de la `nota` van en castellano, como las diria el broker. */
+function es(v: number, decimales: number): string {
+  return v.toLocaleString("es-ES", { minimumFractionDigits: decimales, maximumFractionDigits: decimales, useGrouping: true });
+}
+
+/** La `nota` de una compra del broker anotada en unidades del fondo de referencia. */
+function notaBroker(participaciones: number, precioEuros: number): string {
+  return `Compraste ${es(participaciones, 3).replace(/,?0+$/, "")} participaciones a ${es(precioEuros, 2)} € en tu bróker.`;
+}
 
 // -- Estado inicial de cada escenario --------------------------------------------------------------
 
-function mov(id: string, fecha: string, tipo: S["Movimiento"]["tipo"], simbolo: string | null, cantidad: number, precio: number | null, origen: string, comision = 0): S["Movimiento"] {
+function mov(
+  id: string,
+  fecha: string,
+  tipo: S["Movimiento"]["tipo"],
+  simbolo: string | null,
+  cantidad: number,
+  precio: number | null,
+  origen: string,
+  comision = 0,
+  referencia: { participaciones: number; precio: number } | null = null,
+): S["Movimiento"] {
   return {
     id,
     fecha: `${fecha}T09:30:00Z`,
@@ -115,20 +147,36 @@ function mov(id: string, fecha: string, tipo: S["Movimiento"]["tipo"], simbolo: 
     comision: d2(comision),
     importe: d2(precio === null ? cantidad : cantidad * precio),
     origen,
+    // Lo del broker se paga en euros; el efectivo, tambien.
+    moneda: referencia || !simbolo ? "EUR" : monedaDe(simbolo),
+    es_referencia: referencia !== null,
+    nota: referencia ? notaBroker(referencia.participaciones, referencia.precio) : null,
+  };
+}
+
+/**
+ * Una compra del broker desde el plan, como la guarda la API v2.1: pagaste `participaciones` a
+ * `precioEuros` y se apunta en unidades del fondo de EE.UU. `simbolo` al cierre `precioRef`.
+ */
+function compraBroker(id: string, fecha: string, simbolo: string, participaciones: number, precioEuros: number, precioRef: number, comision: number): { pos: Pos; mov: S["Movimiento"] } {
+  const pagado = participaciones * precioEuros;
+  const unidades = pagado / precioRef;
+  return {
+    pos: { simbolo, cantidad: unidades, coste: pagado + comision, abierta: fecha, referencia: true },
+    mov: mov(id, fecha, "compra", simbolo, unidades, precioRef, "plan", comision, { participaciones, precio: precioEuros }),
   };
 }
 
 function carteraReal(e: Escenario): CarteraMock {
-  if (e === "primera-vez" || e === "vacio" || e === "en-frio") return { posiciones: [], retiradas: [], movimientos: [] };
-  const posiciones: Pos[] = [
-    { simbolo: "SPY", cantidad: 6, coste: 4320, abierta: "2026-04-01" },
-    { simbolo: "IEF", cantidad: 30, coste: 2850, abierta: "2026-04-01" },
-    { simbolo: "BTC/USDT", cantidad: 0.0075, coste: 450, abierta: "2026-05-04" },
-  ];
+  if (e === "primera-vez" || e === "vacio" || e === "en-frio") return { posiciones: [], retiradas: [], movimientos: [], efectivo: 0 };
+  const spy = compraBroker("m-5", "2026-04-01", "SPY", 5.437, 650, 719.5, 3);
+  const ief = compraBroker("m-6", "2026-04-01", "IEF", 30.6, 93, 94.9, 3);
+  const posiciones: Pos[] = [spy.pos, ief.pos, { simbolo: "BTC/USDT", cantidad: 0.0075, coste: 450, abierta: "2026-05-04" }];
   const movimientos: S["Movimiento"][] = [
     mov("m-7", "2026-05-04", "compra", "BTC/USDT", 0.0075, 59880, "panel", 0.9),
-    mov("m-6", "2026-04-01", "compra", "IEF", 30, 94.9, "plan", 3),
-    mov("m-5", "2026-04-01", "compra", "SPY", 6, 719.5, "plan", 3),
+    ief.mov,
+    spy.mov,
+    mov("m-0", "2026-03-30", "ingreso", null, 6300, null, "manual"),
     mov("m-4", "2026-03-20", "venta", "GLD", 6, 331.67, "manual", 2),
     mov("m-3", "2026-01-12", "compra", "GLD", 6, 300, "manual", 2),
     mov("m-2", "2025-09-30", "venta", "TLT", 20, 80.62, "csv:broker-2025.csv", 0),
@@ -145,22 +193,24 @@ function carteraReal(e: Escenario): CarteraMock {
   return {
     posiciones,
     retiradas: [
-      { activo: "GLD", abierta: "2026-01-12", retirada: "2026-03-20", dias: 67, invertido: "1802.00", recuperado: "1988.02", pnl_realizado: "186.02" },
-      { activo: "TLT", abierta: "2024-05-02", retirada: "2025-09-30", dias: 516, invertido: "1803.20", recuperado: "1612.40", pnl_realizado: "-190.80" },
+      { activo: "GLD", nombre: nombre("GLD"), moneda: "USD", abierta: "2026-01-12", retirada: "2026-03-20", dias: 67, invertido: "1802.00", recuperado: "1988.02", pnl_realizado: "186.02" },
+      { activo: "TLT", nombre: nombre("TLT"), moneda: "USD", abierta: "2024-05-02", retirada: "2025-09-30", dias: 516, invertido: "1803.20", recuperado: "1612.40", pnl_realizado: "-190.80" },
     ],
     movimientos,
+    efectivo: 236.4,
   };
 }
 
 function carteraPruebas(e: Escenario): CarteraMock {
   if (!["pruebas", "listo-para-real", "real", "entorno", "fallo-red"].includes(e)) {
-    return { posiciones: [], retiradas: [], movimientos: [] };
+    return { posiciones: [], retiradas: [], movimientos: [], efectivo: 0 };
   }
   const conOrden = e !== "pruebas" && e !== "fallo-red";
   return {
     posiciones: conOrden ? [{ simbolo: "BTC/USDT", cantidad: 0.001, coste: 82.09, abierta: "2026-10-14" }] : [],
     retiradas: [],
     movimientos: conOrden ? [mov("p-1", "2026-10-14", "compra", "BTC/USDT", 0.001, 82011.5, "panel", 0.08)] : [],
+    efectivo: 0,
   };
 }
 
@@ -194,7 +244,85 @@ export function nuevoEstado(e: Escenario): EstadoPanel {
     falloRed: e === "fallo-red",
     frio: e === "en-frio",
     siguiente: 100,
+    datos: {
+      hasta:
+        e === "datos-viejos"
+          ? { historicos: "2026-09-30", fondos: "2026-09-30", cripto: "2026-10-02" }
+          : e === "sin-datos"
+            ? { historicos: "2026-10-15", fondos: "2026-10-15", cripto: "2026-10-02" }
+            : { historicos: "2026-10-15", fondos: "2026-10-15", cripto: "2026-10-15" },
+      // "datos-actualizando": se abre con una actualizacion ya en marcha (empezada hace 3 s).
+      empezado: e === "datos-actualizando" ? Date.now() - 3000 : null,
+      fallaFondos: e === "datos-viejos",
+      aplicada: false,
+    },
   };
+}
+
+// -- Datos: de cuando son y actualizarlos (contrato v2.1) ------------------------------------------
+
+const FUENTES: { clave: ClaveFuente; nombre: string; paso: string; hecho: string }[] = [
+  { clave: "historicos", nombre: "Precios de bolsa, oro y cripto (Mercado)", paso: "Precios de bolsa, oro y cripto", hecho: "14 históricos al día" },
+  { clave: "fondos", nombre: "Fondos de las estrategias de bolsa", paso: "Fondos de bolsa", hecho: "8 fondos al día" },
+  { clave: "cripto", nombre: "Criptomonedas de Binance (estrategias de cripto)", paso: "Criptomonedas de Binance", hecho: "Bitcoin y otras 29 monedas al día" },
+];
+
+/** Cada paso de la actualizacion de ejemplo tarda esto. */
+const PASO_MS = 4000;
+const AYER = "2026-10-16";
+
+function dias(desde: string): number {
+  return Math.round((Date.parse(`${HOY}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000);
+}
+
+export function estadoDatos(p: EstadoPanel): S["EstadoDatos"] {
+  const d = p.datos;
+  let trabajo: S["TrabajoDatos"] | null = null;
+  if (d.empezado !== null) {
+    const pasado = Date.now() - d.empezado;
+    const pasos: S["PasoDatos"][] = FUENTES.map((f, i) => {
+      const mal = f.clave === "fondos" && d.fallaFondos;
+      if (pasado < i * PASO_MS) return { nombre: f.paso, estado: "pendiente", detalle: null };
+      if (pasado < (i + 1) * PASO_MS) return { nombre: f.paso, estado: "en_marcha", detalle: "Descargando…" };
+      return mal
+        ? { nombre: f.paso, estado: "mal", detalle: "Yahoo Finance no respondió tras 3 intentos. Lo demás sí se ha actualizado; vuelve a intentarlo más tarde." }
+        : { nombre: f.paso, estado: "bien", detalle: `${f.hecho} hasta el 16 oct.` };
+    });
+    const terminado = pasado >= FUENTES.length * PASO_MS;
+    trabajo = {
+      en_marcha: !terminado,
+      empezado: new Date(d.empezado).toISOString(),
+      terminado: terminado ? new Date(d.empezado + FUENTES.length * PASO_MS).toISOString() : null,
+      pasos,
+    };
+    if (terminado && !d.aplicada) {
+      d.aplicada = true;
+      for (const f of FUENTES) if (!(f.clave === "fondos" && d.fallaFondos)) d.hasta[f.clave] = AYER;
+      if (d.hasta.cripto === AYER) p.escasez = "ninguna";
+    }
+  }
+  const fuentes: S["FuenteDatos"][] = FUENTES.map((f) => {
+    const hasta = d.hasta[f.clave];
+    const n = dias(hasta);
+    return { clave: f.clave, nombre: f.nombre, hasta, dias: n, al_dia: n <= 4 };
+  });
+  const viejas = fuentes.filter((f) => !f.al_dia);
+  const masVieja = viejas.map((f) => f.hasta ?? HOY).sort()[0];
+  return {
+    fuentes,
+    al_dia: viejas.length === 0,
+    aviso: masVieja
+      ? `Hay precios del ${Number(masVieja.slice(8))} de ${MESES[Number(masVieja.slice(5, 7)) - 1] ?? ""}: lo que depende de ellos (estrategias, tu plan, el mercado) no es de hoy.`
+      : null,
+    trabajo,
+  };
+}
+
+export function actualizarDatos(p: EstadoPanel): Response {
+  if (estadoDatos(p).trabajo?.en_marcha) return fallo(409, "Ya hay una actualización en marcha: espera a que termine.");
+  p.datos.empezado = Date.now();
+  p.datos.aplicada = false;
+  return json(estadoDatos(p), 202);
 }
 
 // -- Cartera del modo activo -----------------------------------------------------------------------
@@ -208,6 +336,10 @@ function abierta(pos: Pos): S["PosicionAbierta"] {
   const valor = c ? pos.cantidad * c.precio : null;
   return {
     activo: pos.simbolo,
+    nombre: nombre(pos.simbolo),
+    // Lo del broker se apunta con lo que pagaste en euros (y se valora sin contar el cambio).
+    moneda: pos.referencia ? "EUR" : monedaDe(pos.simbolo),
+    es_referencia: pos.referencia === true,
     cantidad: cant(pos.cantidad),
     coste_medio: d2(pos.coste / pos.cantidad),
     invertido: d2(pos.coste),
@@ -226,7 +358,9 @@ function agrupadas(c: CarteraMock): Pos[] {
     const previa = porSimbolo.get(p.simbolo);
     porSimbolo.set(
       p.simbolo,
-      previa ? { ...previa, cantidad: previa.cantidad + p.cantidad, coste: previa.coste + p.coste } : { ...p },
+      previa
+        ? { ...previa, cantidad: previa.cantidad + p.cantidad, coste: previa.coste + p.coste, referencia: previa.referencia || p.referencia }
+        : { ...p },
     );
   }
   return [...porSimbolo.values()];
@@ -240,31 +374,38 @@ export function carteraV1(p: EstadoPanel, avisosBase: string[]): S["Cartera"] {
   const invertido = agrupadas(c).reduce((s, x) => s + x.coste, 0);
   const valor = abiertas.reduce((s, a) => s + (a.valor === null ? 0 : Number(a.valor)), 0);
   return {
+    cartera: deModo(p),
     vacia,
     error: null,
     avisos: [
       ...avisosBase,
       ...sinPrecio.map(
-        (s) => `${s} no tiene histórico descargado: su valor no se puede calcular y el total queda incompleto. Descárgalo con invest-ll-fetch ${s} --market equity.`,
+        (s) => `${nombre(s)} no tiene precios descargados: no se puede saber cuánto vale y el total queda incompleto. Actualiza los datos en Ajustes · Datos.`,
       ),
     ],
     abiertas,
     retiradas: c.retiradas,
     invertido_abiertas: d2(invertido),
     valor_total: sinPrecio.length ? null : d2(valor),
-    efectivo: "0.00",
+    efectivo: d2(c.efectivo),
     realizado_total: d2(c.retiradas.reduce((s, r) => s + Number(r.pnl_realizado), 0)),
   };
 }
 
+/**
+ * Tu dinero hoy (contrato v2.1): `valor` incluye el efectivo y `puesto` tambien, asi que
+ * "has puesto X, ganas Y" suma justo `valor`. Bolsa y cripto se suman sin convertir: se dice.
+ */
 function patrimonio(p: EstadoPanel): S["Patrimonio"] {
   const c = p.carteras[deModo(p)];
   const abiertas = agrupadas(c).map(abierta);
   const sinPrecio = abiertas.some((a) => a.valor === null);
-  const puesto = agrupadas(c).reduce((s, x) => s + x.coste, 0);
-  const valor = abiertas.reduce((s, a) => s + (a.valor === null ? 0 : Number(a.valor)), 0);
+  const efectivo = Math.max(0, c.efectivo);
+  const puesto = agrupadas(c).reduce((s, x) => s + x.coste, 0) + efectivo;
+  const valor = abiertas.reduce((s, a) => s + (a.valor === null ? 0 : Number(a.valor)), 0) + efectivo;
   const ganancia = abiertas.reduce((s, a) => s + (a.pnl_no_realizado === null ? 0 : Number(a.pnl_no_realizado)), 0);
   const fechas = abiertas.map((a) => a.precio_fecha).filter((f): f is string => f !== null).sort();
+  const enDolares = abiertas.some((a) => a.moneda !== "EUR") || abiertas.some((a) => a.es_referencia);
   return {
     valor: sinPrecio ? null : d2(valor),
     puesto: d2(puesto),
@@ -274,6 +415,9 @@ function patrimonio(p: EstadoPanel): S["Patrimonio"] {
     fecha_precios: fechas[0] ?? null,
     incompleto: sinPrecio,
     cartera: deModo(p),
+    efectivo: d2(efectivo),
+    moneda: "EUR",
+    nota_moneda: enDolares ? "Aproximado: sin contar el cambio euro-dólar." : null,
   };
 }
 
@@ -327,7 +471,7 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
     if (!d) continue;
     const dinero = Number(parte.mensual) + (p.primeraAportacion ? Number(parte.inicial) : 0);
     if (d.mercado === "cripto" && p.escasez === "sin-cripto") {
-      avisos.push(`Faltan los datos de Binance: no se puede calcular qué toca en ${d.nombre}. Descárgalos con uv run invest-ll-quant download.`);
+      avisos.push(`Faltan los datos de Binance: no se puede calcular qué toca en ${d.nombre}. Actualízalos en Ajustes · Datos.`);
       continue;
     }
     for (const [simbolo, peso] of PESOS[parte.estrategia] ?? []) {
@@ -354,6 +498,8 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
           importe: d2(cantidad * c.precio),
           moneda: "USDT",
           precio_ref: d2(c.precio),
+          precio_ref_moneda: "USDT",
+          referencia: null,
           precio_fecha: c.fecha,
           equivalente: null,
         });
@@ -377,6 +523,8 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
           importe: d2(importe),
           moneda: "EUR",
           precio_ref: d2(c.precio),
+          precio_ref_moneda: monedaDe(simbolo),
+          referencia: simbolo,
           precio_fecha: c.fecha,
           equivalente: compra?.equivalente ?? null,
         });
@@ -422,10 +570,11 @@ export function inicio(p: EstadoPanel, pausa: string | null): S["Inicio"] {
       };
     });
   }
+  // Como la API: la pausa una vez (arriba), y los avisos de "hoy" que no son de la pausa.
   const avisos: string[] = [];
-  if (pausa) avisos.push(`Pausa de compras activa: ${pausa}. No toca comprar nada nuevo hasta que la quites en Cartera · Protección.`);
-  if (p.escasez === "sin-cripto") avisos.push("Los datos de Binance acaban el 2 oct: las cifras de cripto no son de hoy. Descárgalos con uv run invest-ll-quant download.");
+  if (pausa) avisos.push(`Las compras están en pausa: ${pausa}.`);
   if (pat.incompleto) avisos.push("Iberdrola no tiene precio descargado: lo que vale tu dinero hoy no se puede sumar entero.");
+  avisos.push(...h.avisos.filter((a) => !a.startsWith("Las compras están en pausa")));
   const mercado: S["MiniMercado"][] = [
     ["Bitcoin", "BTC/USDT"],
     ["Bolsa de EE.UU.", "SPY"],
@@ -443,9 +592,14 @@ export function inicio(p: EstadoPanel, pausa: string | null): S["Inicio"] {
     plan,
     acciones_pendientes: pausa ? 0 : h.acciones.length,
     proxima_fecha: p.plan ? proximaFecha(p.plan) : null,
-    avisos,
+    avisos: [...new Set(avisos)],
     mercado,
   };
+}
+
+/** El aviso de la pausa en "que toca hoy", con el texto de la API (src/invest_ll/plan/hoy.py). */
+export function avisoPausa(pausa: string): string {
+  return `Las compras están en pausa: ${pausa}. Mientras dure no se propone ninguna compra; quítala en Cartera · Protección cuando quieras seguir.`;
 }
 
 // -- Plan ---------------------------------------------------------------------------------------------
@@ -453,9 +607,9 @@ export function inicio(p: EstadoPanel, pausa: string | null): S["Inicio"] {
 export function guardarPlan(p: EstadoPanel, o: Record<string, unknown>): Response {
   const partes = Array.isArray(o.partes) ? o.partes : [];
   const dia = Number(o.dia_del_mes);
-  if (!partes.length) return validacion(["partes"], "List should have at least 1 item after validation, not 0");
-  if (partes.length > 2) return validacion(["partes"], "List should have at most 2 items after validation, not 3");
-  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return validacion(["dia_del_mes"], "Input should be less than or equal to 28");
+  if (!partes.length) return validacion("Tu plan necesita al menos una estrategia.");
+  if (partes.length > 2) return validacion("Un plan lleva como mucho dos estrategias: una de bolsa y una de cripto.");
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) return validacion("El día del mes para aportar tiene que estar entre el 1 y el 28.");
   const limpias: S["ParteDelPlan-Output"][] = [];
   const mercados: string[] = [];
   for (const x of partes) {
@@ -470,7 +624,7 @@ export function guardarPlan(p: EstadoPanel, o: Record<string, unknown>): Respons
     mercados.push(d.mercado);
     const inicial = Number(parte.inicial);
     const mensual = Number(parte.mensual);
-    if (!(inicial >= 0) || !(mensual >= 0)) return validacion(["partes", "inicial"], "Input should be greater than or equal to 0");
+    if (!(inicial >= 0) || !(mensual >= 0)) return validacion("Los importes del plan no pueden ser negativos.");
     limpias.push({ estrategia: clave, inicial: d2(inicial), mensual: d2(mensual) });
   }
   const ahora = new Date().toISOString();
@@ -487,16 +641,19 @@ export function anotarHecha(p: EstadoPanel, id: string, o: Record<string, unknow
   const cantidad = Number(o.cantidad);
   const precio = Number(o.precio);
   const comision = Number(o.comision ?? 0);
-  if (!(cantidad > 0)) return validacion(["cantidad"], "Input should be greater than 0");
-  if (!(precio > 0)) return validacion(["precio"], "Input should be greater than 0");
+  if (!(cantidad > 0)) return validacion("Las participaciones que compraste tienen que ser más que 0.");
+  if (!(precio > 0)) return validacion("El precio por participación tiene que ser más que 0.");
   const fecha = String(o.fecha ?? HOY);
   if (fecha > HOY) return fallo(422, `La fecha de la compra (${fecha}) es posterior a hoy.`);
   if (fecha < "2026-10-01") return fallo(422, `La fecha de la compra (${fecha}) es anterior a la aportación de octubre: anótala como un movimiento suelto en Cartera.`);
   p.hechas.add(id);
   p.siguiente += 1;
-  const c = p.carteras[deModo(p)];
-  c.posiciones.push({ simbolo: accion.simbolo, cantidad, coste: cantidad * precio + comision, abierta: fecha });
-  c.movimientos.unshift(mov(`m-${p.siguiente}`, fecha, "compra", accion.simbolo, cantidad, precio, "plan", comision));
+  // Lo del broker va a la cartera real en cualquier modo, y en unidades del fondo de referencia.
+  const c = p.carteras.real;
+  const ref = Number(accion.precio_ref ?? precio);
+  const compra = compraBroker(`m-${p.siguiente}`, fecha, accion.referencia ?? accion.simbolo, cantidad, precio, ref, comision);
+  c.posiciones.push(compra.pos);
+  c.movimientos.unshift(compra.mov);
   return json({ activity_id: `act-${p.siguiente}` } satisfies S["MovimientoRegistrado"], 201);
 }
 
@@ -512,14 +669,15 @@ export function ordenEjecutada(p: EstadoPanel, par: string, lado: string, cantid
   if (p.modo === "pruebas") p.verificada = true;
 }
 
-export function registrarMovimientoV1(p: EstadoPanel, tipo: string, simbolo: string | null, cantidad: number, precio: number | null, fecha: string, comision: number): string {
+export function registrarMovimientoV1(p: EstadoPanel, tipo: S["NuevoMovimiento"]["tipo"], simbolo: string | null, cantidad: number, precio: number | null, fecha: string, comision: number): string {
   const c = p.carteras[deModo(p)];
   p.siguiente += 1;
   if (tipo === "compra" && simbolo && precio !== null) {
     c.posiciones.push({ simbolo, cantidad, coste: cantidad * precio + comision, abierta: fecha });
   }
-  const tipoV2: S["Movimiento"]["tipo"] = tipo === "deposito" ? "ingreso" : tipo === "venta" ? "venta" : tipo === "retirada" ? "retirada" : "compra";
-  c.movimientos.unshift(mov(`m-${p.siguiente}`, fecha, tipoV2, simbolo, cantidad, precio, "panel", comision));
+  if (tipo === "ingreso") c.efectivo += cantidad;
+  if (tipo === "retirada") c.efectivo -= cantidad;
+  c.movimientos.unshift(mov(`m-${p.siguiente}`, fecha, tipo, simbolo, cantidad, precio, "manual", comision));
   return `act-${p.siguiente}`;
 }
 
@@ -568,7 +726,12 @@ export function conexion(p: EstadoPanel): S["Conexion"] {
     ],
     modos: [
       { modo: "simulacion", disponible: true, que_falta: [] },
-      { modo: "pruebas", disponible: pruebas, que_falta: pruebas ? [] : ["Guarda las claves de la red de pruebas (paso 1)"] },
+      {
+        modo: "pruebas",
+        disponible: pruebas,
+        // El texto de la API acaba en punto (src/invest_ll/api/conexion.py): el panel no le pone otro.
+        que_falta: pruebas ? [] : ["Guarda las claves de la red de pruebas (testnet.binance.vision, tipo HMAC-SHA256)."],
+      },
       { modo: "real", disponible: faltaReal.length === 0, que_falta: faltaReal },
     ],
     cerrojos_real: cerr,
@@ -576,13 +739,11 @@ export function conexion(p: EstadoPanel): S["Conexion"] {
 }
 
 export function guardarClaves(p: EstadoPanel, red: string, o: Record<string, unknown>): Response {
-  if (red !== "pruebas" && red !== "real") {
-    return json({ detail: [{ loc: ["path", "red"], msg: "Input should be 'pruebas' or 'real'", type: "literal_error" }] }, 422);
-  }
+  if (red !== "pruebas" && red !== "real") return validacion(`No hay ninguna red «${red}»: son «pruebas» o «real».`);
   const clave = String(o.clave ?? "").trim();
   const secreto = String(o.secreto ?? "").trim();
-  if (clave.length < 8) return validacion(["clave"], "String should have at least 8 characters");
-  if (secreto.length < 8) return validacion(["secreto"], "String should have at least 8 characters");
+  if (clave.length < 8) return validacion("La clave es demasiado corta: cópiala entera de Binance.");
+  if (secreto.length < 8) return validacion("El secreto es demasiado corto: cópialo entero de Binance.");
   if (p.claves[red].origen === "entorno") {
     return fallo(409, "Estas claves vienen del entorno (INVEST_LL_TESTNET_KEY): cámbialas allí.");
   }
@@ -604,11 +765,16 @@ export function borrarClaves(p: EstadoPanel, red: string): Response {
   return new Response(null, { status: 204 });
 }
 
+/** Claves que Binance rechazaria en el ejemplo: las que dicen ser Ed25519 o RSA, o "mala". */
+function rechazadas(clave: string | null): boolean {
+  return clave !== null && /ed25519|rsa|mala/i.test(clave);
+}
+
 export function probar(p: EstadoPanel, red: string): Response {
   if (red !== "pruebas" && red !== "real") return fallo(422, `Red desconocida: ${red}`);
   const c = p.claves[red];
   if (c.origen === "ninguno") return fallo(422, `No hay claves de ${red === "pruebas" ? "pruebas" : "dinero real"} guardadas: pégalas primero.`);
-  if (c.clave && /ed25519|rsa/i.test(c.clave)) {
+  if (rechazadas(c.clave)) {
     return json({
       ok: false,
       detalle: "Binance ha rechazado la firma. ¿Creaste la clave de tipo HMAC-SHA256? Las de tipo Ed25519 o RSA no sirven aquí: crea otra y pégala.",
@@ -640,13 +806,20 @@ export function probar(p: EstadoPanel, red: string): Response {
 export function cambiarModo(p: EstadoPanel, o: Record<string, unknown>): Response {
   const modo = String(o.modo ?? "");
   if (modo !== "simulacion" && modo !== "pruebas" && modo !== "real") {
-    return json({ detail: [{ loc: ["body", "modo"], msg: "Input should be 'simulacion', 'pruebas' or 'real'", type: "literal_error" }] }, 422);
+    return validacion(`No hay ningún modo «${modo}»: son simulación, pruebas o dinero real.`);
   }
   if (p.modoOrigen === "entorno") {
     return fallo(409, "El modo lo fija el entorno (INVEST_LL_MODE=testnet): cámbialo allí y vuelve a arrancar el panel.");
   }
   const disponible = conexion(p).modos.find((m) => m.modo === modo);
   if (disponible && !disponible.disponible) return fallo(422, `Todavía no se puede: ${disponible.que_falta.join("; ")}.`);
+  // v2.1: antes de pasar a pruebas o a real, la API prueba las claves; si Binance las rechaza, no cambia.
+  if ((modo === "pruebas" || modo === "real") && rechazadas(p.claves[modo].clave)) {
+    return fallo(
+      422,
+      `Binance ha rechazado tus claves de ${modo === "pruebas" ? "pruebas" : "dinero real"}. ¿Creaste la clave de tipo HMAC-SHA256? Bórralas, crea otras y vuelve a probar.`,
+    );
+  }
   if (modo === "real" && o.confirmacion !== "DINERO REAL") {
     return fallo(422, "Para activar el dinero real escribe exactamente DINERO REAL.");
   }
@@ -685,26 +858,40 @@ export async function rutaCatalogo(p: EstadoPanel): Promise<Response> {
 
 export function rutaSimular(p: EstadoPanel, o: Record<string, unknown>): Response {
   const claves = Array.isArray(o.estrategias) ? o.estrategias.map(String) : [];
-  if (claves.length < 1) return validacion(["estrategias"], "List should have at least 1 item after validation, not 0");
-  if (claves.length > 4) return validacion(["estrategias"], "List should have at most 4 items after validation, not 5");
+  if (claves.length < 1) return validacion("Elige al menos una estrategia.");
+  if (claves.length > 4) return validacion("Como mucho cuatro estrategias a la vez.");
   const inicial = Number(o.inicial);
   const mensual = Number(o.mensual);
   const anio = Number(o.desde_anio);
-  if (!(inicial >= 0)) return validacion(["inicial"], "Input should be greater than or equal to 0");
-  if (!(mensual >= 0)) return validacion(["mensual"], "Input should be greater than or equal to 0");
-  if (!(anio >= 2008)) return validacion(["desde_anio"], "Input should be greater than or equal to 2008");
+  if (!(inicial >= 0)) return validacion("Lo que pones para empezar no puede ser negativo.");
+  if (!(mensual >= 0)) return validacion("Lo que pones cada mes no puede ser negativo.");
+  if (!(anio >= 2008)) return validacion("El año de inicio tiene que ser 2008 o posterior.");
   const resultados: S["ResultadoSimulado"][] = [];
   for (const clave of claves) {
     const d = definicion(clave);
     if (!d) return fallo(404, `No hay ninguna estrategia «${clave}».`);
     if (p.escasez === "sin-cripto" && d.mercado === "cripto") {
-      return fallo(422, `No se puede calcular ${d.nombre}: faltan los datos de Binance (uv run invest-ll-quant download).`);
+      return fallo(422, `No se puede calcular ${d.nombre}: faltan los datos de Binance. Actualízalos en Ajustes · Datos.`);
     }
     const r = simular(clave, inicial, mensual, anio);
     if (r) resultados.push(r);
   }
+  // v2.1: con `reparto` (porcentajes que suman 100), tambien la curva de tu reparto entero.
+  let combinado: S["ResultadoSimulado"] | null = null;
+  if (Array.isArray(o.reparto)) {
+    const reparto = o.reparto.map((x) => {
+      const r = typeof x === "object" && x !== null ? (x as Record<string, unknown>) : {};
+      return { estrategia: String(r.estrategia ?? ""), porcentaje: Number(r.porcentaje) };
+    });
+    if (reparto.reduce((s, r) => s + r.porcentaje, 0) !== 100) return validacion("El reparto tiene que sumar 100 %.");
+    for (const r of reparto) {
+      if (!definicion(r.estrategia)) return fallo(404, `No hay ninguna estrategia «${r.estrategia}».`);
+    }
+    combinado = simularCombinado(reparto, inicial, mensual, anio);
+  }
   return json({
     resultados,
+    combinado,
     nota: "Simulación sobre el pasado con comisiones incluidas. Aportación el primer día con datos de cada mes.",
   } satisfies S["Simulacion"]);
 }
@@ -713,13 +900,13 @@ export function rutaRecomendar(o: Record<string, unknown>): Response {
   const h = String(o.horizonte ?? "");
   const c = String(o.ante_caida ?? "");
   const q = String(o.cripto ?? "");
-  if (!["menos-2", "2-5", "5-10", "mas-10"].includes(h)) return validacion(["horizonte"], "Input should be 'menos-2', '2-5', '5-10' or 'mas-10'");
-  if (!["vender", "esperar", "comprar"].includes(c)) return validacion(["ante_caida"], "Input should be 'vender', 'esperar' or 'comprar'");
-  if (!["no", "poco", "si"].includes(q)) return validacion(["cripto"], "Input should be 'no', 'poco' or 'si'");
+  if (!["menos-2", "2-5", "5-10", "mas-10"].includes(h)) return validacion("Falta decir cuándo vas a necesitar este dinero.");
+  if (!["vender", "esperar", "comprar"].includes(c)) return validacion("Falta decir qué harías si lo que inviertes cae a la mitad.");
+  if (!["no", "poco", "si"].includes(q)) return validacion("Falta decir si quieres algo de criptomonedas.");
   const inicial = Number(o.inicial);
   const mensual = Number(o.mensual);
-  if (!(inicial >= 0)) return validacion(["inicial"], "Input should be greater than or equal to 0");
-  if (!(mensual >= 0)) return validacion(["mensual"], "Input should be greater than or equal to 0");
+  if (!(inicial >= 0)) return validacion("Lo que pones para empezar no puede ser negativo.");
+  if (!(mensual >= 0)) return validacion("Lo que pones cada mes no puede ser negativo.");
   const perfil: S["Perfil"] = {
     inicial: String(inicial),
     mensual: String(mensual),

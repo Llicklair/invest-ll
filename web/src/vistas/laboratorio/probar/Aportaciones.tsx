@@ -22,7 +22,7 @@ import {
 import { useEstado } from "@/contexto/estado";
 import { useAccion, useConsulta, useRetardado } from "@/lib/consulta";
 import { formatoImporte } from "@/lib/decimal";
-import { fraccion, numero } from "@/lib/formato";
+import { fecha, fraccion, numero } from "@/lib/formato";
 
 import { AvisoCostes, useFriccion, useOpciones } from "./comun";
 import { Informe } from "./Informe";
@@ -159,7 +159,7 @@ export function Aportaciones() {
             {a && !analisis.error ? (
               <div className={analisis.cargando ? "space-y-3 opacity-60" : "space-y-3"}>
                 <Nota>
-                  {a.fechas_comunes.toLocaleString("es-ES")} fechas comunes ({a.desde} a {a.hasta})
+                  {a.fechas_comunes.toLocaleString("es-ES")} fechas comunes (del {fecha(a.desde)} al {fecha(a.hasta)})
                 </Nota>
                 <FilaMetricas columnas={3}>
                   <Metrica etiqueta="Activos" valor={a.activos} />

@@ -116,7 +116,9 @@ export function Aviso({
       role={vivo ? (tipo === "critico" ? "alert" : "status") : undefined}
     >
       <Icono aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={1.75} />
-      <div className="min-w-0 flex-1">
+      {/* Un aviso puede traer una URL o un simbolo largo sin espacios: se parte donde haga falta
+          en vez de ensanchar la pagina (en el movil la llevaba a 600 px). */}
+      <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         <span className="sr-only">{ETIQUETA_AVISO[tipo]}: </span>
         {titulo ? <p className="font-semibold">{titulo}</p> : null}
         {children ? <div className={titulo ? "mt-0.5" : undefined}>{children}</div> : null}
@@ -125,7 +127,11 @@ export function Aviso({
   );
 }
 
-/** El error de la API, con su `detail` tal cual, y un reintento si se puede. */
+/**
+ * El error de la API, con su `detail` tal cual (contrato v2.1: siempre un texto en llano), y un
+ * reintento si se puede. El codigo HTTP no es para quien usa el panel: va en un atributo, para
+ * quien lo depure.
+ */
 export function ErrorApiVista({
   error,
   prefijo,
@@ -138,22 +144,21 @@ export function ErrorApiVista({
   reintentar?: () => void;
 }) {
   return (
-    <Aviso tipo="critico" vivo className={className}>
-      {prefijo ? <span className="font-semibold">{prefijo} </span> : null}
-      <span className="break-words whitespace-pre-wrap">{error.detalle}</span>
-      <span className="ml-2 text-sm opacity-80">
-        {error.estado === null ? "(sin respuesta de la API)" : `(HTTP ${error.estado})`}
-      </span>
-      {reintentar ? (
-        <button
-          type="button"
-          onClick={reintentar}
-          className="mt-2 flex min-h-11 items-center gap-1.5 font-semibold underline underline-offset-4"
-        >
-          <RotateCw aria-hidden="true" className="h-4 w-4" /> Volver a intentarlo
-        </button>
-      ) : null}
-    </Aviso>
+    <div data-http={error.estado ?? "sin-respuesta"} className={className}>
+      <Aviso tipo="critico" vivo>
+        {prefijo ? <span className="font-semibold">{prefijo} </span> : null}
+        <span className="whitespace-pre-wrap">{error.detalle}</span>
+        {reintentar ? (
+          <button
+            type="button"
+            onClick={reintentar}
+            className="mt-2 flex min-h-11 items-center gap-1.5 font-semibold underline underline-offset-4"
+          >
+            <RotateCw aria-hidden="true" className="h-4 w-4" /> Volver a intentarlo
+          </button>
+        ) : null}
+      </Aviso>
+    </div>
   );
 }
 

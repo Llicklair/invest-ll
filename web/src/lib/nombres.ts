@@ -1,8 +1,8 @@
 /**
- * Nombres llanos de los activos ("Bitcoin", "Bolsa de EE.UU.", "Oro") para las rutas que solo
- * devuelven el simbolo (`GET /api/cartera`, `GET /api/ordenes`, el mercado). Las rutas v2 ya
- * traen el nombre llano; esto es el puente para las de antes. Si un simbolo no esta, se ensena
- * tal cual: mejor el simbolo que un nombre inventado.
+ * RESPALDO. Desde el contrato v2.1 la API trae `nombre` y `moneda` en rendimiento, posiciones,
+ * ordenes y movimientos, y eso es lo que se ensena. Esto solo cubre lo que todavia llega con el
+ * simbolo a secas (las cotizaciones al momento, los frenos, los activos de `GET /api/estado`).
+ * Si un simbolo no esta, se ensena tal cual: mejor el simbolo que un nombre inventado.
  */
 const NOMBRES: Record<string, string> = {
   BTC: "Bitcoin",
@@ -52,4 +52,26 @@ export function nombreLlano(simbolo: string, porDefecto?: string | null): string
 /** Lo que se tiene, en llano: "0,012 BTC" para cripto, "10 participaciones" para fondos. */
 export function unidad(simbolo: string): string {
   return simbolo.includes("/") ? base(simbolo) : "participaciones";
+}
+
+/**
+ * La moneda del precio cuando la API no la dice (activos de `GET /api/estado`): la del par en
+ * cripto ("BTC/USDT" -> USDT), euros en las bolsas europeas y dolares en las de EE.UU.
+ */
+export function monedaSupuesta(simbolo: string): string {
+  const s = simbolo.trim().toUpperCase();
+  if (s.includes("/")) return s.split("/")[1] ?? "USDT";
+  if (/\.(MC|PA|DE|AS|MI|LS|BR)$/.test(s)) return "EUR";
+  if (s.endsWith(".SW")) return "CHF";
+  if (s.endsWith(".L")) return "GBP";
+  return "USD";
+}
+
+/** "en dólares (USD)", "en euros", "en dólares digitales (USDT)". */
+export function enLaMoneda(moneda: string): string {
+  const m = moneda.toUpperCase();
+  if (m === "EUR") return "en euros";
+  if (m === "USD") return "en dólares (USD)";
+  if (m === "USDT" || m === "USDC") return `en dólares digitales (${m})`;
+  return `en ${m}`;
 }

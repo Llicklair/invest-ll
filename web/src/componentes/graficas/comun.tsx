@@ -129,10 +129,10 @@ export function fechaTexto(t: number): string {
 }
 
 /** Tecla de serie en forma de linea corta (leyendas de lineas y filas del tooltip). */
-export function TeclaLinea({ color }: { color: string }) {
+export function TeclaLinea({ color, grosor = 2.5 }: { color: string; grosor?: number }) {
   return (
     <svg width="16" height="8" aria-hidden="true" className="shrink-0">
-      <line x1="1" y1="4" x2="15" y2="4" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="1" y1="4" x2="15" y2="4" stroke={color} strokeWidth={grosor} strokeLinecap="round" />
     </svg>
   );
 }

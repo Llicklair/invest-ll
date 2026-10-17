@@ -1,4 +1,5 @@
-import type { LucideIcon } from "lucide-react";
+import { Coffee, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { clases } from "./ui";
@@ -46,5 +47,33 @@ export function EstadoVacio({
       </div>
       {accion ? <div className="shrink-0">{accion}</div> : null}
     </div>
+  );
+}
+
+/**
+ * "No toca hacer nada" con el `resumen` de `GET /api/plan/hoy`. Si el resumen trae otro motivo
+ * ("No toca comprar nada: las compras están en pausa."), ese es el titulo y no se repite debajo.
+ */
+export function NadaQueHacer({ resumen }: { resumen: string }) {
+  const normal = /^No toca hacer nada\.?\s*/;
+  const dosPuntos = resumen.indexOf(":");
+  const [titulo, resto] = normal.test(resumen)
+    ? ["No toca hacer nada", resumen.replace(normal, "")]
+    : dosPuntos > 0
+      ? [resumen.slice(0, dosPuntos), resumen.slice(dosPuntos + 1).trim()]
+      : [resumen, ""];
+  const cuerpo = resto ? resto.charAt(0).toUpperCase() + resto.slice(1) : "Todo está como tiene que estar.";
+  return (
+    <EstadoVacio icono={Coffee} titulo={titulo}>
+      {cuerpo}
+      {/pausa/i.test(resumen) ? (
+        <>
+          {" "}
+          <Link href="/cartera/#proteccion" className="font-semibold text-marca underline underline-offset-4">
+            Ver la pausa en Cartera
+          </Link>
+        </>
+      ) : null}
+    </EstadoVacio>
   );
 }

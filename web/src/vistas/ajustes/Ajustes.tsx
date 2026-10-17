@@ -4,9 +4,9 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { API_BASE, MODO_EJEMPLO } from "@/api/cliente";
+import { SeccionDatos } from "@/componentes/DatosAlDia";
 import { Encabezado, Nota, Seccion, Tarjeta, clases } from "@/componentes/ui";
 import { useGuardado } from "@/lib/almacen";
-import { DatosDescargados } from "@/vistas/mercado/Datos";
 
 import { Conexion } from "./Conexion";
 
@@ -105,8 +105,8 @@ export function Ajustes() {
         <Tema />
       </Seccion>
 
-      <Seccion titulo="Datos" id="datos" bajada="Los precios con los que se calcula todo. Se descargan de internet; el panel no los inventa.">
-        <DatosDescargados conTitulo={false} />
+      <Seccion titulo="Datos" id="datos" bajada="Los precios con los que se calcula todo: de cuándo son y cómo traer los nuevos. Se descargan de internet; el panel no los inventa.">
+        <SeccionDatos />
       </Seccion>
 
       <Escenarios />
