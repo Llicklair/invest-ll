@@ -269,7 +269,7 @@ export function Boleto({ moneda, inicial, className }: { moneda: MonedaVivo; ini
               setCantidadTexto("");
               enviar.limpiar();
             }}
-            className="[&_label]:min-h-9 [&_label]:px-2.5 [&_label]:text-xs [&>div]:p-0.5"
+            className="[&_label]:px-2.5 [&_label]:text-xs [&>div]:p-0.5"
           />
         </div>
         <div className="relative">

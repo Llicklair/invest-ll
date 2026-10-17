@@ -364,7 +364,7 @@ export function GraficoVelas({
           </svg>
           Rellena: acabó más abajo
         </span>
-        <QueEsEsto clave="vela" className="[&>button]:min-h-8 [&>button]:text-xs" />
+        <QueEsEsto clave="vela" className="[&>button]:text-xs" />
         <span className="ml-auto">
           Gráfico:{" "}
           <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-tinta">
