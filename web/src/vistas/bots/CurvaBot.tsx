@@ -7,6 +7,8 @@ import { CajaTooltip, EJE, Figura, REJILLA, TeclaLinea, colorSerie, ejeRedondo, 
 
 const FECHA_HORA = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const DIA = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+const DIA_ANIO = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" });
+const MES = new Intl.DateTimeFormat("es-ES", { month: "short", year: "2-digit" });
 const HORA = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" });
 const sinPunto = (t: string) => t.replace(/\.(?=\s|$)/g, "");
 
@@ -27,12 +29,12 @@ function marcas(t0: number, t1: number): { ticks: number[]; formato: (t: number)
     }
     return { ticks, formato: (t) => HORA.format(new Date(t)) };
   }
-  const paso = [1, 2, 3, 7, 14].find((d) => dias / d <= 7) ?? 14;
+  const paso = [1, 2, 3, 7, 14, 30, 61, 91, 182].find((d) => dias / d <= 7) ?? 365;
   const ticks: number[] = [];
   const inicio = new Date(t0);
   inicio.setHours(0, 0, 0, 0);
   for (let t = inicio.getTime() + 86_400_000, i = 0; t <= t1; t += 86_400_000, i++) if (i % paso === 0) ticks.push(t);
-  return { ticks, formato: (t) => sinPunto(DIA.format(new Date(t))) };
+  return { ticks, formato: (t) => sinPunto((paso >= 30 ? MES : DIA).format(new Date(t))) };
 }
 
 interface Fila {
@@ -53,13 +55,24 @@ export function CurvaBot({
   capital,
   nombre,
   atenuada,
+  serie = "El bot",
+  titulo = "Lo que vale el bot, frente a solo mantener",
+  pie = "El mismo capital, desde el mismo momento: comprando sus monedas al arrancar y sin hacer nada más. La línea fina es lo que pusiste.",
+  porDias = false,
 }: {
   curva: readonly PuntoBot[];
   mantener: readonly PuntoBot[];
   capital: number;
   nombre: string;
   atenuada?: boolean;
+  /** Como se llama la serie principal ("El bot", "La estrategia"). */
+  serie?: string;
+  titulo?: string;
+  pie?: string;
+  /** Puntos diarios (una prueba sobre el pasado): las fechas, sin hora. */
+  porDias?: boolean;
 }) {
+  const fechaPunto = (t: number) => sinPunto((porDias ? DIA_ANIO : FECHA_HORA).format(new Date(t)));
   const porT = new Map<number, Fila>();
   for (const p of curva) {
     const t = Date.parse(p.at);
@@ -81,7 +94,7 @@ export function CurvaBot({
   const finBot = curva[curva.length - 1]?.valor ?? null;
   const finMantener = mantener[mantener.length - 1]?.valor ?? null;
   const series = [
-    { clave: "bot" as const, nombre: "El bot", hueco: 0, fin: finBot },
+    { clave: "bot" as const, nombre: serie, hueco: 0, fin: finBot },
     { clave: "mantener" as const, nombre: "Si solo hubieras mantenido", hueco: 1, fin: finMantener },
   ];
   // El ultimo punto de cada serie (la del bot llega por el stream y puede ir unos segundos por
@@ -95,14 +108,14 @@ export function CurvaBot({
   const rango = ejeY.dominio[1] - ejeY.dominio[0] || 1;
   const separadas = finBot !== null && finMantener !== null && Math.abs(finBot - finMantener) / rango > 0.07;
 
-  const resumen = `${nombre}: lo que vale el bot y lo que valdría el mismo capital solo manteniendo, del ${sinPunto(FECHA_HORA.format(new Date(t0)))} a ahora. El bot vale ${finBot === null ? "—" : usd(finBot)}; manteniendo, ${finMantener === null ? "—" : usd(finMantener)}. Capital puesto: ${usd(capital)}.`;
+  const resumen = `${nombre}: ${serie.toLowerCase()} y lo que valdría el mismo capital solo manteniendo, del ${fechaPunto(t0)} al ${fechaPunto(t1)}. ${serie}: ${finBot === null ? "—" : usd(finBot)}; manteniendo, ${finMantener === null ? "—" : usd(finMantener)}. Capital puesto: ${usd(capital)}.`;
 
   const tooltip = (p: TooltipContentProps) => {
     if (!p.active || typeof p.label !== "number") return null;
     const f = porT.get(p.label);
     return (
       <CajaTooltip
-        titulo={sinPunto(FECHA_HORA.format(new Date(p.label)))}
+        titulo={fechaPunto(p.label)}
         filas={series.map((s) => ({ color: colorSerie(s.hueco), nombre: s.nombre, valor: f?.[s.clave] === null || f?.[s.clave] === undefined ? "—" : usd(f[s.clave] ?? 0) }))}
       />
     );
@@ -110,24 +123,24 @@ export function CurvaBot({
 
   return (
     <Figura
-      titulo="Lo que vale el bot, frente a solo mantener"
+      titulo={titulo}
       resumen={resumen}
       atenuada={atenuada}
-      pie="El mismo capital, desde el mismo momento: comprando sus monedas al arrancar y sin hacer nada más. La línea fina es lo que pusiste."
+      pie={pie}
       filasTabla={filas.length}
       tabla={() => (
         <table className="cifras w-full text-xs">
           <thead>
             <tr className="tabla-densa text-left text-tinta-suave">
               <th scope="col" className="px-2 py-1">Cuándo</th>
-              <th scope="col" className="px-2 py-1 text-right">El bot</th>
+              <th scope="col" className="px-2 py-1 text-right">{serie}</th>
               <th scope="col" className="px-2 py-1 text-right">Solo manteniendo</th>
             </tr>
           </thead>
           <tbody>
             {[...filas].reverse().map((f) => (
               <tr key={f.t} className="border-t border-linea">
-                <td className="px-2 py-0.5">{sinPunto(FECHA_HORA.format(new Date(f.t)))}</td>
+                <td className="px-2 py-0.5">{fechaPunto(f.t)}</td>
                 <td className="px-2 py-0.5 text-right">{f.bot === null ? "—" : usd(f.bot)}</td>
                 <td className="px-2 py-0.5 text-right">{f.mantener === null ? "—" : usd(f.mantener)}</td>
               </tr>
@@ -171,7 +184,7 @@ export function CurvaBot({
                   ? (props: { index?: number; x?: number | string; y?: number | string }) =>
                       props.index === finales[s.clave] && typeof props.x === "number" && typeof props.y === "number" && Number.isFinite(props.y) ? (
                         <text x={props.x + 8} y={props.y} dy={4} fontSize={11} fill="var(--tinta-suave)">
-                          {s.clave === "bot" ? "El bot" : "Mantener"}
+                          {s.clave === "bot" ? serie : "Mantener"}
                         </text>
                       ) : (
                         <g />

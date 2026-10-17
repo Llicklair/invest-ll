@@ -9,6 +9,7 @@ import { CargandoLento, Encabezado, ErrorApiVista, Tarjeta } from "@/componentes
 import { useEstado } from "@/contexto/estado";
 import { useAncla } from "@/lib/ancla";
 import { useConsulta } from "@/lib/consulta";
+import { NavEstrategias } from "@/vistas/medida/comun";
 
 import { Cuestionario } from "./Cuestionario";
 import { useCatalogo } from "./datos";
@@ -72,6 +73,7 @@ export function Estrategias() {
         titulo="Estrategias"
         bajada="Cómo invertir tu dinero: cinco preguntas, una propuesta explicada y tu plan."
       />
+      <NavEstrategias />
 
       {planActual && paso !== 2 ? (
         <Tarjeta className="mb-8 flex flex-wrap items-center justify-between gap-4 p-5">

@@ -1196,6 +1196,8 @@ async function disenar(m: MundoV4, o: Objeto): Promise<Response> {
     herramientas = ["esquema", "monedas", "velas", "validar", "guardar", "probar"];
     const coin = (["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK", "AVAX", "HYPE"] as const).find((c) => pide.includes(c.toLowerCase()) || pide.includes((MONEDAS[c]?.nombre ?? "").toLowerCase())) ?? "ETH";
     const nombre = `Rebote de ${coin} desde su mínimo de 30 días`;
+    const pedido = /(\d+(?:[.,]\d+)?)\s*%/.exec(mensaje);
+    const stop = pedido ? Number((pedido[1] ?? "8").replace(",", ".")) : 8;
     const id = `rebote-${coin.toLowerCase()}-${m.siguiente++}`;
     const nueva = crearEstrategia(
       {
@@ -1207,13 +1209,13 @@ async function disenar(m: MundoV4, o: Objeto): Promise<Response> {
         intervalo: "4h",
         regla: "rebote",
         tamano: 1,
-        stop: 0.08,
+        stop: stop / 100,
         mantener: [coin === "BTC" ? 0.42 : coin === "ETH" ? 0.31 : 0.18],
-        explicacion: `Compra ${MONEDAS[coin]?.nombre ?? coin} cuando rebota desde cerca de su mínimo de 30 días y vende si cae por debajo de su media de 20 velas o pierde un 8 %.`,
+        explicacion: `Compra ${MONEDAS[coin]?.nombre ?? coin} cuando rebota desde cerca de su mínimo de 30 días y vende si cae por debajo de su media de 20 velas o pierde un ${stop.toLocaleString("es-ES")} %.`,
         reglas: [
           "Entra con todo el capital cuando el precio está a menos de un 5 % de su mínimo de 30 días y cruza por encima de su media de 5 velas.",
           "Sale cuando el precio cae por debajo de su media de 20 velas.",
-          "Stop de pérdida: vende si pierde un 8 % desde la compra.",
+          `Stop de pérdida: vende si pierde un ${stop.toLocaleString("es-ES")} % desde la compra.`,
           "Decide solo con velas de 4 horas ya cerradas.",
         ],
         notas: [`Primera versión, a partir de: «${mensaje.slice(0, 80)}${mensaje.length > 80 ? "…" : ""}».`],
