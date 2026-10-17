@@ -5245,7 +5245,7 @@
     },
     "/api/conexion/modo": {
       "put": {
-        "description": "422 si faltan condiciones (dice cuáles) o, para real, la confirmación 'DINERO REAL'.\n409 si el modo lo fija el entorno.",
+        "description": "422 si faltan condiciones (dice cuáles), para real la confirmación 'DINERO REAL', o si las\nclaves de pruebas o real no funcionan (se lee el saldo; no se envía nada). 409 si el modo lo\nfija el entorno.",
         "operationId": "cambiar_modo_api_conexion_modo_put",
         "requestBody": {
           "content": {
