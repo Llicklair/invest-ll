@@ -5,6 +5,12 @@ una orden concreta salió en pruebas y no con dinero real — que es exactamente
 se hace cuando algo ha ido mal.
 
 Solo añade. Un registro de órdenes que se puede reescribir no sirve para auditar nada.
+
+**Panel v4: varios exchanges y bots reales.** Cada entrada puede llevar también el `exchange` y el
+`bot` que la enviaron. Son opcionales y compatibles hacia atrás: las líneas viejas no los tienen y
+se leen con `None`, que en el exchange significa Binance (el único que había antes de v4; ver
+`exchange_de`). Solo se escriben cuando se saben, así una orden manual de v2 deja la misma línea
+que siempre.
 """
 
 from __future__ import annotations
@@ -22,19 +28,28 @@ from invest_ll.live.broker import OrderRequest, OrderResult, OrderStatus, Side
 
 RAIZ = Path("ledger")
 FICHERO = "orders.jsonl"
+EXCHANGE_ANTERIOR_A_V4 = "binance"
+"""El exchange de las entradas que no lo dicen: antes de v4 solo se operaba con Binance."""
 
 
 @dataclass(frozen=True, slots=True)
 class LedgerEntry:
-    """Una orden enviada, con el modo en que se envió."""
+    """Una orden enviada, con el modo en que se envió (y, desde v4, el exchange y el bot)."""
 
     result: OrderResult
     mode_name: str
     recorded_at: datetime
+    exchange: str | None = None
+    bot: str | None = None
 
     @property
     def was_real_money(self) -> bool:
         return self.mode_name == "REAL"
+
+    @property
+    def exchange_de(self) -> str:
+        """El exchange de la orden; las entradas de antes de v4 son de Binance."""
+        return self.exchange or EXCHANGE_ANTERIOR_A_V4
 
 
 class ExecutionLedger:
@@ -49,8 +64,21 @@ class ExecutionLedger:
     def path(self) -> Path:
         return self._root / FICHERO
 
-    def record(self, result: OrderResult, *, mode_name: str) -> LedgerEntry:
-        entrada = LedgerEntry(result=result, mode_name=mode_name, recorded_at=datetime.now(UTC))
+    def record(
+        self,
+        result: OrderResult,
+        *,
+        mode_name: str,
+        exchange: str | None = None,
+        bot: str | None = None,
+    ) -> LedgerEntry:
+        entrada = LedgerEntry(
+            result=result,
+            mode_name=mode_name,
+            recorded_at=datetime.now(UTC),
+            exchange=exchange,
+            bot=bot,
+        )
         self._append(_escribir(entrada))
         return entrada
 
@@ -79,6 +107,10 @@ class ExecutionLedger:
         lineas = ["Registro de ordenes", "=" * 72]
         for e in entradas:
             marca = " [DINERO REAL]" if e.was_real_money else f" [{e.mode_name}]"
+            if e.exchange is not None:
+                marca += f" {e.exchange}"
+            if e.bot is not None:
+                marca += f" (bot {e.bot})"
             lineas.append(f"{e.recorded_at.isoformat(timespec='seconds')}{marca}")
             lineas.append(f"  {e.result.describe()}")
 
@@ -107,7 +139,7 @@ class ExecutionLedger:
 
 def _escribir(e: LedgerEntry) -> dict[str, Any]:
     r = e.result
-    return {
+    contenido: dict[str, Any] = {
         "recorded_at": e.recorded_at.isoformat(),
         "mode": e.mode_name,
         "symbol": r.request.symbol,
@@ -123,6 +155,12 @@ def _escribir(e: LedgerEntry) -> dict[str, Any]:
         # significa "no se sabe" y no "no cobraron nada".
         "commission": str(r.commission) if r.commission is not None else None,
     }
+    # Panel v4. Solo si se saben: una orden de v2 deja la misma línea de siempre.
+    if e.exchange is not None:
+        contenido["exchange"] = e.exchange
+    if e.bot is not None:
+        contenido["bot"] = e.bot
+    return contenido
 
 
 def _leer(c: dict[str, Any]) -> LedgerEntry:
@@ -144,4 +182,6 @@ def _leer(c: dict[str, Any]) -> LedgerEntry:
         ),
         mode_name=c["mode"],
         recorded_at=datetime.fromisoformat(c["recorded_at"]),
+        exchange=c.get("exchange"),
+        bot=c.get("bot"),
     )

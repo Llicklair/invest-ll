@@ -6,6 +6,7 @@ orden, y cuáles no salieron como se pidieron.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -75,6 +76,52 @@ class TestRegistro:
         libro = ExecutionLedger(tmp_path)
         libro.record(resultado(pedida="0.00012345", ejecutada="0.00012345"), mode_name="pruebas")
         assert libro.entries()[0].result.filled_quantity == D("0.00012345")
+
+
+class TestExchangeYBot:
+    """Panel v4: cada orden dice de qué exchange y de qué bot es, sin romper las líneas viejas."""
+
+    def test_guarda_el_exchange_y_el_bot(self, tmp_path: Path) -> None:
+        libro = ExecutionLedger(tmp_path)
+        libro.record(resultado(), mode_name="pruebas", exchange="bybit", bot="rebote-eth")
+
+        entrada = libro.entries()[0]
+        assert (entrada.exchange, entrada.bot, entrada.exchange_de) == (
+            "bybit",
+            "rebote-eth",
+            "bybit",
+        )
+        assert "bybit (bot rebote-eth)" in libro.render()
+
+    def test_sin_exchange_la_linea_es_la_de_siempre(self, tmp_path: Path) -> None:
+        libro = ExecutionLedger(tmp_path)
+        libro.record(resultado(), mode_name="pruebas")
+
+        linea = json.loads(libro.path.read_text(encoding="utf-8"))
+        assert "exchange" not in linea
+        assert "bot" not in linea
+
+    def test_una_linea_de_antes_de_v4_se_lee_y_es_de_binance(self, tmp_path: Path) -> None:
+        """Escrita a mano como la dejaba v2: sin `exchange` ni `bot` (ni `commission`)."""
+        vieja = {
+            "recorded_at": CUANDO.isoformat(),
+            "mode": "pruebas",
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "requested_quantity": "0.001",
+            "requested_at": CUANDO.isoformat(),
+            "status": "filled",
+            "filled_quantity": "0.001",
+            "fill_price": "50000",
+            "executed_at": CUANDO.isoformat(),
+            "broker_reference": "ref-1",
+        }
+        tmp_path.joinpath("orders.jsonl").write_text(json.dumps(vieja) + "\n", encoding="utf-8")
+
+        entrada = ExecutionLedger(tmp_path).entries()[0]
+        assert entrada.exchange is None
+        assert entrada.bot is None
+        assert entrada.exchange_de == "binance"
 
 
 class TestLoQuePideAtencion:

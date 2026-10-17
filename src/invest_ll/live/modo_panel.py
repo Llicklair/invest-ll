@@ -129,13 +129,23 @@ class ConfigPanel:
 # -- La evidencia del registro de órdenes -------------------------------------------------------
 
 
-def ordenes_ejecutadas(entradas: Iterable[LedgerEntry], red: Red) -> int:
-    """Órdenes de esa red que el exchange ejecutó (entera o en parte), según el registro."""
+def ordenes_ejecutadas(
+    entradas: Iterable[LedgerEntry], red: Red, *, exchange: str = "binance"
+) -> int:
+    """Órdenes de esa red y ese exchange que se ejecutaron (enteras o en parte), según el registro.
+
+    Desde v4 el registro guarda órdenes de varios exchanges: una orden de pruebas de Bybit no es
+    evidencia de haber operado en la red de pruebas de Binance. Las entradas de antes de v4 no
+    dicen el exchange y son de Binance (`LedgerEntry.exchange_de`).
+    """
     nombre = NOMBRE_EN_EL_REGISTRO[red]
     return sum(
         1
         for e in entradas
-        if e.mode_name == nombre and e.result.status in EJECUTADAS and e.result.filled_quantity > 0
+        if e.mode_name == nombre
+        and e.exchange_de == exchange
+        and e.result.status in EJECUTADAS
+        and e.result.filled_quantity > 0
     )
 
 

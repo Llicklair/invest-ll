@@ -7,6 +7,7 @@ ejecutada de verdad en el registro.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -105,6 +106,18 @@ def test_solo_cuentan_las_ordenes_de_pruebas_ejecutadas() -> None:
         == 1
     )
     assert ordenes_ejecutadas(entradas, "real") == 1
+
+
+def test_una_orden_de_pruebas_de_otro_exchange_no_es_evidencia_de_binance() -> None:
+    """Desde v4 el registro lleva órdenes de varios exchanges; las de antes no dicen cuál y son de
+    Binance."""
+    de_bybit = replace(_entrada("pruebas", OrderStatus.FILLED, "0.001"), exchange="bybit")
+    antigua = _entrada("pruebas", OrderStatus.FILLED, "0.001")
+    de_binance = replace(antigua, exchange="binance", bot="b1")
+
+    assert ordenes_ejecutadas([de_bybit], "pruebas") == 0
+    assert ordenes_ejecutadas([de_bybit], "pruebas", exchange="bybit") == 1
+    assert ordenes_ejecutadas([antigua, de_binance, de_bybit], "pruebas") == 2
 
 
 def test_la_marca_de_pruebas_solo_con_evidencia() -> None:
