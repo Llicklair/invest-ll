@@ -7,6 +7,7 @@ Esa distinción —no realizado vs realizado— es lo que responde "¿qué retir
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -258,6 +259,47 @@ class TestElAlmacen:
         store.append(compra("GLD", "10", "180", en=5))
         store.append(compra("TLT", "10", "90", en=1))
         assert [a.symbol for a in store.activities()] == ["TLT", "GLD"]
+
+
+class TestLaNota:
+    """Un comentario en llano: se guarda y se lee, pero no cambia qué movimiento es."""
+
+    NOTA = "Compraste 5,437 participaciones a 650 € en tu bróker."
+
+    def test_no_entra_en_la_huella_ni_en_la_igualdad(self) -> None:
+        sin = compra("SPY", "4.63", "763.25", en=1)
+        con = replace(sin, nota=self.NOTA)
+        assert con.activity_id == sin.activity_id
+        assert con == sin
+
+    def test_se_guarda_y_se_lee(self, tmp_path: Path) -> None:
+        store = ActivityStore(tmp_path)
+        store.append(replace(compra("SPY", "4.63", "763.25", en=1), nota=self.NOTA))
+        (releida,) = store.activities()
+        assert releida.nota == self.NOTA
+        assert '"nota": "Compraste 5,437' in store.path.read_text(encoding="utf-8")
+
+    def test_la_misma_compra_con_otra_nota_no_se_anota_dos_veces(self, tmp_path: Path) -> None:
+        store = ActivityStore(tmp_path)
+        store.append(replace(compra("SPY", "4.63", "763.25", en=1), nota=self.NOTA))
+        with pytest.raises(DuplicateActivityError):
+            store.append(replace(compra("SPY", "4.63", "763.25", en=1), nota="otra"))
+
+    def test_las_lineas_de_antes_se_leen_sin_nota(self, tmp_path: Path) -> None:
+        """Compatibles: lo escrito antes de que existiera la nota no lleva la clave."""
+        store = ActivityStore(tmp_path)
+        store.path.parent.mkdir(parents=True, exist_ok=True)
+        store.path.write_text(
+            '{"timestamp": "2026-01-02T00:00:00+00:00", "type": "buy", "symbol": "SPY", '
+            '"quantity": "4.63", "unit_price": "763.25", "fee": "2", "source": "plan", '
+            '"recorded_at": "2026-01-02T10:00:00+00:00"}\n',
+            encoding="utf-8",
+        )
+        (vieja,) = store.activities()
+        assert vieja.nota is None
+        assert vieja.source == "plan"
+        store.append(compra("GLD", "1", "100", en=3))
+        assert "nota" not in store.path.read_text(encoding="utf-8"), "sin nota, ni la clave"
 
 
 class TestImportCsv:
