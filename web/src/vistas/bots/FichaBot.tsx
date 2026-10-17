@@ -16,8 +16,8 @@ import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { MarcoTabla, Td, Th } from "@/componentes/tabla";
 import { Aviso, Boton, CargandoLento, ErrorApiVista, Esqueleto, Seccion, Tarjeta, clases } from "@/componentes/ui";
 import { useAccion, useConsulta } from "@/lib/consulta";
-import { formatoCantidad, formatoImporte, signoDecimal } from "@/lib/decimal";
-import { fecha, fraccion, fraccionCoherente, momento } from "@/lib/formato";
+import { formatoCantidad, formatoImporte } from "@/lib/decimal";
+import { fecha, fraccion, fraccionCoherente, momento, signoImporteVisible } from "@/lib/formato";
 import { nombreIntervalo } from "@/lib/vivo";
 
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, NotaBots, PctColor, diasTexto, usdc } from "./comun";
@@ -144,7 +144,7 @@ function Ficha({ id }: { id: string }) {
             </thead>
             <tbody>
               {base.posiciones.map((p) => {
-                const s = p.ganancia === null ? null : signoDecimal(p.ganancia);
+                const s = signoImporteVisible(p.ganancia);
                 return (
                   <tr key={p.coin}>
                     <Td>

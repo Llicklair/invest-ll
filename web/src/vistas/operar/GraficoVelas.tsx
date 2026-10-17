@@ -423,8 +423,8 @@ function Leyenda({
           {dato("Mín.", precioFijo(b.l, decimales))}
           {dato(leyenda?.enCurso ? "Ahora" : "Cerró", precioFijo(b.c, decimales))}
           {cambio !== null ? (
-            <span className={clases("cifras font-semibold", sube ? "text-sube-texto" : "text-baja-texto")}>
-              {cambio > 0 ? "+" : cambio < 0 ? "−" : ""}
+            <span className={clases("cifras font-semibold", Math.round(cambio * 100) === 0 ? "text-tinta-suave" : sube ? "text-sube-texto" : "text-baja-texto")}>
+              {Math.round(cambio * 100) === 0 ? "" : cambio > 0 ? "+" : "−"}
               {Math.abs(cambio).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %
             </span>
           ) : null}

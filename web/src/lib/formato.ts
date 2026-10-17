@@ -7,7 +7,7 @@
  * - `null` siempre se pinta como "—": falta el dato, que no es lo mismo que un 0.
  * - El signo negativo es el menos tipografico (−), no el guion: se lee mejor junto a la cifra.
  */
-import { formatoImporte, type OpcionesFormato } from "./decimal";
+import { formatoImporte, signoDecimal, type OpcionesFormato } from "./decimal";
 
 const cacheFormatos = new Map<string, Intl.NumberFormat>();
 
@@ -71,6 +71,24 @@ export function fraccionCoherente(valor: number | null | undefined, signoImporte
 /** ¿Este texto formateado dice algo distinto de cero? ("+0,0 %" y "0,00" no). */
 export function noEsCero(texto: string): boolean {
   return /[1-9]/.test(texto);
+}
+
+/**
+ * El signo de lo que SE VE, para el color: si la cifra redondeada sale "0,0 %", es neutra aunque
+ * el dato fuera −0,0004 (un "Hoy 0,0 %" en rojo dice "pierdes" sin que se vea ninguna perdida).
+ */
+export function signoVisible(valor: number | null | undefined, texto: string): -1 | 0 | 1 | null {
+  const s = signo(valor);
+  if (s === null) return null;
+  return noEsCero(texto) ? s : 0;
+}
+
+/** Lo mismo para un importe exacto (Decimal en cadena) que se ensena con `decimales` cifras. */
+export function signoImporteVisible(importe: string | null | undefined, decimales = 2): -1 | 0 | 1 | null {
+  if (importe === null || importe === undefined) return null;
+  const s = signoDecimal(importe);
+  if (s === null) return null;
+  return noEsCero(formatoImporte(importe, { decimales })) ? s : 0;
 }
 
 /** El simbolo de una moneda para ponerlo detras de la cifra: "€", "$" o el codigo ("USDT"). */

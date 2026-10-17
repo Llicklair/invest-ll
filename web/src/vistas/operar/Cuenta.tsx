@@ -12,8 +12,8 @@ import { Pestanas } from "@/componentes/Pestanas";
 import { Td, Th } from "@/componentes/tabla";
 import { Boton, ErrorApiVista, Nota, clases } from "@/componentes/ui";
 import { useAccion } from "@/lib/consulta";
-import { formatoCantidad, formatoImporte, signoDecimal } from "@/lib/decimal";
-import { fraccionCoherente, momento } from "@/lib/formato";
+import { formatoCantidad, formatoImporte } from "@/lib/decimal";
+import { fraccionCoherente, momento, signoImporteVisible } from "@/lib/formato";
 import { decimalesPrecio, horaSegundos } from "@/lib/vivo";
 
 import { leerNumero } from "./Boleto";
@@ -210,7 +210,7 @@ export function ListasCuenta({
               </thead>
               <tbody>
                 {cuenta.posiciones.map((p) => {
-                  const s = p.ganancia === null ? null : signoDecimal(p.ganancia);
+                  const s = signoImporteVisible(p.ganancia);
                   const d = decPrecio(monedas, p.coin);
                   return (
                     <tr key={p.coin}>
@@ -350,7 +350,7 @@ function FichasCuenta({
     return (
       <ul className="divide-y divide-linea">
         {cuenta.posiciones.map((p) => {
-          const s = p.ganancia === null ? null : signoDecimal(p.ganancia);
+          const s = signoImporteVisible(p.ganancia);
           const d = decPrecio(monedas, p.coin);
           return (
             <li key={p.coin} className="flex items-start gap-3 px-4 py-3">

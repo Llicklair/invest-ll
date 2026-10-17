@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 
 import type { EstadoBot, EvidenciaBot, PuntoBot, ResumenBot } from "@/api/tipos";
 import { Chip, clases } from "@/componentes/ui";
-import { formatoImporte, signoDecimal } from "@/lib/decimal";
-import { SIN_DATO, fraccion, fraccionCoherente } from "@/lib/formato";
+import { formatoImporte } from "@/lib/decimal";
+import { SIN_DATO, fraccion, fraccionCoherente, signoImporteVisible, signoVisible } from "@/lib/formato";
 
 export const NOTA_BOTS = "Dinero ficticio. Los bots solo funcionan mientras el panel está abierto.";
 
@@ -83,7 +83,8 @@ const signoDe = (x: number | null | undefined): -1 | 0 | 1 | null => (x === null
  * en una frase, quien va por delante, y si es pronto para sacar conclusiones.
  */
 export function CifrasBot({ bot, tamano = "normal" }: { bot: Pick<ResumenBot, "ganancia" | "ganancia_pct" | "mantener_pct" | "dias">; tamano?: "normal" | "grande" }) {
-  const sg = bot.ganancia === null ? null : signoDecimal(bot.ganancia);
+  // El signo del importe que se ve: "−0,001 USDC" se ensena "0,00 USDC" y es neutro.
+  const sg = signoImporteVisible(bot.ganancia);
   const sm = signoDe(bot.mantener_pct);
   const dif = bot.ganancia_pct !== null && bot.mantener_pct !== null ? bot.ganancia_pct - bot.mantener_pct : null;
   const puntos = dif === null ? null : Math.abs(dif * 100).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -128,9 +129,14 @@ export function Dato({ etiqueta, children, className }: { etiqueta: string; chil
   );
 }
 
+/**
+ * Una variacion pequena (el "Hoy" de la tarjeta), con color solo si LO QUE SE VE no es cero: un
+ * −0,0004 se ensena "0,0 %" y es neutro, no rojo.
+ */
 export function PctColor({ valor }: { valor: number | null | undefined }) {
-  const s = signoDe(valor);
-  return <span className={s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : undefined}>{valor === null || valor === undefined ? SIN_DATO : fraccion(valor, 1)}</span>;
+  const texto = valor === null || valor === undefined ? SIN_DATO : fraccion(valor, 1);
+  const s = signoVisible(valor, texto);
+  return <span className={s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : undefined}>{texto}</span>;
 }
 
 /** Dias en marcha, en llano: "12 días", "5 horas". */
