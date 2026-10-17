@@ -87,6 +87,8 @@ class Ficha:
     """Velas por petición, como mucho. Si se piden más, se pide varias veces."""
     par_de_referencia: str = "BTC/USDT"
     """El par de BTC en ese exchange (para comprobar que responde)."""
+    par_de_pruebas: str | None = None
+    """Un par con libro en la red de pruebas, si no es el de referencia."""
 
     @property
     def tiene_pruebas(self) -> bool:
@@ -186,6 +188,8 @@ HYPERLIQUID: Final = Ficha(
         "En More → API crea una API wallet («Generate»), ponle nombre y autorízala.",
         "Copia su clave privada (se enseña una vez) y pega aquí la dirección de TU cartera y esa "
         "clave privada.",
+        "Para la orden de prueba usa PURR/USDC o HYPE/USDC: en la red de pruebas el BTC de contado "
+        "casi no tiene libro.",
     ),
     como_conseguir_real=(
         "Entra en app.hyperliquid.xyz con tu cartera.",
@@ -212,7 +216,10 @@ HYPERLIQUID: Final = Ficha(
     params_saldo=(("type", "spot"),),
     max_libro=20,
     max_velas=5000,
-    par_de_referencia="UBTC/USDC",
+    # ccxt llama BTC/USDC al BTC de contado de Hyperliquid (el token UBTC, "@142").
+    par_de_referencia="BTC/USDC",
+    # En la red de pruebas, BTC/USDC es otro token, casi sin libro (comprobado el 2026-10-17).
+    par_de_pruebas="PURR/USDC",
 )
 
 BYBIT: Final = Ficha(

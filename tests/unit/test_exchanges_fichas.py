@@ -7,11 +7,14 @@ aquí en vez de en la cara de Marcos al pegar las claves.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 import ccxt
 import pytest
 
+from invest_ll.exchanges.ccxt_conector import ConectorCcxt
+from invest_ll.exchanges.conector import ExchangeError
 from invest_ll.exchanges.fichas import FICHAS, POR_ID, Ficha
 from invest_ll.exchanges.red_ccxt import RedEquivocadaError, apunta_a_pruebas, construir
 
@@ -108,3 +111,39 @@ def test_las_opciones_dejan_solo_el_contado() -> None:
 def test_las_claves_llegan_a_ccxt() -> None:
     ex = construir(POR_ID["okx"], "pruebas", {"apiKey": "k", "secret": "s", "password": "p"})
     assert (ex.apiKey, ex.secret, ex.password) == ("k", "s", "p")
+
+
+def test_redondeo_y_minimos_con_el_ccxt_de_verdad_sin_red() -> None:
+    """Las funciones de ccxt que usa el conector (`amount_to_precision`, `price_to_precision`),
+    las de verdad, con un mercado puesto a mano: así no se habla con nadie."""
+    ex = ccxt.binance()
+    mercado = {
+        "id": "BTCUSDT",
+        "symbol": "BTC/USDT",
+        "base": "BTC",
+        "quote": "USDT",
+        "spot": True,
+        "active": True,
+        "precision": {"amount": 0.00001, "price": 0.01},
+        "limits": {"amount": {"min": 0.00001}, "cost": {"min": 5.0}},
+        "taker": 0.001,
+        "maker": 0.001,
+    }
+    ex.markets = {"BTC/USDT": mercado}
+    ex.markets_by_id = {"BTCUSDT": [mercado]}
+    ex.symbols = ["BTC/USDT"]
+    c = ConectorCcxt(ex, POR_ID["binance"], "pruebas", claves={"apiKey": "k", "secret": "s"})
+
+    assert c.mercado("BTC/USDT").paso_cantidad == Decimal("0.00001")
+    lista = c._preparar(  # pyright: ignore[reportPrivateUsage]
+        mercado, "BTC/USDT", "compra", Decimal("0.0012345"), "limite", Decimal("60000.129")
+    )
+    assert (lista.cantidad, lista.precio) == ("0.00123", "60000.13")
+    with pytest.raises(ExchangeError, match="se queda en cero"):
+        c._preparar(  # pyright: ignore[reportPrivateUsage]
+            mercado, "BTC/USDT", "compra", Decimal("0.000001"), "limite", Decimal(60000)
+        )
+    with pytest.raises(ExchangeError, match="importe mínimo"):
+        c._preparar(  # pyright: ignore[reportPrivateUsage]
+            mercado, "BTC/USDT", "compra", Decimal("0.00005"), "limite", Decimal(60000)
+        )

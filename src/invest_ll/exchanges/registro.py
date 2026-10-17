@@ -39,7 +39,7 @@ REDES: Final[tuple[Red, ...]] = ("pruebas", "real")
 
 _cerrojo = threading.Lock()
 _inyectados: dict[str, Conector] = {}
-_publicos: dict[str, Conector] = {}
+_publicos: dict[tuple[str, Red], Conector] = {}
 _con_claves: dict[tuple[str, Red, str], Conector] = {}
 
 
@@ -94,17 +94,20 @@ def con_claves(exchange: str, red: Red, claves: ClavesExchange) -> Conector:
         return hecho
 
 
-def conector_publico(exchange: str) -> Conector:
-    """Un conector sin claves, solo para datos públicos (mercados, precio, libro, velas)."""
+def conector_publico(exchange: str, red: Red = "real") -> Conector:
+    """Un conector sin claves, solo para datos públicos (mercados, precio, libro, velas).
+
+    `red="pruebas"` da los datos públicos de la red de pruebas (sus pares no son los mismos);
+    `ExchangeError` si el exchange no tiene."""
     f = ficha(exchange)
     with _cerrojo:
         inyectado = _inyectados.get(exchange)
         if inyectado is not None:
             return inyectado
-        hecho = _publicos.get(exchange)
+        hecho = _publicos.get((exchange, red))
         if hecho is None:
-            hecho = ConectorCcxt(red_ccxt.construir(f, "real", None), f, "real")
-            _publicos[exchange] = hecho
+            hecho = ConectorCcxt(red_ccxt.construir(f, red, None), f, red)
+            _publicos[(exchange, red)] = hecho
         return hecho
 
 
