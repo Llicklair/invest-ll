@@ -22,15 +22,32 @@ from fastapi import APIRouter
 from invest_ll.api import (
     cartera,
     chat,
+    conexion,
     estado,
+    estrategias,
+    inicio,
     investigacion,
     mercado,
+    plan,
     seguimiento,
     simular,
     vigilar,
 )
 
-PESTANAS = (estado, mercado, cartera, simular, vigilar, seguimiento, investigacion, chat)
+PESTANAS = (
+    estado,
+    inicio,
+    estrategias,
+    plan,
+    conexion,
+    mercado,
+    cartera,
+    simular,
+    vigilar,
+    seguimiento,
+    investigacion,
+    chat,
+)
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""
 

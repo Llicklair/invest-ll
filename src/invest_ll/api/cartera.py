@@ -32,6 +32,7 @@ from invest_ll.api.schemas import (
     PosicionRetirada,
     ResultadoOrden,
 )
+from invest_ll.api.schemas_v2 import Movimientos
 from invest_ll.dashboard.ordenes import enviar_orden, motivo_para_no_enviar
 from invest_ll.errors import InvestLLError
 from invest_ll.live.broker import Side
@@ -243,3 +244,12 @@ def enviar(peticion: PeticionOrden) -> ResultadoOrden:
         necesita_atencion=resultado.needs_attention,
         modo=modo.name,
     )
+
+
+@router.get("/cartera/movimientos", tags=["cartera"])
+def movimientos() -> Movimientos:
+    """El registro de la cartera del modo activo, legible y el más reciente primero.
+
+    ESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.
+    """
+    raise NotImplementedError("pendiente de implementar")

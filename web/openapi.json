@@ -1,6 +1,201 @@
 {
   "components": {
     "schemas": {
+      "Accion": {
+        "description": "Algo que toca hacer hoy.\n\nEn Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras tú\ny lo anotas con `POST /api/plan/hoy/{id}/hecho`.",
+        "properties": {
+          "activo": {
+            "description": "Nombre llano",
+            "title": "Activo",
+            "type": "string"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exacta (binance) o aproximada (bróker)",
+            "title": "Cantidad"
+          },
+          "donde": {
+            "enum": [
+              "binance",
+              "broker"
+            ],
+            "title": "Donde",
+            "type": "string"
+          },
+          "equivalente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Qué comprar desde España (bróker)",
+            "title": "Equivalente"
+          },
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "explicacion": {
+            "description": "El porqué en una frase",
+            "title": "Explicacion",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "importe": {
+            "description": "Importe aproximado en la moneda de cotización",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "moneda": {
+            "description": "USDT, USD...",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "par": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Par de Binance (BTC/USDT) si donde=binance",
+            "title": "Par"
+          },
+          "precio_fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Fecha"
+          },
+          "precio_ref": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Ref"
+          },
+          "simbolo": {
+            "title": "Simbolo",
+            "type": "string"
+          },
+          "titulo": {
+            "description": "'Comprar Bitcoin', 'Compra unos 108 € de…'",
+            "title": "Titulo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "donde",
+          "estrategia",
+          "titulo",
+          "explicacion",
+          "activo",
+          "simbolo",
+          "par",
+          "lado",
+          "cantidad",
+          "importe",
+          "moneda",
+          "precio_ref",
+          "precio_fecha",
+          "equivalente"
+        ],
+        "title": "Accion",
+        "type": "object"
+      },
+      "AccionHecha": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Comision"
+          },
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Precio"
+          }
+        },
+        "required": [
+          "cantidad",
+          "precio",
+          "fecha"
+        ],
+        "title": "AccionHecha",
+        "type": "object"
+      },
       "Activo": {
         "description": "Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.",
         "properties": {
@@ -181,6 +376,36 @@
         "title": "AnalisisCartera",
         "type": "object"
       },
+      "CambioModo": {
+        "properties": {
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para pasar a real hay que escribir exactamente 'DINERO REAL'",
+            "title": "Confirmacion"
+          },
+          "modo": {
+            "enum": [
+              "simulacion",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modo"
+        ],
+        "title": "CambioModo",
+        "type": "object"
+      },
       "Cartera": {
         "properties": {
           "abiertas": {
@@ -261,6 +486,51 @@
           "realizado_total"
         ],
         "title": "Cartera",
+        "type": "object"
+      },
+      "Catalogo": {
+        "properties": {
+          "estrategias": {
+            "items": {
+              "$ref": "#/components/schemas/Estrategia"
+            },
+            "title": "Estrategias",
+            "type": "array"
+          },
+          "nota": {
+            "description": "El aviso general: el pasado no es una promesa",
+            "title": "Nota",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estrategias",
+          "nota"
+        ],
+        "title": "Catalogo",
+        "type": "object"
+      },
+      "Cerrojo": {
+        "properties": {
+          "detalle": {
+            "title": "Detalle",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nombre",
+          "ok",
+          "detalle"
+        ],
+        "title": "Cerrojo",
         "type": "object"
       },
       "Comparacion": {
@@ -535,6 +805,57 @@
           "armados"
         ],
         "title": "ComprobacionTriggers",
+        "type": "object"
+      },
+      "Conexion": {
+        "properties": {
+          "cerrojos_real": {
+            "items": {
+              "$ref": "#/components/schemas/Cerrojo"
+            },
+            "title": "Cerrojos Real",
+            "type": "array"
+          },
+          "modo": {
+            "enum": [
+              "simulacion",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "modo_origen": {
+            "enum": [
+              "panel",
+              "entorno"
+            ],
+            "title": "Modo Origen",
+            "type": "string"
+          },
+          "modos": {
+            "items": {
+              "$ref": "#/components/schemas/ModoDisponible"
+            },
+            "title": "Modos",
+            "type": "array"
+          },
+          "redes": {
+            "items": {
+              "$ref": "#/components/schemas/EstadoRed"
+            },
+            "title": "Redes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "modo",
+          "modo_origen",
+          "redes",
+          "modos",
+          "cerrojos_real"
+        ],
+        "title": "Conexion",
         "type": "object"
       },
       "Consistencia": {
@@ -828,6 +1149,176 @@
         "title": "EstadoEnvio",
         "type": "object"
       },
+      "EstadoRed": {
+        "properties": {
+          "claves_guardadas": {
+            "title": "Claves Guardadas",
+            "type": "boolean"
+          },
+          "origen": {
+            "enum": [
+              "panel",
+              "entorno",
+              "ninguno"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          },
+          "verificada": {
+            "description": "Pruebas: hay al menos una orden ejecutada en el registro",
+            "title": "Verificada",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "red",
+          "claves_guardadas",
+          "origen",
+          "verificada"
+        ],
+        "title": "EstadoRed",
+        "type": "object"
+      },
+      "Estrategia": {
+        "properties": {
+          "activos": {
+            "description": "Nombres llanos de lo que compra",
+            "items": {
+              "type": "string"
+            },
+            "title": "Activos",
+            "type": "array"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "como_funciona": {
+            "description": "Tres pasos llanos",
+            "items": {
+              "type": "string"
+            },
+            "title": "Como Funciona",
+            "type": "array"
+          },
+          "disponible": {
+            "description": "False si faltan datos para calcularla",
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "ejecucion": {
+            "enum": [
+              "binance",
+              "broker"
+            ],
+            "title": "Ejecucion",
+            "type": "string"
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/Evidencia"
+          },
+          "frase": {
+            "description": "Qué es, en una frase llana",
+            "title": "Frase",
+            "type": "string"
+          },
+          "historico": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Historico"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "laboratorio": {
+            "description": "True: solo se enseña en Laboratorio",
+            "title": "Laboratorio",
+            "type": "boolean"
+          },
+          "mercado": {
+            "enum": [
+              "bolsa",
+              "cripto"
+            ],
+            "title": "Mercado",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Qué falta, si no está disponible",
+            "title": "Motivo"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "para_quien": {
+            "title": "Para Quien",
+            "type": "string"
+          },
+          "retirada": {
+            "description": "True: ya no se recomienda (se explica en avisos)",
+            "title": "Retirada",
+            "type": "boolean"
+          },
+          "riesgo": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Riesgo",
+            "type": "integer"
+          },
+          "riesgo_texto": {
+            "description": "Tranquila · Suave · Moderada · Movida · Muy movida",
+            "title": "Riesgo Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "frase",
+          "para_quien",
+          "mercado",
+          "ejecucion",
+          "riesgo",
+          "riesgo_texto",
+          "como_funciona",
+          "avisos",
+          "evidencia",
+          "activos",
+          "laboratorio",
+          "retirada",
+          "disponible",
+          "motivo",
+          "historico"
+        ],
+        "title": "Estrategia",
+        "type": "object"
+      },
       "Estudio": {
         "properties": {
           "generado": {
@@ -845,6 +1336,43 @@
           "generado"
         ],
         "title": "Estudio",
+        "type": "object"
+      },
+      "Evidencia": {
+        "properties": {
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Desde cuándo está en prueba real, si lo está",
+            "title": "Desde"
+          },
+          "texto": {
+            "description": "En llano: 'Probada sobre el pasado' / 'En prueba real desde…'",
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "pasado",
+              "prueba_real"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "desde",
+          "texto"
+        ],
+        "title": "Evidencia",
         "type": "object"
       },
       "FilaDatos": {
@@ -1236,6 +1764,126 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Historico": {
+        "description": "Lo que hizo con 10.000 desde el principio de los datos. Calculado, no escrito a mano.",
+        "properties": {
+          "crecimiento_anual": {
+            "description": "Fracción media anual compuesta",
+            "title": "Crecimiento Anual",
+            "type": "number"
+          },
+          "desde": {
+            "format": "date",
+            "title": "Desde",
+            "type": "string"
+          },
+          "hasta": {
+            "format": "date",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "operaciones_al_anio": {
+            "title": "Operaciones Al Anio",
+            "type": "number"
+          },
+          "peor_caida": {
+            "description": "Fracción negativa: -0.65 = cayó un 65 %",
+            "title": "Peor Caida",
+            "type": "number"
+          },
+          "peor_caida_fecha": {
+            "format": "date",
+            "title": "Peor Caida Fecha",
+            "type": "string"
+          },
+          "peor_racha_anios": {
+            "description": "Lo más que tardó en volver a su máximo, en años",
+            "title": "Peor Racha Anios",
+            "type": "number"
+          },
+          "tiempo_invertido": {
+            "description": "Fracción del tiempo dentro del mercado",
+            "title": "Tiempo Invertido",
+            "type": "number"
+          },
+          "valor_final": {
+            "description": "Desde 10.000",
+            "title": "Valor Final",
+            "type": "number"
+          }
+        },
+        "required": [
+          "desde",
+          "hasta",
+          "valor_final",
+          "crecimiento_anual",
+          "peor_caida",
+          "peor_caida_fecha",
+          "peor_racha_anios",
+          "tiempo_invertido",
+          "operaciones_al_anio"
+        ],
+        "title": "Historico",
+        "type": "object"
+      },
+      "Hoy": {
+        "properties": {
+          "acciones": {
+            "items": {
+              "$ref": "#/components/schemas/Accion"
+            },
+            "title": "Acciones",
+            "type": "array"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "modo": {
+            "enum": [
+              "simulacion",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "proxima_fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proxima Fecha"
+          },
+          "resumen": {
+            "description": "'No toca hacer nada. Tu próxima aportación es…'",
+            "title": "Resumen",
+            "type": "string"
+          },
+          "sin_plan": {
+            "title": "Sin Plan",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sin_plan",
+          "modo",
+          "acciones",
+          "resumen",
+          "proxima_fecha",
+          "avisos"
+        ],
+        "title": "Hoy",
+        "type": "object"
+      },
       "Informe": {
         "description": "Un backtest, en el mismo orden de lectura que el informe de texto (win rate al final).",
         "properties": {
@@ -1401,6 +2049,74 @@
         "title": "InformeAportaciones",
         "type": "object"
       },
+      "Inicio": {
+        "properties": {
+          "acciones_pendientes": {
+            "title": "Acciones Pendientes",
+            "type": "integer"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "hay_movimientos": {
+            "title": "Hay Movimientos",
+            "type": "boolean"
+          },
+          "mercado": {
+            "items": {
+              "$ref": "#/components/schemas/MiniMercado"
+            },
+            "title": "Mercado",
+            "type": "array"
+          },
+          "patrimonio": {
+            "$ref": "#/components/schemas/Patrimonio"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ParteResumen"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si no hay plan guardado",
+            "title": "Plan"
+          },
+          "proxima_fecha": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Próxima aportación del plan",
+            "title": "Proxima Fecha"
+          }
+        },
+        "required": [
+          "patrimonio",
+          "hay_movimientos",
+          "plan",
+          "acciones_pendientes",
+          "proxima_fecha",
+          "avisos",
+          "mercado"
+        ],
+        "title": "Inicio",
+        "type": "object"
+      },
       "Investigacion": {
         "properties": {
           "dias_desfase": {
@@ -1500,6 +2216,49 @@
         "title": "MensajeChat",
         "type": "object"
       },
+      "MiniMercado": {
+        "properties": {
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.', 'Oro'",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio": {
+            "title": "Precio",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "var_1m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En %",
+            "title": "Var 1M"
+          }
+        },
+        "required": [
+          "nombre",
+          "symbol",
+          "precio",
+          "var_1m",
+          "fecha"
+        ],
+        "title": "MiniMercado",
+        "type": "object"
+      },
       "Modo": {
         "properties": {
           "envia_ordenes": {
@@ -1526,6 +2285,130 @@
         "title": "Modo",
         "type": "object"
       },
+      "ModoDisponible": {
+        "properties": {
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "modo": {
+            "enum": [
+              "simulacion",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "que_falta": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Que Falta",
+            "type": "array"
+          }
+        },
+        "required": [
+          "modo",
+          "disponible",
+          "que_falta"
+        ],
+        "title": "ModoDisponible",
+        "type": "object"
+      },
+      "Movimiento": {
+        "properties": {
+          "activo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nombre llano, si es una compra/venta",
+            "title": "Activo"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "comision": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comision",
+            "type": "string"
+          },
+          "fecha": {
+            "format": "date-time",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "importe": {
+            "description": "Cantidad por precio (o el importe si es efectivo)",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "type": "string"
+          },
+          "origen": {
+            "description": "manual, panel, csv:…, ledger:…, plan",
+            "title": "Origen",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo"
+          },
+          "tipo": {
+            "enum": [
+              "compra",
+              "venta",
+              "ingreso",
+              "retirada"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fecha",
+          "tipo",
+          "activo",
+          "simbolo",
+          "cantidad",
+          "precio",
+          "comision",
+          "importe",
+          "origen"
+        ],
+        "title": "Movimiento",
+        "type": "object"
+      },
       "MovimientoRegistrado": {
         "properties": {
           "activity_id": {
@@ -1537,6 +2420,52 @@
           "activity_id"
         ],
         "title": "MovimientoRegistrado",
+        "type": "object"
+      },
+      "Movimientos": {
+        "properties": {
+          "cartera": {
+            "enum": [
+              "real",
+              "pruebas"
+            ],
+            "title": "Cartera",
+            "type": "string"
+          },
+          "movimientos": {
+            "description": "El más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/Movimiento"
+            },
+            "title": "Movimientos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cartera",
+          "movimientos"
+        ],
+        "title": "Movimientos",
+        "type": "object"
+      },
+      "NuevasClaves": {
+        "properties": {
+          "clave": {
+            "minLength": 8,
+            "title": "Clave",
+            "type": "string"
+          },
+          "secreto": {
+            "minLength": 8,
+            "title": "Secreto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "secreto"
+        ],
+        "title": "NuevasClaves",
         "type": "object"
       },
       "NuevoMovimiento": {
@@ -1618,6 +2547,32 @@
           "cantidad"
         ],
         "title": "NuevoMovimiento",
+        "type": "object"
+      },
+      "NuevoPlan": {
+        "description": "Como mucho una estrategia de bolsa y una de cripto.",
+        "properties": {
+          "dia_del_mes": {
+            "maximum": 28.0,
+            "minimum": 1.0,
+            "title": "Dia Del Mes",
+            "type": "integer"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDelPlan-Input"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Partes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "partes",
+          "dia_del_mes"
+        ],
+        "title": "NuevoPlan",
         "type": "object"
       },
       "NuevoTrigger": {
@@ -1754,6 +2709,248 @@
         "title": "Par",
         "type": "object"
       },
+      "Parte": {
+        "properties": {
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "inicial": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Inicial",
+            "type": "string"
+          },
+          "mensual": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mensual",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "porcentaje": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Porcentaje",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "estrategia",
+          "nombre",
+          "porcentaje",
+          "inicial",
+          "mensual"
+        ],
+        "title": "Parte",
+        "type": "object"
+      },
+      "ParteDelPlan-Input": {
+        "properties": {
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "inicial": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Inicial"
+          },
+          "mensual": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Mensual"
+          }
+        },
+        "required": [
+          "estrategia",
+          "inicial",
+          "mensual"
+        ],
+        "title": "ParteDelPlan",
+        "type": "object"
+      },
+      "ParteDelPlan-Output": {
+        "properties": {
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "inicial": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Inicial",
+            "type": "string"
+          },
+          "mensual": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mensual",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estrategia",
+          "inicial",
+          "mensual"
+        ],
+        "title": "ParteDelPlan",
+        "type": "object"
+      },
+      "ParteResumen": {
+        "properties": {
+          "estrategia": {
+            "title": "Estrategia",
+            "type": "string"
+          },
+          "mercado": {
+            "enum": [
+              "bolsa",
+              "cripto"
+            ],
+            "title": "Mercado",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "puesto": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Puesto",
+            "type": "string"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "estrategia",
+          "nombre",
+          "mercado",
+          "valor",
+          "puesto"
+        ],
+        "title": "ParteResumen",
+        "type": "object"
+      },
+      "Patrimonio": {
+        "description": "Tu dinero hoy. `valor` es None si falta el precio de algo (y `incompleto` lo dice).",
+        "properties": {
+          "cartera": {
+            "description": "'pruebas' = dinero ficticio",
+            "enum": [
+              "real",
+              "pruebas"
+            ],
+            "title": "Cartera",
+            "type": "string"
+          },
+          "fecha_precios": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha del cierre más antiguo usado",
+            "title": "Fecha Precios"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que ganas o pierdes si vendieras hoy",
+            "title": "Ganancia"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción: 0.046 = +4,6 %",
+            "title": "Ganancia Pct"
+          },
+          "incompleto": {
+            "title": "Incompleto",
+            "type": "boolean"
+          },
+          "puesto": {
+            "description": "Lo que has puesto (coste de lo que tienes)",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Puesto",
+            "type": "string"
+          },
+          "realizado": {
+            "description": "Lo ganado o perdido en lo que ya vendiste",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Realizado",
+            "type": "string"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que vale hoy lo que tienes (+ efectivo)",
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "valor",
+          "puesto",
+          "ganancia",
+          "ganancia_pct",
+          "realizado",
+          "fecha_precios",
+          "incompleto",
+          "cartera"
+        ],
+        "title": "Patrimonio",
+        "type": "object"
+      },
       "Pausa": {
         "properties": {
           "motivo": {
@@ -1765,6 +2962,73 @@
           "motivo"
         ],
         "title": "Pausa",
+        "type": "object"
+      },
+      "Perfil": {
+        "properties": {
+          "ante_caida": {
+            "enum": [
+              "vender",
+              "esperar",
+              "comprar"
+            ],
+            "title": "Ante Caida",
+            "type": "string"
+          },
+          "cripto": {
+            "enum": [
+              "no",
+              "poco",
+              "si"
+            ],
+            "title": "Cripto",
+            "type": "string"
+          },
+          "horizonte": {
+            "enum": [
+              "menos-2",
+              "2-5",
+              "5-10",
+              "mas-10"
+            ],
+            "title": "Horizonte",
+            "type": "string"
+          },
+          "inicial": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Inicial"
+          },
+          "mensual": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Mensual"
+          }
+        },
+        "required": [
+          "inicial",
+          "mensual",
+          "horizonte",
+          "ante_caida",
+          "cripto"
+        ],
+        "title": "Perfil",
         "type": "object"
       },
       "PesoObjetivo": {
@@ -2104,6 +3368,60 @@
         "title": "PeticionRotacion",
         "type": "object"
       },
+      "PeticionSimulacion": {
+        "properties": {
+          "desde_anio": {
+            "description": "Año de inicio (1 de enero)",
+            "maximum": 2100.0,
+            "minimum": 2008.0,
+            "title": "Desde Anio",
+            "type": "integer"
+          },
+          "estrategias": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Estrategias",
+            "type": "array"
+          },
+          "inicial": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Inicial"
+          },
+          "mensual": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Mensual"
+          }
+        },
+        "required": [
+          "estrategias",
+          "inicial",
+          "mensual",
+          "desde_anio"
+        ],
+        "title": "PeticionSimulacion",
+        "type": "object"
+      },
       "PeticionUnActivo": {
         "properties": {
           "activo": {
@@ -2238,6 +3556,58 @@
           "activos"
         ],
         "title": "PeticionUniverso",
+        "type": "object"
+      },
+      "Plan": {
+        "properties": {
+          "actualizado": {
+            "format": "date-time",
+            "title": "Actualizado",
+            "type": "string"
+          },
+          "creado": {
+            "format": "date-time",
+            "title": "Creado",
+            "type": "string"
+          },
+          "dia_del_mes": {
+            "title": "Dia Del Mes",
+            "type": "integer"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDelPlan-Output"
+            },
+            "title": "Partes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "partes",
+          "dia_del_mes",
+          "creado",
+          "actualizado"
+        ],
+        "title": "Plan",
+        "type": "object"
+      },
+      "PlanGuardado": {
+        "properties": {
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Plan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "PlanGuardado",
         "type": "object"
       },
       "PosicionAbierta": {
@@ -2496,6 +3866,34 @@
         "title": "PruebaAdelante",
         "type": "object"
       },
+      "PruebaConexion": {
+        "properties": {
+          "detalle": {
+            "description": "En llano; si falla, qué revisar (p. ej. tipo HMAC)",
+            "title": "Detalle",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "saldo": {
+            "description": "Solo monedas con saldo, ordenadas",
+            "items": {
+              "$ref": "#/components/schemas/SaldoMoneda"
+            },
+            "title": "Saldo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "detalle",
+          "saldo"
+        ],
+        "title": "PruebaConexion",
+        "type": "object"
+      },
       "Punto": {
         "properties": {
           "fecha": {
@@ -2538,6 +3936,78 @@
           "valor"
         ],
         "title": "PuntoComparado",
+        "type": "object"
+      },
+      "PuntoSimulado": {
+        "properties": {
+          "aportado": {
+            "title": "Aportado",
+            "type": "number"
+          },
+          "fecha": {
+            "format": "date",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "fecha",
+          "valor",
+          "aportado"
+        ],
+        "title": "PuntoSimulado",
+        "type": "object"
+      },
+      "Recomendacion": {
+        "properties": {
+          "alternativas": {
+            "description": "Claves de otras estrategias razonables",
+            "items": {
+              "type": "string"
+            },
+            "title": "Alternativas",
+            "type": "array"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "no_invertir": {
+            "description": "True si el horizonte no da para invertir en esto",
+            "title": "No Invertir",
+            "type": "boolean"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/Parte"
+            },
+            "title": "Partes",
+            "type": "array"
+          },
+          "por_que": {
+            "description": "Frases que citan las respuestas",
+            "items": {
+              "type": "string"
+            },
+            "title": "Por Que",
+            "type": "array"
+          }
+        },
+        "required": [
+          "no_invertir",
+          "partes",
+          "por_que",
+          "avisos",
+          "alternativas"
+        ],
+        "title": "Recomendacion",
         "type": "object"
       },
       "RegistroPropuesta": {
@@ -2687,6 +4157,155 @@
         "title": "ResultadoOrden",
         "type": "object"
       },
+      "ResultadoSimulado": {
+        "properties": {
+          "aportado": {
+            "title": "Aportado",
+            "type": "number"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'los datos empiezan en 2018'",
+            "title": "Aviso"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "desde": {
+            "description": "Primer día con datos (puede ser posterior a lo pedido)",
+            "format": "date",
+            "title": "Desde",
+            "type": "string"
+          },
+          "ganancia": {
+            "title": "Ganancia",
+            "type": "number"
+          },
+          "hasta": {
+            "format": "date",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "meses_por_debajo": {
+            "description": "Meses en que valía menos de lo puesto",
+            "title": "Meses Por Debajo",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "peor_caida": {
+            "description": "Fracción negativa desde el máximo anterior",
+            "title": "Peor Caida",
+            "type": "number"
+          },
+          "peor_momento_aportado": {
+            "description": "Lo puesto hasta ese momento",
+            "title": "Peor Momento Aportado",
+            "type": "number"
+          },
+          "peor_momento_fecha": {
+            "format": "date",
+            "title": "Peor Momento Fecha",
+            "type": "string"
+          },
+          "peor_momento_valor": {
+            "description": "El valor en el peor momento relativo",
+            "title": "Peor Momento Valor",
+            "type": "number"
+          },
+          "puntos": {
+            "description": "Muestreado semanalmente",
+            "items": {
+              "$ref": "#/components/schemas/PuntoSimulado"
+            },
+            "title": "Puntos",
+            "type": "array"
+          },
+          "valor_final": {
+            "title": "Valor Final",
+            "type": "number"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "desde",
+          "hasta",
+          "puntos",
+          "aportado",
+          "valor_final",
+          "ganancia",
+          "peor_momento_fecha",
+          "peor_momento_valor",
+          "peor_momento_aportado",
+          "peor_caida",
+          "meses_por_debajo",
+          "aviso"
+        ],
+        "title": "ResultadoSimulado",
+        "type": "object"
+      },
+      "Saldo": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "modo": {
+            "enum": [
+              "simulacion",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "saldo": {
+            "items": {
+              "$ref": "#/components/schemas/SaldoMoneda"
+            },
+            "title": "Saldo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "modo",
+          "saldo",
+          "at"
+        ],
+        "title": "Saldo",
+        "type": "object"
+      },
+      "SaldoMoneda": {
+        "properties": {
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          }
+        },
+        "required": [
+          "moneda",
+          "cantidad"
+        ],
+        "title": "SaldoMoneda",
+        "type": "object"
+      },
       "Seguimiento": {
         "properties": {
           "evaluadas": {
@@ -2771,6 +4390,27 @@
           "hasta"
         ],
         "title": "Serie",
+        "type": "object"
+      },
+      "Simulacion": {
+        "properties": {
+          "nota": {
+            "title": "Nota",
+            "type": "string"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoSimulado"
+            },
+            "title": "Resultados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resultados",
+          "nota"
+        ],
+        "title": "Simulacion",
         "type": "object"
       },
       "Tabla": {
@@ -2965,6 +4605,26 @@
       }
     },
     "/api/cartera/movimientos": {
+      "get": {
+        "description": "El registro de la cartera del modo activo, legible y el más reciente primero.\n\nESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.",
+        "operationId": "movimientos_api_cartera_movimientos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Movimientos"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Movimientos",
+        "tags": [
+          "cartera"
+        ]
+      },
       "post": {
         "description": "Escribe un movimiento en el ledger (fuente 'panel'). No envía ninguna orden.",
         "operationId": "registrar_movimiento_api_cartera_movimientos_post",
@@ -3048,6 +4708,204 @@
         ]
       }
     },
+    "/api/conexion": {
+      "get": {
+        "operationId": "conexion_api_conexion_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conexion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Conexion",
+        "tags": [
+          "conexion"
+        ]
+      }
+    },
+    "/api/conexion/claves/{red}": {
+      "delete": {
+        "description": "404 si no había claves guardadas para esa red.",
+        "operationId": "borrar_claves_api_conexion_claves__red__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Borrar Claves",
+        "tags": [
+          "conexion"
+        ]
+      },
+      "put": {
+        "description": "Guarda las claves en el almacén de credenciales. 422 si las reales coinciden con las de\npruebas. Nunca se devuelven por ninguna ruta.",
+        "operationId": "guardar_claves_api_conexion_claves__red__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevasClaves"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Guardar Claves",
+        "tags": [
+          "conexion"
+        ]
+      }
+    },
+    "/api/conexion/modo": {
+      "put": {
+        "description": "422 si faltan condiciones (dice cuáles) o, para real, la confirmación 'DINERO REAL'.\n409 si el modo lo fija el entorno.",
+        "operationId": "cambiar_modo_api_conexion_modo_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioModo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conexion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cambiar Modo",
+        "tags": [
+          "conexion"
+        ]
+      }
+    },
+    "/api/conexion/probar/{red}": {
+      "post": {
+        "description": "Lee el saldo con esas claves. No envía ninguna orden.",
+        "operationId": "probar_api_conexion_probar__red__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PruebaConexion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Probar",
+        "tags": [
+          "conexion"
+        ]
+      }
+    },
     "/api/estado": {
       "get": {
         "description": "Modo de operación, reserva de datos, activos descargados y pausa de entradas.",
@@ -3067,6 +4925,134 @@
         "summary": "Estado",
         "tags": [
           "estado"
+        ]
+      }
+    },
+    "/api/estrategias": {
+      "get": {
+        "description": "Las estrategias con su descripción llana y sus cifras calculadas sobre los datos.",
+        "operationId": "catalogo_api_estrategias_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalogo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Catalogo",
+        "tags": [
+          "estrategias"
+        ]
+      }
+    },
+    "/api/estrategias/recomendar": {
+      "post": {
+        "description": "Reglas fijas y explicables (docs/panel-v2.md, sección 6).",
+        "operationId": "recomendar_api_estrategias_recomendar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Perfil"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recomendacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recomendar",
+        "tags": [
+          "estrategias"
+        ]
+      }
+    },
+    "/api/estrategias/simular": {
+      "post": {
+        "description": "Inicial + mensual desde un año, en 1-4 estrategias. 404 si una clave no existe.",
+        "operationId": "simular_api_estrategias_simular_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionSimulacion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Simulacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Simular",
+        "tags": [
+          "estrategias"
+        ]
+      }
+    },
+    "/api/inicio": {
+      "get": {
+        "description": "Tu dinero hoy (cartera del modo activo), el plan resumido, acciones pendientes y avisos.",
+        "operationId": "inicio_api_inicio_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inicio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Inicio",
+        "tags": [
+          "inicio"
         ]
       }
     },
@@ -3541,6 +5527,177 @@
         "summary": "Pausar",
         "tags": [
           "vigilar"
+        ]
+      }
+    },
+    "/api/plan": {
+      "delete": {
+        "description": "404 si no había plan.",
+        "operationId": "borrar_plan_api_plan_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Borrar Plan",
+        "tags": [
+          "plan"
+        ]
+      },
+      "get": {
+        "operationId": "ver_plan_api_plan_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanGuardado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ver Plan",
+        "tags": [
+          "plan"
+        ]
+      },
+      "put": {
+        "description": "422 si hay dos estrategias del mismo mercado o una clave desconocida o de laboratorio.",
+        "operationId": "guardar_plan_api_plan_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevoPlan"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanGuardado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Guardar Plan",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/hoy": {
+      "get": {
+        "description": "Qué toca hacer hoy según el plan y la cartera del modo activo. No envía nada.",
+        "operationId": "hoy_api_plan_hoy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hoy"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Hoy",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/hoy/{accion_id}/hecho": {
+      "post": {
+        "description": "Anota en tu registro una compra hecha en tu bróker (solo acciones `donde=broker`).",
+        "operationId": "hecho_api_plan_hoy__accion_id__hecho_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accion_id",
+            "required": true,
+            "schema": {
+              "title": "Accion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccionHecha"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRegistrado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hecho",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/saldo": {
+      "get": {
+        "description": "Saldo del exchange en el modo activo. 409 en simulación.",
+        "operationId": "saldo_api_saldo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Saldo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Saldo",
+        "tags": [
+          "conexion"
         ]
       }
     },
