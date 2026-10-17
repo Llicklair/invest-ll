@@ -16,6 +16,7 @@ from invest_ll.api.schemas import Activo
 from invest_ll.dashboard.data import AvailableAsset, discover_assets
 from invest_ll.engine.config import FrictionConfig
 from invest_ll.errors import InvestLLError
+from invest_ll.nombres import moneda_de, nombre_llano
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
@@ -97,6 +98,8 @@ def como_activo(activo: AvailableAsset) -> Activo | None:
     return Activo(
         id=id_de(activo),
         symbol=activo.symbol,
+        nombre=nombre_llano(activo.symbol),
+        moneda=moneda_de(activo.symbol),
         provider=activo.provider,
         interval=activo.interval.name,
         is_crypto=activo.is_crypto,

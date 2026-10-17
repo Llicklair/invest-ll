@@ -132,6 +132,8 @@ def test_el_contrato_declara_los_errores_con_su_forma() -> None:
     assert "HTTPValidationError" not in esquema["components"]["schemas"], (
         "la lista técnica de FastAPI ya no sale por ninguna ruta"
     )
+    actualizar = esquema["paths"]["/api/datos/actualizar"]["post"]["responses"]
+    assert "202" in actualizar and "409" in actualizar, "una actualización ya en marcha"
     operaciones: list[dict[str, Any]] = [
         operacion for ruta in esquema["paths"].values() for operacion in ruta.values()
     ]

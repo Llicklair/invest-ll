@@ -252,6 +252,16 @@
             "title": "Label",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de su precio: 'USD', 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "provider": {
             "title": "Provider",
             "type": "string"
@@ -264,6 +274,8 @@
         "required": [
           "id",
           "symbol",
+          "nombre",
+          "moneda",
           "provider",
           "interval",
           "is_crypto",
@@ -479,6 +491,23 @@
             "title": "Invertido Abiertas",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de los totales (`valor_total`, `invertido_abiertas`, `efectivo`, `realizado_total`): 'EUR' la real, 'USDT' la de pruebas. Suman posiciones en dólares sin convertir y `nota_moneda` lo dice",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nota_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'Aproximado: sin contar el cambio euro-dólar.'; None si no hace falta",
+            "title": "Nota Moneda"
+          },
           "realizado_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Realizado Total",
@@ -511,6 +540,8 @@
         },
         "required": [
           "cartera",
+          "moneda",
+          "nota_moneda",
           "vacia",
           "error",
           "avisos",
@@ -956,6 +987,11 @@
             "title": "Descargado",
             "type": "boolean"
           },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "precio": {
             "title": "Precio",
             "type": "number"
@@ -987,6 +1023,7 @@
         },
         "required": [
           "activo",
+          "nombre",
           "precio",
           "var_24h",
           "volumen_24h_m",
@@ -1076,6 +1113,11 @@
             "title": "Medido",
             "type": "string"
           },
+          "nombre": {
+            "description": "Nombre llano del activo: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "precio": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio",
@@ -1103,6 +1145,7 @@
         "required": [
           "trigger_id",
           "symbol",
+          "nombre",
           "medido",
           "umbral",
           "cantidad_propuesta",
@@ -2528,6 +2571,7 @@
             "type": "string"
           },
           "moneda": {
+            "description": "Moneda del importe y la comisión: la de cotización del activo ('USD', 'USDT'); en el efectivo, la de la cartera ('EUR' la real, 'USDT' la de pruebas); 'EUR' si `es_referencia` (lo que pagaste; el `precio` es el del fondo de referencia, en dólares)",
             "title": "Moneda",
             "type": "string"
           },
@@ -3017,6 +3061,11 @@
             "title": "Mercado",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de `valor` y `puesto`, la misma que la de sus acciones de hoy: 'EUR' en bolsa (lo pagado en tu bróker), 'USDT' en cripto",
+            "title": "Moneda",
+            "type": "string"
+          },
           "nombre": {
             "title": "Nombre",
             "type": "string"
@@ -3044,7 +3093,8 @@
           "nombre",
           "mercado",
           "valor",
-          "puesto"
+          "puesto",
+          "moneda"
         ],
         "title": "ParteResumen",
         "type": "object"
@@ -3677,7 +3727,7 @@
                 "type": "null"
               }
             ],
-            "description": "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia.",
+            "description": "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia. Sus estrategias no tienen por qué estar también en `estrategias`: se calculan igual.",
             "title": "Reparto"
           }
         },
@@ -3931,7 +3981,7 @@
             "type": "string"
           },
           "moneda": {
-            "description": "Moneda de precio, valor e importes: 'USD', 'USDT'",
+            "description": "Moneda de los importes (invertido, valor, lo que ganas o pierdes): la de su cotización ('USD', 'USDT'); 'EUR' si `es_referencia`, porque entonces son lo que pagaste en euros, valorado con el fondo de referencia sin contar el cambio euro-dólar (y `precio` y `coste_medio` son de ese fondo, en dólares)",
             "title": "Moneda",
             "type": "string"
           },
@@ -4895,6 +4945,11 @@
             "title": "Descripcion",
             "type": "string"
           },
+          "nombre": {
+            "description": "Nombre llano del activo: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "regla": {
             "title": "Regla",
             "type": "string"
@@ -4916,6 +4971,7 @@
         "required": [
           "trigger_id",
           "symbol",
+          "nombre",
           "regla",
           "umbral",
           "armado",

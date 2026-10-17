@@ -26,7 +26,7 @@ from invest_ll.estrategias import datos
 from invest_ll.estrategias.catalogo import ficha
 from invest_ll.nombres import nombre_llano
 from invest_ll.plan import almacen, servicio
-from invest_ll.plan.hoy import AVISO_USDT
+from invest_ll.plan.hoy import AVISO_USDT, MONEDA_BOLSA, MONEDA_CRIPTO
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.triggers import TriggerStore
 from invest_ll.portfolio.valoracion import valorar
@@ -78,7 +78,13 @@ def _partes(plan: almacen.Plan, cartera: Portfolio | None) -> list[ParteResumen]
             valor, puesto = v.valor, v.puesto
         partes.append(
             ParteResumen(
-                estrategia=f.clave, nombre=f.nombre, mercado=f.mercado, valor=valor, puesto=puesto
+                estrategia=f.clave,
+                nombre=f.nombre,
+                mercado=f.mercado,
+                valor=valor,
+                puesto=puesto,
+                # La de sus acciones de hoy: lo del bróker se paga en euros; lo de Binance, en USDT.
+                moneda=MONEDA_CRIPTO if f.mercado == "cripto" else MONEDA_BOLSA,
             )
         )
     return partes

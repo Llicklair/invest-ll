@@ -32,6 +32,7 @@ from invest_ll.api.modo import (
     cartera_del_modo,
     modo_efectivo,
     moneda_de_la_cartera,
+    nota_de_moneda,
 )
 from invest_ll.api.schemas import (
     Cartera,
@@ -54,7 +55,7 @@ from invest_ll.live.broker import OrderStatus, Side
 from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
 from invest_ll.nombres import moneda_de, nombre_llano
-from invest_ll.plan.hoy import es_de_referencia
+from invest_ll.plan.hoy import MONEDA_BOLSA, es_de_referencia
 from invest_ll.portfolio.derive import aviso_de_efectivo, derive_portfolio
 from invest_ll.portfolio.from_orders import importar_a_cartera
 from invest_ll.portfolio.models import Activity, ActivityType
@@ -96,6 +97,8 @@ def cartera() -> Cartera:
     except InvestLLError as error:
         return Cartera(
             cartera=del_modo,
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=None,
             vacia=False,
             error=f"Tu registro de movimientos cuenta una historia imposible: {error}",
             avisos=[],
@@ -118,16 +121,18 @@ def cartera() -> Cartera:
             precio, fecha = ultimo.precio, ultimo.fecha
             if valor_total is not None:
                 valor_total += p.value_at(precio)
+        # De referencia si alguna compra del episodio abierto se anotó así (plan/hecho): sus
+        # importes son entonces lo que pagaste en euros, no dólares.
+        de_referencia = any(
+            a.symbol == p.symbol and a.timestamp >= p.opened_at and es_de_referencia(a)
+            for a in actividades
+        )
         abiertas.append(
             PosicionAbierta(
                 activo=p.symbol,
                 nombre=nombre_llano(p.symbol),
-                moneda=moneda_de(p.symbol),
-                # De referencia si alguna compra del episodio abierto se anotó así (plan/hecho).
-                es_referencia=any(
-                    a.symbol == p.symbol and a.timestamp >= p.opened_at and es_de_referencia(a)
-                    for a in actividades
-                ),
+                moneda=MONEDA_BOLSA if de_referencia else moneda_de(p.symbol),
+                es_referencia=de_referencia,
                 cantidad=p.quantity,
                 coste_medio=p.avg_cost,
                 invertido=p.cost,
@@ -156,6 +161,14 @@ def cartera() -> Cartera:
 
     return Cartera(
         cartera=del_modo,
+        moneda=moneda_de_la_cartera(del_modo),
+        nota_moneda=nota_de_moneda(
+            del_modo,
+            [
+                *(p.symbol for p in derivada.open_positions),
+                *(t.symbol for t in derivada.closed_trades),
+            ],
+        ),
         vacia=not derivada.open_positions and not derivada.closed_trades,
         error=None,
         avisos=_avisos_en_llano(derivada),
@@ -403,7 +416,15 @@ def _movimiento(a: Activity, moneda_del_efectivo: str) -> Movimiento:
         comision=a.fee,
         importe=a.quantity if efectivo else a.gross,
         origen=a.source,
-        moneda=moneda_del_efectivo if a.symbol is None else moneda_de(a.symbol),
+        moneda=_moneda_del_movimiento(a, moneda_del_efectivo),
         es_referencia=es_de_referencia(a),
         nota=a.nota,
     )
+
+
+def _moneda_del_movimiento(a: Activity, moneda_del_efectivo: str) -> str:
+    """La del importe: la de la cartera en el efectivo, el euro en lo comprado en tu bróker con el
+    plan (lo que pagaste) y la de cotización en lo demás."""
+    if a.symbol is None:
+        return moneda_del_efectivo
+    return MONEDA_BOLSA if es_de_referencia(a) else moneda_de(a.symbol)

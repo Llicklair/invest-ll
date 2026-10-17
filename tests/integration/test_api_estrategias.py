@@ -202,6 +202,24 @@ class TestSimular:
         assert r.status_code == estado
         assert texto in r.json()["detail"]
 
+    def test_el_reparto_no_necesita_sus_estrategias_en_la_lista(self, con_datos: Api) -> None:
+        peticion = {
+            "estrategias": ["btc-mantener"],
+            "reparto": [
+                {"estrategia": "bolsa-equilibrada", "porcentaje": 50},
+                {"estrategia": "btc-freno", "porcentaje": 50},
+            ],
+            "inicial": "1000",
+            "mensual": "0",
+            "desde_anio": 2025,
+        }
+        cuerpo = con_datos.post("/api/estrategias/simular", json=peticion).json()
+        assert [r["clave"] for r in cuerpo["resultados"]] == ["btc-mantener"]
+        assert cuerpo["combinado"]["nombre"] == (
+            "Tu reparto (50 % Equilibrada, 50 % Bitcoin con freno)"
+        )
+        assert cuerpo["combinado"]["aportado"] == pytest.approx(1000)
+
     def test_sin_datos_422_con_el_comando(self, cliente: Api) -> None:
         peticion = {
             "estrategias": ["btc-freno"],

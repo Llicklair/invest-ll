@@ -94,6 +94,7 @@ class TestCartera:
         assert cuerpo["error"] is None
         assert cuerpo["efectivo"] == "0"
         assert cuerpo["cartera"] == "real", "en simulación se ve la cartera real"
+        assert (cuerpo["moneda"], cuerpo["nota_moneda"]) == ("EUR", None), "nada que convertir"
 
     def test_valorada_con_el_ultimo_cierre_y_su_fecha(self, cliente: Api) -> None:
         guardar("GLD", [105.0, 110.0], hasta=date(2026, 9, 30))
@@ -111,6 +112,8 @@ class TestCartera:
         assert D(posicion["invertido"]) == D("1002"), "la comision forma parte del coste"
         assert D(posicion["pnl_no_realizado"]) == D("98")
         assert D(cuerpo["valor_total"]) == D("1100")
+        assert cuerpo["moneda"] == "EUR"
+        assert cuerpo["nota_moneda"] == "Aproximado: sin contar el cambio euro-dólar."
 
     def test_sin_precio_el_total_no_se_inventa(self, cliente: Api) -> None:
         cliente.post("/api/cartera/movimientos", json=_compra("XYZ"))

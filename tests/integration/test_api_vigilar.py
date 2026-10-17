@@ -65,7 +65,7 @@ class TestTriggers:
         )
         assert r.status_code == 201
         armado = r.json()
-        assert armado["symbol"] == "GLD"
+        assert (armado["symbol"], armado["nombre"]) == ("GLD", "Oro")
         assert armado["umbral"] == "0.2", "el umbral es dinero de riesgo: viaja como texto"
         assert "proponer la venta" in armado["descripcion"]
 
@@ -110,6 +110,7 @@ class TestComprobarTriggers:
 
         (disparo,) = cuerpo["disparados"]
         assert disparo["trigger_id"] == trigger_id
+        assert disparo["nombre"] == "Oro"
         assert D(disparo["medido"]) == D("-0.2")
         assert disparo["cantidad_propuesta"] == "10"
         assert disparo["precio_fecha"] == "2026-09-30"

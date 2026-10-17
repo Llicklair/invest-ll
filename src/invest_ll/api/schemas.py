@@ -67,6 +67,8 @@ class Activo(BaseModel):
 
     id: str = Field(description="proveedor:símbolo:intervalo, p.ej. 'yfinance:GLD:DAY_1'")
     symbol: str
+    nombre: str = Field(description="Nombre llano: 'Oro', 'Bitcoin'")
+    moneda: str = Field(description="Moneda de su precio: 'USD', 'USDT'")
     provider: str
     interval: str
     is_crypto: bool
@@ -152,6 +154,7 @@ class DatosDescargados(BaseModel):
 
 class Cotizacion(BaseModel):
     activo: str
+    nombre: str = Field(description="Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'")
     precio: float
     var_24h: float | None = Field(description="En %")
     volumen_24h_m: float | None = Field(description="Millones")
@@ -193,7 +196,14 @@ class PosicionAbierta(BaseModel):
 
     activo: str
     nombre: str = Field(description="Nombre llano del activo")
-    moneda: str = Field(description="Moneda de precio, valor e importes: 'USD', 'USDT'")
+    moneda: str = Field(
+        description=(
+            "Moneda de los importes (invertido, valor, lo que ganas o pierdes): la de su "
+            "cotización ('USD', 'USDT'); 'EUR' si `es_referencia`, porque entonces son lo que "
+            "pagaste en euros, valorado con el fondo de referencia sin contar el cambio "
+            "euro-dólar (y `precio` y `coste_medio` son de ese fondo, en dólares)"
+        )
+    )
     es_referencia: bool = Field(
         description=(
             "True si la posición se anotó en unidades del fondo de EE.UU. de referencia (compras "
@@ -227,6 +237,16 @@ class PosicionRetirada(BaseModel):
 
 class Cartera(BaseModel):
     cartera: Literal["real", "pruebas"] = Field(description="'pruebas' = dinero ficticio")
+    moneda: str = Field(
+        description=(
+            "Moneda de los totales (`valor_total`, `invertido_abiertas`, `efectivo`, "
+            "`realizado_total`): 'EUR' la real, 'USDT' la de pruebas. Suman posiciones en "
+            "dólares sin convertir y `nota_moneda` lo dice"
+        )
+    )
+    nota_moneda: str | None = Field(
+        description="P. ej. 'Aproximado: sin contar el cambio euro-dólar.'; None si no hace falta"
+    )
     vacia: bool
     error: str | None = Field(description="El ledger cuenta una historia imposible")
     avisos: list[str]
@@ -484,6 +504,7 @@ class Alertas(BaseModel):
 class TriggerArmado(BaseModel):
     trigger_id: str
     symbol: str
+    nombre: str = Field(description="Nombre llano del activo: 'Oro', 'Bitcoin'")
     regla: str
     umbral: Decimal
     armado: datetime
@@ -509,6 +530,7 @@ class Pausa(BaseModel):
 class Disparo(BaseModel):
     trigger_id: str
     symbol: str
+    nombre: str = Field(description="Nombre llano del activo: 'Oro', 'Bitcoin'")
     medido: Decimal
     umbral: Decimal
     cantidad_propuesta: Decimal

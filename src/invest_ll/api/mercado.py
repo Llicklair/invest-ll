@@ -196,6 +196,7 @@ def datos() -> DatosDescargados:
 def _fila_viva(cotizacion: LiveQuote, descargados_: set[str]) -> Cotizacion:
     return Cotizacion(
         activo=cotizacion.symbol,
+        nombre=nombre_llano(cotizacion.symbol),
         precio=cotizacion.price,
         var_24h=cotizacion.change_24h_pct,
         volumen_24h_m=(

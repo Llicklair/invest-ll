@@ -85,6 +85,7 @@ def test_lo_ejecutado_en_pruebas_pasa_solo_a_la_cartera_de_pruebas(
     assert D(mov["comision"]) == D("0.09")
     cartera = en_pruebas.get("/api/cartera").json()
     assert cartera["cartera"] == "pruebas"
+    assert (cartera["moneda"], cartera["nota_moneda"]) == ("USDT", None)
     assert cartera["abiertas"][0]["activo"] == "BTC/USDT"
     assert cartera["abiertas"][0]["moneda"] == "USDT"
     patrimonio = en_pruebas.get("/api/inicio").json()["patrimonio"]

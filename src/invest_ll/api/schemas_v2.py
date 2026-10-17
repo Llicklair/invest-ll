@@ -55,6 +55,12 @@ class ParteResumen(BaseModel):
     mercado: MercadoEstrategia
     valor: Decimal | None
     puesto: Decimal
+    moneda: str = Field(
+        description=(
+            "Moneda de `valor` y `puesto`, la misma que la de sus acciones de hoy: 'EUR' en "
+            "bolsa (lo pagado en tu bróker), 'USDT' en cripto"
+        )
+    )
 
 
 class MiniMercado(BaseModel):
@@ -141,7 +147,8 @@ class PeticionSimulacion(BaseModel):
         default=None,
         description=(
             "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con "
-            "cada parte en su estrategia."
+            "cada parte en su estrategia. Sus estrategias no tienen por qué estar también en "
+            "`estrategias`: se calculan igual."
         ),
     )
     inicial: Decimal = Field(ge=0)
@@ -292,7 +299,14 @@ class Movimiento(BaseModel):
     comision: Decimal
     importe: Decimal = Field(description="Cantidad por precio (o el importe si es efectivo)")
     origen: str = Field(description="manual, panel, csv:…, ledger:…, plan")
-    moneda: str
+    moneda: str = Field(
+        description=(
+            "Moneda del importe y la comisión: la de cotización del activo ('USD', 'USDT'); en "
+            "el efectivo, la de la cartera ('EUR' la real, 'USDT' la de pruebas); 'EUR' si "
+            "`es_referencia` (lo que pagaste; el `precio` es el del fondo de referencia, en "
+            "dólares)"
+        )
+    )
     es_referencia: bool = Field(
         description="True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)"
     )

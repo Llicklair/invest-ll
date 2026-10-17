@@ -121,7 +121,7 @@ class TestHoy:
         assert D(mov["importe"]) == pytest.approx(D(3300), abs=D("0.01")), "lo pagado, exacto"
         assert D(mov["precio"]) == D(spy["precio_ref"]), "en unidades del fondo de referencia"
         assert D(mov["comision"]) == D(2)
-        assert (mov["moneda"], mov["es_referencia"]) == ("USD", True)
+        assert (mov["moneda"], mov["es_referencia"]) == ("EUR", True), "lo que pagaste"
         unidades = (D(3300) / D(spy["precio_ref"])).quantize(D("0.01"), ROUND_HALF_UP)
         assert mov["nota"] == (
             f"Compraste 6 participaciones a 550 € en tu bróker; se anota como "
@@ -132,6 +132,7 @@ class TestHoy:
         assert (posicion["activo"], posicion["es_referencia"]) == ("SPY", True), (
             "sus unidades no son tus participaciones: se enseñan importes"
         )
+        assert posicion["moneda"] == "EUR", "sus importes son lo que pagaste, sin convertir"
 
     def test_la_nota_no_cambia_la_huella(self, con_plan: Api) -> None:
         """Anotar dos veces lo mismo sigue siendo imposible aunque la nota sea otra."""
@@ -244,6 +245,7 @@ class TestInicio:
         assert p["nota_moneda"] == "Aproximado: sin contar el cambio euro-dólar."
         equilibrada, btc = cuerpo["plan"]
         assert equilibrada["estrategia"] == "bolsa-equilibrada"
+        assert (equilibrada["moneda"], btc["moneda"]) == ("EUR", "USDT")
         assert D(equilibrada["puesto"]) == pytest.approx(D(3302), abs=D("0.01"))
         assert D(btc["puesto"]) == 0
         assert [m["nombre"] for m in cuerpo["mercado"]] == [
