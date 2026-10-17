@@ -74,9 +74,18 @@ def _parte(
 
 
 def calcular_hoy(
-    plan: Plan, actividades: Sequence[Activity], *, hoy: date, pausa: str | None
+    plan: Plan,
+    actividades: Sequence[Activity],
+    *,
+    hoy: date,
+    pausa: str | None,
+    actividades_bolsa: Sequence[Activity] | None = None,
 ) -> Resultado:
-    """Qué toca hoy con este plan y estos movimientos (los de la cartera del modo activo)."""
+    """Qué toca hoy con este plan y estos movimientos (los de la cartera del modo activo).
+
+    `actividades_bolsa` son los de la cartera real, donde se anota lo del bróker en cualquier
+    modo; sin ellos, se usan los mismos `actividades`.
+    """
     avisos: list[str] = []
     posiciones: dict[str, Decimal] = {}
     cartera_legible = True
@@ -102,6 +111,7 @@ def calcular_hoy(
             cripto=cripto,
             bolsa=bolsa,
             pausa=pausa,
+            actividades_bolsa=actividades_bolsa,
         )
     )
     return Resultado(

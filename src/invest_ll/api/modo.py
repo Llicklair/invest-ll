@@ -36,3 +36,13 @@ def cartera_del_modo(modo: OperatingMode) -> CarteraDelModo:
 def almacen_activo() -> ActivityStore:
     """La cartera del modo efectivo."""
     return almacen_del_modo(modo_efectivo().modo)
+
+
+def almacen_del_broker() -> ActivityStore:
+    """Donde se anota lo que compras en tu bróker: la cartera real, en cualquier modo.
+
+    El modo (simulación, pruebas, real) es de Binance. En modo pruebas, apuntar una compra del
+    bróker en la cartera de pruebas la daba por dinero ficticio y, al volver, la misma compra salía
+    otra vez como pendiente: invitaba a comprarla dos veces.
+    """
+    return ActivityStore(raiz_del_modo("real"))

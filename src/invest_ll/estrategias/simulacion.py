@@ -129,8 +129,8 @@ def simular(
         desde=fechas[primero],
         hasta=fechas[-1],
         puntos=tuple(
-            Punto(fecha=fechas[primero + j], valor=serie[j][0], aportado=serie[j][1])
-            for j in _semanales(fechas[primero:])
+            Punto(fecha=etiqueta, valor=serie[j][0], aportado=serie[j][1])
+            for j, etiqueta in _semanales(fechas[primero:])
         ),
         aportado=aportado,
         valor_final=saldo,
@@ -144,13 +144,23 @@ def simular(
     )
 
 
-def _semanales(fechas: Sequence[date]) -> list[int]:
-    """Posiciones del primer día, del último día con datos de cada semana y del último."""
-    elegidas: list[int] = [0]
+def _semanales(fechas: Sequence[date]) -> list[tuple[int, date]]:
+    """Posición y fecha de cada punto: el primer día, uno por semana y el último día.
+
+    El de cada semana es el último día con datos de esa semana, pero se fecha en su **domingo**:
+    la bolsa cierra la semana el viernes y la cripto el domingo, y la gráfica junta las
+    estrategias por fecha. Con la fecha de su último día, una de bolsa y una de cripto no
+    compartían ninguna y cada línea salía a trozos. El valor es el mismo: lo que valía el domingo
+    es lo que valía al último cierre. El primero y el último llevan su fecha real (el último nunca
+    se fecha en un domingo que aún no ha llegado).
+    """
+    elegidas: list[tuple[int, date]] = [(0, fechas[0])]
+    ultimo = len(fechas) - 1
     for j in range(len(fechas)):
-        ultimo_de_su_semana = (
-            j == len(fechas) - 1 or fechas[j + 1].isocalendar()[:2] != fechas[j].isocalendar()[:2]
-        )
-        if ultimo_de_su_semana and j != elegidas[-1]:
-            elegidas.append(j)
+        if j == elegidas[-1][0]:
+            continue
+        if j == ultimo:
+            elegidas.append((j, fechas[j]))
+        elif fechas[j + 1].isocalendar()[:2] != fechas[j].isocalendar()[:2]:
+            elegidas.append((j, fechas[j] + timedelta(days=6 - fechas[j].weekday())))
     return elegidas

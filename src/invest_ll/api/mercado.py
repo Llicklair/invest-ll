@@ -50,6 +50,7 @@ from invest_ll.dashboard.data import (
     market_overview,
     normalised_series,
 )
+from invest_ll.fetch.available import desde_hace
 from invest_ll.fetch.catalog import EQUITY_CATALOG
 from invest_ll.fetch.live import LiveDataError, crypto_tickers, equity_quotes
 
@@ -58,7 +59,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 router = APIRouter()
 
-SESIONES_POR_TRAMO: dict[str, int | None] = {"3m": 63, "1a": 252, "5a": 1260, "todo": None}
+DIAS_POR_TRAMO: dict[str, int | None] = {"3m": 91, "1a": 365, "5a": 1826, "todo": None}
+"""Días naturales de cada tramo de la gráfica: en velas, el "1 año" de la cripto (que cotiza los
+fines de semana) eran ocho meses y medio."""
 
 TIMEOUT_DESCARGA = 600
 """Segundos que se espera a una descarga antes de darla por fallida."""
@@ -138,8 +141,9 @@ def serie(symbol: str, tramo: Tramo = "1a") -> Serie:
     """Cierres de un activo para su gráfica. 404 si no hay histórico de ese símbolo."""
     activo = por_simbolo(symbol)
     completa = serie_completa(activo)
-    sesiones = SESIONES_POR_TRAMO[tramo]
-    barras = completa.bars[-sesiones:] if sesiones else completa.bars
+    dias = DIAS_POR_TRAMO[tramo]
+    inicio = desde_hace(completa.bars, dias) if dias else None
+    barras = completa.bars[inicio or 0 :]
     return Serie(
         symbol=activo.symbol,
         tramo=tramo,

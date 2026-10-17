@@ -81,10 +81,10 @@ class TestTablaDeRendimiento:
 
         Confundir ambas cosas mete un activo que no existia en una comparacion.
         """
-        guardar(tmp_path, "CORTO", subida(30))
+        guardar(tmp_path, "CORTO", subida(31))
         fila = market_overview(discover_assets(tmp_path))[0]
 
-        assert fila["1 mes"] is not None, "30 velas bastan para un mes"
+        assert fila["1 mes"] is not None, "un mes de velas diarias basta para un mes"
         assert fila["1 año"] is None, "30 velas NO bastan para un anho"
         assert fila["5 años"] is None
 
@@ -185,8 +185,25 @@ class TestLaTablaDensa:
         fila = market_overview(discover_assets(tmp_path))[0]
         chispas = cast("list[float]", fila["sparkline"])
         assert isinstance(chispas, list)
-        assert len(chispas) == 63, "~3 meses de sesiones, como maximo"
+        # Tres meses (91 dias naturales) de velas diarias: el cierre de hace 91 dias y los 91 de
+        # despues. Asi la chispa empieza justo donde se mide la variacion de "3 meses".
+        assert len(chispas) == 92
+        assert chispas[0] == fila["ultimo"] - 91  # type: ignore[operator]
         assert chispas[-1] == fila["ultimo"], "termina en el ultimo cierre"
+
+    def test_las_ventanas_son_de_calendario_tambien_en_cripto(self, tmp_path: Path) -> None:
+        """La cripto cotiza los siete dias: contar 252 velas como "un año" eran ocho meses y medio.
+
+        Caso real del panel: Bitcoin salia con "Un mes -2,6 %" en Mercado y "+7,1 %" en Inicio,
+        que si mide 30 dias naturales.
+        """
+        # 400 velas diarias: 100 hasta el dia 34 y 150 desde el 35. Hace 365 dias, el dia 34.
+        guardar(tmp_path, "BTC", [100.0] * 35 + [150.0] * 365)
+        fila = market_overview(discover_assets(tmp_path))[0]
+
+        assert fila["1 año"] == 50.0, "un año son 365 dias, no 252 velas"
+        assert fila["1 mes"] == 0.0
+        assert fila["5 años"] is None
 
     def test_la_fecha_de_los_datos_viaja_en_la_fila(self, tmp_path: Path) -> None:
         """Sin 'datos hasta', una tabla con historicos parados pareceria de hoy."""

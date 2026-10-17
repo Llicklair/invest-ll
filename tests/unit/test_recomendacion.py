@@ -126,6 +126,18 @@ def test_el_por_que_cita_las_respuestas() -> None:
     assert "un poco de cripto" in texto
 
 
+@pytest.mark.parametrize(
+    ("horizonte", "dicho"),
+    [("2-5", "dentro de 2 a 5 años"), ("5-10", "dentro de 5 a 10 años")],
+)
+def test_los_plazos_intermedios_se_dicen_en_castellano(horizonte: Horizonte, dicho: str) -> None:
+    """Salía "lo necesitarás en entre 5 y 10 años"."""
+    for caida in ("esperar", "comprar"):  # "vender" no cita el plazo
+        texto = " ".join(recomendar(_respuestas(horizonte, caida, "no")).por_que)
+        assert dicho in texto
+        assert "en entre" not in texto
+
+
 def test_si_venderias_y_quieres_cripto_se_explica_el_tope() -> None:
     reparto = recomendar(_respuestas("mas-10", "vender", "si"))
     assert any("venderías para no perder más" in f and "5 %" in f for f in reparto.por_que)

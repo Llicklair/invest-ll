@@ -133,8 +133,29 @@ class TestCartera:
 
         cuerpo = cliente.get("/api/cartera").json()
 
-        assert cuerpo["error"].startswith("El ledger cuenta una historia imposible")
+        assert cuerpo["error"].startswith(
+            "Tu registro de movimientos cuenta una historia imposible"
+        )
+        assert "ledger" not in cuerpo["error"], "jerga prohibida en la interfaz principal"
         assert cuerpo["abiertas"] == []
+
+    def test_comprar_sin_ingresos_se_avisa_en_llano_y_sin_comandos(self, cliente: Api) -> None:
+        """El aviso de `derive` habla a la terminal ("-1,002.00 el 2026-09-01 ... Registralos
+        con: invest-ll-portfolio cash deposit"); en el panel salía tal cual."""
+        cliente.post("/api/cartera/movimientos", json=_compra())
+
+        (aviso,) = cliente.get("/api/cartera").json()["avisos"]
+
+        assert "1.002 €" in aviso and "1 sep 2026" in aviso
+        assert "Anotar un movimiento" in aviso
+        assert "invest-ll" not in aviso and "derivado" not in aviso and "2026-09-01" not in aviso
+
+    def test_un_ingreso_del_mismo_dia_quita_el_aviso(self, cliente: Api) -> None:
+        cliente.post("/api/cartera/movimientos", json=_compra())
+        ingreso = {"tipo": "deposito", "fecha": "2026-09-01", "cantidad": "5000"}
+        cliente.post("/api/cartera/movimientos", json=ingreso)
+
+        assert cliente.get("/api/cartera").json()["avisos"] == []
 
 
 class TestRegistrarMovimiento:

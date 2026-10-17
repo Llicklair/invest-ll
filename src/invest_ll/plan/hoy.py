@@ -98,6 +98,10 @@ class Entrada:
     cripto: ParteDeHoy | None = None
     bolsa: ParteDeHoy | None = None
     pausa: str | None = None
+    actividades_bolsa: Sequence[Activity] | None = None
+    """Los movimientos de la cartera real, donde se anota lo del bróker; `None` = `actividades`.
+
+    El modo es de Binance: lo que compras en tu bróker es dinero de verdad en cualquier modo."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +141,14 @@ class _Avisos:
     def __call__(self, texto: str) -> None:
         if texto not in self.lista:
             self.lista.append(texto)
+
+
+def _aviso_pausa(pausa: str) -> str:
+    """Uno solo para las dos partes (los avisos iguales se juntan): antes salía dos veces."""
+    return (
+        f"Las compras están en pausa: {pausa}. Mientras dure no se propone ninguna compra; "
+        "si toca vender algo, sí."
+    )
 
 
 def id_de_accion(hoy: date, donde: str, estrategia: str, simbolo: str, lado: str) -> str:
@@ -240,7 +252,7 @@ def _cripto(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
             cantidad = tenido if sale_del_todo else min(tenido, -diferencia / precio.valor)
         else:
             if e.pausa is not None:
-                aviso(f"Las compras están en pausa ({e.pausa}): solo se proponen ventas.")
+                aviso(_aviso_pausa(e.pausa))
                 continue
             cantidad = diferencia / precio.valor
         cantidad = cantidad.quantize(DECIMALES_CRIPTO, rounding=ROUND_DOWN)
@@ -303,10 +315,11 @@ def _bolsa(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
     if periodo is None:
         return []
     if e.pausa is not None:
-        aviso(f"Las compras están en pausa ({e.pausa}): no se propone ninguna en tu bróker.")
+        aviso(_aviso_pausa(e.pausa))
         return []
     simbolos = parte.ficha.motor.simbolos or tuple(parte.objetivo)
-    hechas = compras_del_plan(e.actividades, simbolos, e.creado)
+    del_broker = e.actividades if e.actividades_bolsa is None else e.actividades_bolsa
+    hechas = compras_del_plan(del_broker, simbolos, e.creado)
     primera = not any(a.timestamp.date() < periodo for a in hechas)
     ya = {
         a.symbol.upper() for a in hechas if a.symbol is not None and a.timestamp.date() >= periodo

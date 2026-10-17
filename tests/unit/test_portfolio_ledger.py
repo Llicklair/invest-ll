@@ -62,6 +62,16 @@ def deposito(importe: str, *, en: int = 0) -> Activity:
     )
 
 
+def retirada(importe: str, *, en: int = 0) -> Activity:
+    return Activity(
+        timestamp=dia(en),
+        type=ActivityType.WITHDRAWAL,
+        symbol=None,
+        quantity=D(importe),
+        unit_price=D(1),
+    )
+
+
 class TestPosicionesAbiertas:
     def test_una_compra_abre_una_posicion(self) -> None:
         cartera = derive_portfolio([deposito("2000"), compra("GLD", "10", "180", fee="2", en=1)])
@@ -135,11 +145,11 @@ class TestPosicionesCerradas:
 class TestElLedgerNoMiente:
     def test_vender_lo_que_no_se_tiene_falla(self) -> None:
         """Una cantidad negativa seria un ledger incompleto con aspecto de cartera valida."""
-        with pytest.raises(LedgerInconsistencyError, match="solo registra 10"):
+        with pytest.raises(LedgerInconsistencyError, match="solo constan 10"):
             derive_portfolio([compra("GLD", "10", "100", en=1), venta("GLD", "11", "100", en=2)])
 
     def test_vender_sin_haber_comprado_falla(self) -> None:
-        with pytest.raises(LedgerInconsistencyError, match="solo registra 0"):
+        with pytest.raises(LedgerInconsistencyError, match="solo constan 0"):
             derive_portfolio([venta("GLD", "1", "100", en=1)])
 
     def test_el_orden_lo_pone_la_fecha_no_la_escritura(self) -> None:
@@ -168,6 +178,30 @@ class TestEfectivo:
         assert cartera.cash == D(-1000)
         assert any("depositos" in aviso for aviso in cartera.warnings)
         assert len(cartera.open_positions) == 1, "las posiciones siguen siendo fiables"
+        assert cartera.efectivo_minimo == (D(-1000), dia(1))
+
+    def test_un_ingreso_del_mismo_dia_paga_las_compras_de_ese_dia(self) -> None:
+        """Caso real del panel: compras de tu plan anotadas, y DESPUÉS el ingreso de ese mismo día.
+
+        Se anotan con fecha y sin hora, así que tienen el mismo instante. El dinero entra antes
+        de gastarlo: el aviso de "faltan depósitos" no debe quedarse para siempre.
+        """
+        cartera = derive_portfolio([compra("GLD", "10", "100", en=1), deposito("5000", en=1)])
+        assert cartera.cash == D(4000)
+        assert cartera.warnings == ()
+        assert cartera.efectivo_minimo is None
+
+    def test_una_retirada_del_mismo_dia_sale_despues_de_vender(self) -> None:
+        cartera = derive_portfolio(
+            [
+                deposito("1000"),
+                compra("GLD", "10", "100", en=1),
+                retirada("1200", en=2),
+                venta("GLD", "10", "120", en=2),
+            ]
+        )
+        assert cartera.cash == D(0)
+        assert cartera.warnings == ()
 
 
 class TestValidacionDeActividades:

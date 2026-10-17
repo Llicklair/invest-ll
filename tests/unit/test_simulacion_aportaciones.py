@@ -85,6 +85,31 @@ def test_muestreo_semanal_con_el_primer_y_el_ultimo_dia() -> None:
     assert all(f.weekday() == 6 for f in fechas[1:-1]), "uno por semana: su último día (domingo)"
 
 
+def test_bolsa_y_cripto_comparten_las_fechas_de_sus_puntos_semanales() -> None:
+    """La gráfica junta las estrategias por fecha: si la bolsa marcaba su semana el viernes y la
+    cripto el domingo, ninguna fecha coincidía y cada línea salía con huecos ("—" en la ayuda y
+    una tabla con el doble de filas, media vacía)."""
+    desde = date(2021, 1, 4)  # lunes
+    diarios = _dias(desde, 60)
+    sesiones = [d for d in diarios if _fecha_de(d).weekday() < 5]
+    # Viernes 15 de enero sin sesión, como un festivo de bolsa.
+    sesiones = [d for d in sesiones if _fecha_de(d) != date(2021, 1, 15)]
+    bolsa = simular(sesiones, [1.0] * len(sesiones), inicial=10, mensual=1, desde=desde)
+    cripto = simular(diarios, [1.0] * len(diarios), inicial=10, mensual=1, desde=desde)
+
+    fechas_bolsa = [p.fecha for p in bolsa.puntos]
+    fechas_cripto = [p.fecha for p in cripto.puntos]
+    assert fechas_bolsa[:-1] == fechas_cripto[:-1]
+    assert all(f.weekday() == 6 for f in fechas_bolsa[1:-1]), "cada semana, en su domingo"
+    # El valor sigue siendo el del último día con datos de esa semana, y el último punto, el real.
+    assert fechas_bolsa[-1] == date(2021, 3, 4)
+    assert fechas_cripto[-1] == date(2021, 3, 4)
+
+
+def _fecha_de(dia: int) -> date:
+    return datetime.fromtimestamp(dia * 86_400, UTC).date()
+
+
 def test_avisa_si_los_datos_empiezan_despues_de_lo_pedido() -> None:
     dias = _dias(date(2018, 1, 1), 40)
     r = simular(

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Final
 from fastapi import APIRouter
 
 from invest_ll.api.errores import del_dominio, invalido, no_encontrado
-from invest_ll.api.modo import almacen_activo, modo_efectivo
+from invest_ll.api.modo import almacen_activo, almacen_del_broker, modo_efectivo
 from invest_ll.api.schemas import MovimientoRegistrado
 from invest_ll.api.schemas_v2 import (
     Accion,
@@ -105,8 +105,13 @@ def borrar_plan() -> None:
 def _calcular(plan: almacen.Plan) -> Resultado:
     with del_dominio():
         actividades = almacen_activo().activities()
+        del_broker = almacen_del_broker().activities()
     return servicio.calcular_hoy(
-        plan, actividades, hoy=servicio.hoy_local(), pausa=TriggerStore().halted()
+        plan,
+        actividades,
+        hoy=servicio.hoy_local(),
+        pausa=TriggerStore().halted(),
+        actividades_bolsa=del_broker,
     )
 
 
@@ -196,5 +201,6 @@ def hecho(accion_id: str, hecha: AccionHecha) -> MovimientoRegistrado:
             fee=hecha.comision,
             source=FUENTE_PLAN,
         )
-        identificador = almacen_activo().append(actividad)
+        # A la cartera real en cualquier modo: lo del bróker nunca es dinero ficticio.
+        identificador = almacen_del_broker().append(actividad)
     return MovimientoRegistrado(activity_id=identificador)

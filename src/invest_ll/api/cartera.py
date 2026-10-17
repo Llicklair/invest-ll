@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter
 
+from invest_ll import llano
 from invest_ll.api.errores import del_dominio, invalido, prohibido
 from invest_ll.api.modo import almacen_activo, almacen_del_modo, cartera_del_modo, modo_efectivo
 from invest_ll.api.schemas import (
@@ -47,13 +48,14 @@ from invest_ll.live.broker import OrderStatus, Side
 from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
 from invest_ll.nombres import nombre_llano
-from invest_ll.portfolio.derive import derive_portfolio
+from invest_ll.portfolio.derive import aviso_de_efectivo, derive_portfolio
 from invest_ll.portfolio.from_orders import importar_a_cartera
 from invest_ll.portfolio.models import Activity, ActivityType
 
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.live.broker import Broker, OrderResult
     from invest_ll.live.mode import OperatingMode
+    from invest_ll.portfolio.derive import Portfolio
 
 router = APIRouter()
 
@@ -84,7 +86,7 @@ def cartera() -> Cartera:
     except InvestLLError as error:
         return Cartera(
             vacia=False,
-            error=f"El ledger cuenta una historia imposible: {error}",
+            error=f"Tu registro de movimientos cuenta una historia imposible: {error}",
             avisos=[],
             abiertas=[],
             retiradas=[],
@@ -135,7 +137,7 @@ def cartera() -> Cartera:
     return Cartera(
         vacia=not derivada.open_positions and not derivada.closed_trades,
         error=None,
-        avisos=list(derivada.warnings),
+        avisos=_avisos_en_llano(derivada),
         abiertas=abiertas,
         retiradas=retiradas,
         invertido_abiertas=derivada.invested_open,
@@ -143,6 +145,25 @@ def cartera() -> Cartera:
         efectivo=derivada.cash,
         realizado_total=derivada.realized_pnl,
     )
+
+
+def _avisos_en_llano(derivada: Portfolio) -> list[str]:
+    """Los avisos de `derive` hablan a la terminal (cifras a la inglesa, un comando que teclear).
+
+    En el panel, el del efectivo se cuenta en llano y con lo que se puede hacer desde él; lo
+    demás pasa tal cual.
+    """
+    if derivada.efectivo_minimo is None:
+        return list(derivada.warnings)
+    cifra, cuando = derivada.efectivo_minimo
+    del_efectivo = (
+        "Has anotado compras por más dinero del que has anotado como ingresado: el "
+        f"{llano.fecha_corta(cuando.date())} faltaban {llano.euros(-cifra)}. Lo que tienes y lo que "
+        "vale está bien; solo el dinero sin invertir que calcula el panel no cuadra. Si quieres que "
+        "cuadre, anota lo que ingresaste con «Anotar un movimiento» (con la fecha de las compras "
+        "o una anterior)."
+    )
+    return [del_efectivo, *(a for a in derivada.warnings if a != aviso_de_efectivo(cifra, cuando))]
 
 
 def _actividad(movimiento: NuevoMovimiento) -> Activity:
