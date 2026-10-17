@@ -7,18 +7,22 @@ import { api, pedir } from "@/api/cliente";
 import type { Accion, ModoPanel, ResultadoOrden } from "@/api/tipos";
 import { ConfirmacionTecleada, useComprobacionOrden } from "@/componentes/ConfirmacionTecleada";
 import { Hoja } from "@/componentes/Hoja";
-import { Boton, ErrorApiVista, clases } from "@/componentes/ui";
+import { Boton, Desplegable, ErrorApiVista, TextoPlano, clases } from "@/componentes/ui";
 import { useAccion } from "@/lib/consulta";
-import { formatoCantidad } from "@/lib/decimal";
+import { formatoCantidad, signoDecimal } from "@/lib/decimal";
 import { normalizarTecleo } from "@/lib/importe";
 import { enMoneda, fechaCorta } from "@/lib/formato";
 import { base } from "@/lib/nombres";
 
-/** Lo que dice el resultado de una orden, en llano y con su gravedad. */
+/**
+ * Lo que dice el resultado de una orden: el `resumen` en llano manda (contrato v2.1); la
+ * `descripcion` tecnica de siempre (la del registro y la terminal) va plegada, para quien la
+ * quiera.
+ */
 export function Resultado({ r, modo }: { r: ResultadoOrden; modo: ModoPanel | null }) {
   const estado = r.estado.toLowerCase();
   let titulo = "Orden enviada";
-  let texto = r.descripcion;
+  let texto = r.resumen;
   let Icono = CircleCheck;
   let estilo = "bg-sube-suave text-sube-texto";
   if (estado === "filled") {
@@ -33,30 +37,40 @@ export function Resultado({ r, modo }: { r: ResultadoOrden; modo: ModoPanel | nu
     estilo = "bg-real-suave text-real-tinta";
   } else if (estado === "unknown") {
     titulo = "Estado desconocido: compruébalo en Binance";
-    texto = `${r.descripcion} Antes de volver a operar, entra en Binance y mira si la orden está o no: si la repites sin mirar, podrías comprar dos veces.`;
+    texto = `${r.resumen} Si la repites sin mirar, podrías comprar dos veces.`;
     Icono = OctagonAlert;
     estilo = "bg-real-suave text-real-tinta";
   } else {
     Icono = CircleDashed;
     estilo = "bg-superficie-2 text-tinta";
   }
+  const hecha = signoDecimal(r.ejecutada) === 1;
   return (
     <div className="space-y-4" role={estado === "unknown" || estado === "rejected" ? "alert" : "status"}>
       <div className={clases("flex gap-4 rounded-2xl p-5", estilo)}>
         <Icono aria-hidden="true" className="h-7 w-7 shrink-0" strokeWidth={1.75} />
-        <div>
+        <div className="min-w-0 [overflow-wrap:anywhere]">
           <p className="titular text-xl font-semibold">{titulo}</p>
           <p className="mt-1 text-[0.9375rem] leading-relaxed text-tinta">{texto}</p>
         </div>
       </div>
-      {estado === "filled" || estado === "partial" ? (
-        <p className="text-[0.9375rem] text-tinta-suave">
-          Lo ejecutado ya está en tu cartera{modo === "pruebas" ? " de pruebas (dinero ficticio)" : ""}. Queda registrado con el modo
-          «{r.modo}».
-        </p>
-      ) : (
-        <p className="text-[0.9375rem] text-tinta-suave">Queda registrado con el modo «{r.modo}».</p>
-      )}
+      {hecha ? (
+        <dl className="divide-y divide-linea rounded-2xl border border-linea px-4">
+          <Fila etiqueta="Se hizo">
+            {formatoCantidad(r.ejecutada)} de {formatoCantidad(r.pedida)}
+          </Fila>
+          {r.precio ? <Fila etiqueta="A un precio de">{enMoneda(r.precio, r.moneda)}</Fila> : null}
+          {r.comision ? <Fila etiqueta="Comisión">{enMoneda(r.comision, r.moneda, { decimales: 2 })}</Fila> : null}
+        </dl>
+      ) : null}
+      {/* Que ya esta en tu cartera lo dice el `resumen`; aqui solo si NO lo esta. */}
+      <p className="text-[0.9375rem] text-tinta-suave">
+        {hecha && !r.en_cartera ? "Todavía no está en tu cartera: si no aparece, anótalo en Cartera. " : ""}
+        Queda registrado con el modo «{r.modo === "REAL" ? "dinero real" : r.modo}»{modo === "pruebas" ? " (dinero ficticio)" : ""}.
+      </p>
+      <Desplegable resumen="Detalle técnico (lo que queda en el registro)">
+        <TextoPlano>{r.descripcion}</TextoPlano>
+      </Desplegable>
     </div>
   );
 }
@@ -128,7 +142,7 @@ function Contenido({
           {formatoCantidad(cantidad)} {moneda}
         </Fila>
         <Fila etiqueta="Precio aproximado">
-          {a.precio_ref ? enMoneda(a.precio_ref, a.moneda) : "—"}
+          {a.precio_ref ? enMoneda(a.precio_ref, a.precio_ref_moneda ?? a.moneda) : "—"}
           {a.precio_fecha ? <span className="block text-sm font-normal text-tinta-suave">cierre del {fechaCorta(a.precio_fecha)}</span> : null}
         </Fila>
         <Fila etiqueta="Importe aproximado">≈ {enMoneda(a.importe, a.moneda)}</Fila>
