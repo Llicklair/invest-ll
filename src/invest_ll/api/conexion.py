@@ -282,7 +282,12 @@ def saldo() -> Saldo:
             status_code=409,
             detail="En simulación no hay exchange: no hay saldo que leer. Conecta Binance primero.",
         )
-    libres = rutas_cartera.broker_para(modo).balance()
+    try:
+        libres = rutas_cartera.broker_para(modo).balance()
+    except InvestLLError as error:
+        # Lo mismo que Probar la conexión: el JSON de Binance no se le enseña a nadie.
+        red: credenciales.Red = "pruebas" if modo_del_panel(modo) == "pruebas" else "real"
+        raise invalido(prueba_conexion.explicar_fallo(error, red)) from None
     return Saldo(
         modo=modo_del_panel(modo),
         saldo=[SaldoMoneda(moneda=m, cantidad=c) for m, c in prueba_conexion.ordenar_saldo(libres)],

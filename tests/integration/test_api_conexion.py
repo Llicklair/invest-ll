@@ -19,6 +19,7 @@ from invest_ll.api import conexion as rutas_conexion
 from invest_ll.live import credenciales
 from invest_ll.live.broker import (
     Confirmation,
+    ExecutionError,
     OrderRequest,
     OrderResult,
     OrderStatus,
@@ -301,3 +302,27 @@ class TestSaldo:
         assert cuerpo["modo"] == "pruebas"
         assert [s["moneda"] for s in cuerpo["saldo"]] == ["USDT", "BTC"]
         assert isinstance(modos[0], Testnet)
+
+    def test_un_fallo_del_exchange_se_explica_en_llano(
+        self, cliente: Api, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Caso real: con claves mal copiadas, Invertir enseñaba el JSON crudo de Binance
+        ('binance {"code":-2014,"msg":"API-key format invalid."}'), y Probar la conexión, para
+        el mismo fallo, ya lo explicaba en llano."""
+
+        class SinSaldo(BrokerFalso):
+            def balance(self) -> dict[str, Decimal]:
+                raise ExecutionError(
+                    'no se pudo leer el saldo: binance {"code":-2014,"msg":"API-key format invalid."}'
+                )
+
+        monkeypatch.setattr(rutas_cartera, "broker_para", SinSaldo)
+        cliente.put("/api/conexion/claves/pruebas", json=PRUEBAS)
+        cliente.put("/api/conexion/modo", json={"modo": "pruebas"})
+
+        r = _sin_secretos(cliente.get("/api/saldo"))
+
+        assert r.status_code == 422
+        detalle = r.json()["detail"]
+        assert "rechaza las claves" in detalle and "HMAC-SHA256" in detalle
+        assert '"code"' not in detalle
