@@ -225,6 +225,61 @@
         "title": "AccionHecha",
         "type": "object"
       },
+      "ActivarExchange": {
+        "properties": {
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para real: 'DINERO REAL'",
+            "title": "Confirmacion"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          }
+        },
+        "required": [
+          "red"
+        ],
+        "title": "ActivarExchange",
+        "type": "object"
+      },
+      "ActivarReal": {
+        "properties": {
+          "confirmacion": {
+            "description": "Exactamente 'ACTIVAR <nombre del bot>'",
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "sin_ficticio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'",
+            "title": "Sin Ficticio"
+          }
+        },
+        "required": [
+          "confirmacion"
+        ],
+        "title": "ActivarReal",
+        "type": "object"
+      },
       "Activo": {
         "description": "Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.",
         "properties": {
@@ -464,6 +519,9 @@
             "title": "Nota",
             "type": "string"
           },
+          "real": {
+            "$ref": "#/components/schemas/EstadoReal"
+          },
           "valor": {
             "anyOf": [
               {
@@ -483,10 +541,35 @@
           "valor",
           "ganancia",
           "ganancia_pct",
+          "real",
           "at",
           "nota"
         ],
         "title": "Bots",
+        "type": "object"
+      },
+      "CambioLimites": {
+        "properties": {
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si alguno sube en un bot real: 'ACTIVAR <nombre del bot>'",
+            "title": "Confirmacion"
+          },
+          "limites": {
+            "$ref": "#/components/schemas/LimitesBot-Input"
+          }
+        },
+        "required": [
+          "limites"
+        ],
+        "title": "CambioLimites",
         "type": "object"
       },
       "CambioModo": {
@@ -517,6 +600,37 @@
           "modo"
         ],
         "title": "CambioModo",
+        "type": "object"
+      },
+      "CampoClave": {
+        "properties": {
+          "ayuda": {
+            "title": "Ayuda",
+            "type": "string"
+          },
+          "clave": {
+            "description": "'apiKey', 'secret', 'password', 'walletAddress', 'privateKey'…",
+            "title": "Clave",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "En llano: 'Clave de la API', 'Dirección de la cartera'…",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "secreto": {
+            "description": "True: se escribe oculto y nunca se vuelve a enseñar",
+            "title": "Secreto",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "secreto",
+          "ayuda"
+        ],
+        "title": "CampoClave",
         "type": "object"
       },
       "Cartera": {
@@ -681,6 +795,23 @@
           "detalle"
         ],
         "title": "Cerrojo",
+        "type": "object"
+      },
+      "ClavesExchange": {
+        "properties": {
+          "valores": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Por `CampoClave.clave`",
+            "title": "Valores",
+            "type": "object"
+          }
+        },
+        "required": [
+          "valores"
+        ],
+        "title": "ClavesExchange",
         "type": "object"
       },
       "Comparacion": {
@@ -1008,6 +1139,60 @@
         "title": "Conexion",
         "type": "object"
       },
+      "Conexiones": {
+        "properties": {
+          "exchanges": {
+            "items": {
+              "$ref": "#/components/schemas/EstadoExchange"
+            },
+            "title": "Exchanges",
+            "type": "array"
+          },
+          "mcp": {
+            "$ref": "#/components/schemas/ConfigMcp"
+          }
+        },
+        "required": [
+          "exchanges",
+          "mcp"
+        ],
+        "title": "Conexiones",
+        "type": "object"
+      },
+      "ConfigMcp": {
+        "description": "Para añadir el conector de INVEST LL a Claude Code o Claude Desktop.",
+        "properties": {
+          "argumentos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Argumentos",
+            "type": "array"
+          },
+          "bloque_json": {
+            "description": "El bloque listo para pegar en la configuración",
+            "title": "Bloque Json",
+            "type": "string"
+          },
+          "comando": {
+            "title": "Comando",
+            "type": "string"
+          },
+          "nota": {
+            "description": "Qué puede y qué NO puede hacer Claude con él",
+            "title": "Nota",
+            "type": "string"
+          }
+        },
+        "required": [
+          "comando",
+          "argumentos",
+          "bloque_json",
+          "nota"
+        ],
+        "title": "ConfigMcp",
+        "type": "object"
+      },
       "Consistencia": {
         "properties": {
           "asimetria": {
@@ -1057,6 +1242,32 @@
           "aviso"
         ],
         "title": "Consistencia",
+        "type": "object"
+      },
+      "ConsumoLimites": {
+        "properties": {
+          "gastado": {
+            "description": "Capital comprometido ahora",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gastado",
+            "type": "string"
+          },
+          "operaciones_hoy": {
+            "title": "Operaciones Hoy",
+            "type": "integer"
+          },
+          "perdida_pct": {
+            "description": "Fracción perdida desde su capital (0 si gana)",
+            "title": "Perdida Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "gastado",
+          "perdida_pct",
+          "operaciones_hoy"
+        ],
+        "title": "ConsumoLimites",
         "type": "object"
       },
       "Cotizacion": {
@@ -1298,6 +1509,16 @@
             "title": "Capital",
             "type": "string"
           },
+          "consumo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsumoLimites"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "curva": {
             "description": "Unos 100 puntos desde que arrancó",
             "items": {
@@ -1338,6 +1559,18 @@
             "title": "Estado",
             "type": "string"
           },
+          "estrategia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id de la estrategia a medida, si lo es",
+            "title": "Estrategia"
+          },
           "eventos": {
             "description": "El más reciente primero",
             "items": {
@@ -1348,6 +1581,17 @@
           },
           "evidencia": {
             "$ref": "#/components/schemas/EvidenciaBot"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
           },
           "ganancia": {
             "anyOf": [
@@ -1389,6 +1633,16 @@
             "title": "Id",
             "type": "string"
           },
+          "limites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitesBot-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "lista_operaciones": {
             "description": "La más reciente primero",
             "items": {
@@ -1408,6 +1662,15 @@
             ],
             "description": "Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)",
             "title": "Mantener Pct"
+          },
+          "modo": {
+            "enum": [
+              "ficticio",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
           },
           "monedas": {
             "items": {
@@ -1469,6 +1732,18 @@
             "title": "Posiciones",
             "type": "array"
           },
+          "probado_en_ficticio_dias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Días que su estrategia lleva en ficticio (para activar real)",
+            "title": "Probado En Ficticio Dias"
+          },
           "riesgo": {
             "title": "Riesgo",
             "type": "integer"
@@ -1522,6 +1797,12 @@
           "curva",
           "ultima_actividad",
           "aviso",
+          "modo",
+          "exchange",
+          "estrategia",
+          "limites",
+          "consumo",
+          "probado_en_ficticio_dias",
           "parametros",
           "efectivo",
           "posiciones",
@@ -1530,6 +1811,126 @@
           "curva_mantener"
         ],
         "title": "DetalleBot",
+        "type": "object"
+      },
+      "DetalleEstrategia": {
+        "properties": {
+          "actualizada": {
+            "format": "date-time",
+            "title": "Actualizada",
+            "type": "string"
+          },
+          "autor": {
+            "enum": [
+              "claude",
+              "marcos"
+            ],
+            "title": "Autor",
+            "type": "string"
+          },
+          "bots": {
+            "description": "Ids de los bots que la usan",
+            "items": {
+              "type": "string"
+            },
+            "title": "Bots",
+            "type": "array"
+          },
+          "definicion": {
+            "additionalProperties": true,
+            "description": "La estrategia en su formato (JSON validado)",
+            "title": "Definicion",
+            "type": "object"
+          },
+          "estado": {
+            "enum": [
+              "borrador",
+              "probada",
+              "ficticio",
+              "real"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "explicacion": {
+            "title": "Explicacion",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas",
+            "type": "array"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "pruebas": {
+            "description": "La más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/ResultadoPrueba"
+            },
+            "title": "Pruebas",
+            "type": "array"
+          },
+          "reglas_en_llano": {
+            "description": "Cada regla, como frase",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reglas En Llano",
+            "type": "array"
+          },
+          "ultima_prueba": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultadoPrueba"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "versiones": {
+            "items": {
+              "$ref": "#/components/schemas/VersionEstrategia"
+            },
+            "title": "Versiones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "version",
+          "estado",
+          "autor",
+          "explicacion",
+          "monedas",
+          "intervalo",
+          "actualizada",
+          "ultima_prueba",
+          "bots",
+          "definicion",
+          "reglas_en_llano",
+          "versiones",
+          "pruebas"
+        ],
+        "title": "DetalleEstrategia",
         "type": "object"
       },
       "Disparo": {
@@ -1678,6 +2079,35 @@
         "title": "Error",
         "type": "object"
       },
+      "EsquemaEstrategia": {
+        "properties": {
+          "ejemplos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Ejemplos",
+            "type": "array"
+          },
+          "esquema": {
+            "additionalProperties": true,
+            "description": "JSON Schema del formato",
+            "title": "Esquema",
+            "type": "object"
+          },
+          "explicacion": {
+            "title": "Explicacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "esquema",
+          "ejemplos",
+          "explicacion"
+        ],
+        "title": "EsquemaEstrategia",
+        "type": "object"
+      },
       "Estado": {
         "properties": {
           "activos": {
@@ -1797,6 +2227,108 @@
         "title": "EstadoEnvio",
         "type": "object"
       },
+      "EstadoExchange": {
+        "properties": {
+          "activo": {
+            "enum": [
+              "sin_conectar",
+              "pruebas",
+              "real"
+            ],
+            "title": "Activo",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "que_falta_real": {
+            "description": "En llano; vacío si se puede activar real",
+            "items": {
+              "type": "string"
+            },
+            "title": "Que Falta Real",
+            "type": "array"
+          },
+          "redes": {
+            "items": {
+              "$ref": "#/components/schemas/EstadoRedExchange"
+            },
+            "title": "Redes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "activo",
+          "redes",
+          "que_falta_real"
+        ],
+        "title": "EstadoExchange",
+        "type": "object"
+      },
+      "EstadoReal": {
+        "description": "Lo de dinero real, siempre a la vista: el interruptor general y el límite diario.",
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "bots_reales": {
+            "title": "Bots Reales",
+            "type": "integer"
+          },
+          "en_marcha": {
+            "title": "En Marcha",
+            "type": "integer"
+          },
+          "limite_diario": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pérdida máxima diaria de todos los reales",
+            "title": "Limite Diario"
+          },
+          "parado_todo": {
+            "description": "True si se pulsó 'Parar todo lo real' y no se reanudó",
+            "title": "Parado Todo",
+            "type": "boolean"
+          },
+          "perdida_hoy": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Perdida Hoy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bots_reales",
+          "en_marcha",
+          "perdida_hoy",
+          "limite_diario",
+          "parado_todo",
+          "aviso"
+        ],
+        "title": "EstadoReal",
+        "type": "object"
+      },
       "EstadoRed": {
         "properties": {
           "claves_guardadas": {
@@ -1833,6 +2365,71 @@
           "verificada"
         ],
         "title": "EstadoRed",
+        "type": "object"
+      },
+      "EstadoRedExchange": {
+        "properties": {
+          "claves_guardadas": {
+            "title": "Claves Guardadas",
+            "type": "boolean"
+          },
+          "comprobado": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Última prueba de conexión que salió bien",
+            "title": "Comprobado"
+          },
+          "origen": {
+            "enum": [
+              "panel",
+              "entorno",
+              "ninguno"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "puede_retirar": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None: el exchange no lo dice",
+            "title": "Puede Retirar"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          },
+          "verificada": {
+            "description": "Hay al menos una orden ejecutada en esta red (evidencia)",
+            "title": "Verificada",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "red",
+          "claves_guardadas",
+          "origen",
+          "verificada",
+          "puede_retirar",
+          "comprobado"
+        ],
+        "title": "EstadoRedExchange",
         "type": "object"
       },
       "EstadoVivo": {
@@ -2013,6 +2610,22 @@
         "title": "Estrategia",
         "type": "object"
       },
+      "Estrategias": {
+        "properties": {
+          "estrategias": {
+            "items": {
+              "$ref": "#/components/schemas/ResumenEstrategia"
+            },
+            "title": "Estrategias",
+            "type": "array"
+          }
+        },
+        "required": [
+          "estrategias"
+        ],
+        "title": "Estrategias",
+        "type": "object"
+      },
       "Estudio": {
         "properties": {
           "generado": {
@@ -2122,6 +2735,68 @@
           "texto"
         ],
         "title": "EvidenciaBot",
+        "type": "object"
+      },
+      "ExchangeDisponible": {
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "campos": {
+            "items": {
+              "$ref": "#/components/schemas/CampoClave"
+            },
+            "title": "Campos",
+            "type": "array"
+          },
+          "como_conseguir_pruebas": {
+            "description": "Pasos en llano (vacío si no hay red)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Como Conseguir Pruebas",
+            "type": "array"
+          },
+          "como_conseguir_real": {
+            "description": "Pasos en llano, sin permiso de retirada",
+            "items": {
+              "type": "string"
+            },
+            "title": "Como Conseguir Real",
+            "type": "array"
+          },
+          "id": {
+            "description": "'binance', 'hyperliquid', 'bybit', 'okx', 'kraken', 'coinbase'",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tiene_pruebas": {
+            "title": "Tiene Pruebas",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tiene_pruebas",
+          "campos",
+          "como_conseguir_pruebas",
+          "como_conseguir_real",
+          "aviso"
+        ],
+        "title": "ExchangeDisponible",
         "type": "object"
       },
       "FilaDatos": {
@@ -3063,6 +3738,145 @@
         "title": "LibroVivo",
         "type": "object"
       },
+      "LimiteDiario": {
+        "properties": {
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para subirlo: 'DINERO REAL'",
+            "title": "Confirmacion"
+          },
+          "limite": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Pérdida máxima diaria de todos los bots reales",
+            "title": "Limite"
+          }
+        },
+        "required": [
+          "limite"
+        ],
+        "title": "LimiteDiario",
+        "type": "object"
+      },
+      "LimitesBot-Input": {
+        "description": "Los límites de un bot de pruebas o real (docs/panel-v4-real.md §3). Obligatorios en esos modos.",
+        "properties": {
+          "capital_max": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "No gasta más que esto, aunque haya saldo",
+            "title": "Capital Max"
+          },
+          "operaciones_max_dia": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Operaciones Max Dia",
+            "type": "integer"
+          },
+          "orden_max": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "Ninguna orden mayor que esto",
+            "title": "Orden Max"
+          },
+          "perdida_max_pct": {
+            "description": "Fracción: si cae esto desde su capital, se para",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Perdida Max Pct",
+            "type": "number"
+          },
+          "vender_al_parar": {
+            "description": "Al pararse por pérdida, vender todo lo suyo",
+            "title": "Vender Al Parar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "capital_max",
+          "orden_max",
+          "perdida_max_pct",
+          "vender_al_parar",
+          "operaciones_max_dia"
+        ],
+        "title": "LimitesBot",
+        "type": "object"
+      },
+      "LimitesBot-Output": {
+        "description": "Los límites de un bot de pruebas o real (docs/panel-v4-real.md §3). Obligatorios en esos modos.",
+        "properties": {
+          "capital_max": {
+            "description": "No gasta más que esto, aunque haya saldo",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital Max",
+            "type": "string"
+          },
+          "operaciones_max_dia": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Operaciones Max Dia",
+            "type": "integer"
+          },
+          "orden_max": {
+            "description": "Ninguna orden mayor que esto",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Orden Max",
+            "type": "string"
+          },
+          "perdida_max_pct": {
+            "description": "Fracción: si cae esto desde su capital, se para",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Perdida Max Pct",
+            "type": "number"
+          },
+          "vender_al_parar": {
+            "description": "Al pararse por pérdida, vender todo lo suyo",
+            "title": "Vender Al Parar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "capital_max",
+          "orden_max",
+          "perdida_max_pct",
+          "vender_al_parar",
+          "operaciones_max_dia"
+        ],
+        "title": "LimitesBot",
+        "type": "object"
+      },
       "MensajeChat": {
         "properties": {
           "autor": {
@@ -3083,6 +3897,120 @@
           "texto"
         ],
         "title": "MensajeChat",
+        "type": "object"
+      },
+      "MensajeDiseno": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "autor": {
+            "enum": [
+              "marcos",
+              "claude"
+            ],
+            "title": "Autor",
+            "type": "string"
+          },
+          "texto": {
+            "description": "Markdown",
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "autor",
+          "texto",
+          "at"
+        ],
+        "title": "MensajeDiseno",
+        "type": "object"
+      },
+      "MercadoExchange": {
+        "properties": {
+          "base": {
+            "title": "Base",
+            "type": "string"
+          },
+          "cotizada": {
+            "title": "Cotizada",
+            "type": "string"
+          },
+          "minimo_importe": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimo Importe"
+          },
+          "nombre": {
+            "description": "Nombre llano de la base",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          },
+          "paso_cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paso Cantidad"
+          }
+        },
+        "required": [
+          "par",
+          "base",
+          "cotizada",
+          "nombre",
+          "minimo_importe",
+          "paso_cantidad"
+        ],
+        "title": "MercadoExchange",
+        "type": "object"
+      },
+      "MercadosExchange": {
+        "properties": {
+          "exchange": {
+            "title": "Exchange",
+            "type": "string"
+          },
+          "mercados": {
+            "items": {
+              "$ref": "#/components/schemas/MercadoExchange"
+            },
+            "title": "Mercados",
+            "type": "array"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exchange",
+          "red",
+          "mercados"
+        ],
+        "title": "MercadosExchange",
         "type": "object"
       },
       "MiniMercado": {
@@ -3449,6 +4377,47 @@
         "title": "NivelLibro",
         "type": "object"
       },
+      "NuevaEstrategia": {
+        "properties": {
+          "autor": {
+            "default": "marcos",
+            "enum": [
+              "claude",
+              "marcos"
+            ],
+            "title": "Autor",
+            "type": "string"
+          },
+          "definicion": {
+            "additionalProperties": true,
+            "title": "Definicion",
+            "type": "object"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si se da, nueva versión de esa estrategia",
+            "title": "Id"
+          },
+          "nota": {
+            "default": "",
+            "description": "Qué cambia respecto a la versión anterior",
+            "title": "Nota",
+            "type": "string"
+          }
+        },
+        "required": [
+          "definicion"
+        ],
+        "title": "NuevaEstrategia",
+        "type": "object"
+      },
       "NuevaOrdenPractica": {
         "properties": {
           "cantidad": {
@@ -3564,8 +4533,54 @@
                 "type": "string"
               }
             ],
-            "description": "USDC ficticios",
+            "description": "USDC (ficticios en modo ficticio)",
             "title": "Capital"
+          },
+          "estrategia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id de una estrategia a medida",
+            "title": "Estrategia"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligatorio en pruebas y real; en ficticio, precios de Hyperliquid",
+            "title": "Exchange"
+          },
+          "limites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitesBot-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligatorios en pruebas y real"
+          },
+          "modo": {
+            "default": "ficticio",
+            "description": "'real' NO se puede pedir al crear: se crea en pruebas o ficticio y se activa con POST /api/bots/{id}/activar-real",
+            "enum": [
+              "ficticio",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
           },
           "monedas": {
             "items": {
@@ -3590,6 +4605,7 @@
             "type": "object"
           },
           "plantilla": {
+            "description": "Una de las plantillas, o 'medida' con `estrategia`",
             "title": "Plantilla",
             "type": "string"
           }
@@ -4016,6 +5032,36 @@
           "correlacion"
         ],
         "title": "Par",
+        "type": "object"
+      },
+      "ParadaGeneral": {
+        "properties": {
+          "avisos": {
+            "description": "Lo que no se pudo cancelar o comprobar, en llano",
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "ordenes_canceladas": {
+            "title": "Ordenes Canceladas",
+            "type": "integer"
+          },
+          "parados": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "parados",
+          "ordenes_canceladas",
+          "avisos"
+        ],
+        "title": "ParadaGeneral",
         "type": "object"
       },
       "ParametroBot": {
@@ -4635,6 +5681,32 @@
         "title": "PeticionDescarga",
         "type": "object"
       },
+      "PeticionDiseno": {
+        "properties": {
+          "mensaje": {
+            "minLength": 1,
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Para seguir una conversación",
+            "title": "Sesion"
+          }
+        },
+        "required": [
+          "mensaje"
+        ],
+        "title": "PeticionDiseno",
+        "type": "object"
+      },
       "PeticionOrden": {
         "description": "Una orden. `escrito` es la cantidad tecleada a mano: la confirmación del Principio I.",
         "properties": {
@@ -4743,6 +5815,58 @@
           "frecuencia"
         ],
         "title": "PeticionPropuesta",
+        "type": "object"
+      },
+      "PeticionPruebaEstrategia": {
+        "properties": {
+          "capital": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "1000",
+            "title": "Capital"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por defecto, un año atrás",
+            "title": "Desde"
+          },
+          "exchange": {
+            "title": "Exchange",
+            "type": "string"
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta"
+          }
+        },
+        "required": [
+          "exchange"
+        ],
+        "title": "PeticionPruebaEstrategia",
         "type": "object"
       },
       "PeticionRegistrarPropuesta": {
@@ -5609,6 +6733,46 @@
         "title": "PruebaConexion",
         "type": "object"
       },
+      "PruebaExchange": {
+        "properties": {
+          "detalle": {
+            "description": "En llano; si falla, qué revisar",
+            "title": "Detalle",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "permisos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permisos"
+          },
+          "saldo": {
+            "description": "Solo monedas con saldo, ordenadas",
+            "items": {
+              "$ref": "#/components/schemas/SaldoMoneda"
+            },
+            "title": "Saldo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "detalle",
+          "saldo",
+          "permisos"
+        ],
+        "title": "PruebaExchange",
+        "type": "object"
+      },
       "Punto": {
         "properties": {
           "fecha": {
@@ -5836,6 +7000,55 @@
         "title": "RespuestaChat",
         "type": "object"
       },
+      "RespuestaDiseno": {
+        "properties": {
+          "estrategia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La estrategia que creó o cambió en este turno",
+            "title": "Estrategia"
+          },
+          "herramientas": {
+            "description": "Herramientas del conector que usó, en orden",
+            "items": {
+              "type": "string"
+            },
+            "title": "Herramientas",
+            "type": "array"
+          },
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/MensajeDiseno"
+            },
+            "title": "Historial",
+            "type": "array"
+          },
+          "respuesta": {
+            "description": "Markdown",
+            "title": "Respuesta",
+            "type": "string"
+          },
+          "sesion": {
+            "title": "Sesion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sesion",
+          "respuesta",
+          "estrategia",
+          "herramientas",
+          "historial"
+        ],
+        "title": "RespuestaDiseno",
+        "type": "object"
+      },
       "ResultadoActualizacion": {
         "properties": {
           "resultados": {
@@ -6012,6 +7225,148 @@
         "title": "ResultadoPractica",
         "type": "object"
       },
+      "ResultadoPrueba": {
+        "description": "Una estrategia probada sobre el pasado, con costes, frente a mantener.",
+        "properties": {
+          "aviso_sobreajuste": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso Sobreajuste"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "capital": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital",
+            "type": "string"
+          },
+          "comisiones": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comisiones",
+            "type": "string"
+          },
+          "curva": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoBot"
+            },
+            "title": "Curva",
+            "type": "array"
+          },
+          "curva_mantener": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoBot"
+            },
+            "title": "Curva Mantener",
+            "type": "array"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "exchange": {
+            "title": "Exchange",
+            "type": "string"
+          },
+          "ganancia_pct": {
+            "description": "Fracción",
+            "title": "Ganancia Pct",
+            "type": "number"
+          },
+          "hasta": {
+            "format": "date-time",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "lista_operaciones": {
+            "description": "Las primeras 200",
+            "items": {
+              "$ref": "#/components/schemas/OperacionBot"
+            },
+            "title": "Lista Operaciones",
+            "type": "array"
+          },
+          "mantener_pct": {
+            "description": "Fracción",
+            "title": "Mantener Pct",
+            "type": "number"
+          },
+          "mantener_peor_caida": {
+            "title": "Mantener Peor Caida",
+            "type": "number"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas",
+            "type": "array"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "peor_caida": {
+            "description": "Fracción negativa",
+            "title": "Peor Caida",
+            "type": "number"
+          },
+          "tiempo_dentro": {
+            "description": "Fracción del tiempo con algo comprado",
+            "title": "Tiempo Dentro",
+            "type": "number"
+          },
+          "valor_final": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Final",
+            "type": "string"
+          },
+          "versiones_probadas": {
+            "description": "Cuántas versiones de esta estrategia se han probado",
+            "title": "Versiones Probadas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exchange",
+          "monedas",
+          "intervalo",
+          "desde",
+          "hasta",
+          "capital",
+          "valor_final",
+          "ganancia_pct",
+          "mantener_pct",
+          "peor_caida",
+          "mantener_peor_caida",
+          "operaciones",
+          "comisiones",
+          "tiempo_dentro",
+          "curva",
+          "curva_mantener",
+          "lista_operaciones",
+          "versiones_probadas",
+          "aviso_sobreajuste",
+          "avisos"
+        ],
+        "title": "ResultadoPrueba",
+        "type": "object"
+      },
       "ResultadoSimulado": {
         "properties": {
           "aportado": {
@@ -6130,6 +7485,16 @@
             "title": "Capital",
             "type": "string"
           },
+          "consumo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsumoLimites"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "curva": {
             "description": "Unos 100 puntos desde que arrancó",
             "items": {
@@ -6156,8 +7521,31 @@
             "title": "Estado",
             "type": "string"
           },
+          "estrategia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id de la estrategia a medida, si lo es",
+            "title": "Estrategia"
+          },
           "evidencia": {
             "$ref": "#/components/schemas/EvidenciaBot"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
           },
           "ganancia": {
             "anyOf": [
@@ -6199,6 +7587,16 @@
             "title": "Id",
             "type": "string"
           },
+          "limites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitesBot-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "mantener_pct": {
             "anyOf": [
               {
@@ -6210,6 +7608,15 @@
             ],
             "description": "Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)",
             "title": "Mantener Pct"
+          },
+          "modo": {
+            "enum": [
+              "ficticio",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
           },
           "monedas": {
             "items": {
@@ -6256,6 +7663,18 @@
           "plantilla": {
             "title": "Plantilla",
             "type": "string"
+          },
+          "probado_en_ficticio_dias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Días que su estrategia lleva en ficticio (para activar real)",
+            "title": "Probado En Ficticio Dias"
           },
           "riesgo": {
             "title": "Riesgo",
@@ -6309,9 +7728,102 @@
           "riesgo",
           "curva",
           "ultima_actividad",
-          "aviso"
+          "aviso",
+          "modo",
+          "exchange",
+          "estrategia",
+          "limites",
+          "consumo",
+          "probado_en_ficticio_dias"
         ],
         "title": "ResumenBot",
+        "type": "object"
+      },
+      "ResumenEstrategia": {
+        "properties": {
+          "actualizada": {
+            "format": "date-time",
+            "title": "Actualizada",
+            "type": "string"
+          },
+          "autor": {
+            "enum": [
+              "claude",
+              "marcos"
+            ],
+            "title": "Autor",
+            "type": "string"
+          },
+          "bots": {
+            "description": "Ids de los bots que la usan",
+            "items": {
+              "type": "string"
+            },
+            "title": "Bots",
+            "type": "array"
+          },
+          "estado": {
+            "enum": [
+              "borrador",
+              "probada",
+              "ficticio",
+              "real"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "explicacion": {
+            "title": "Explicacion",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas",
+            "type": "array"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "ultima_prueba": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResultadoPrueba"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "version",
+          "estado",
+          "autor",
+          "explicacion",
+          "monedas",
+          "intervalo",
+          "actualizada",
+          "ultima_prueba",
+          "bots"
+        ],
+        "title": "ResumenEstrategia",
         "type": "object"
       },
       "Saldo": {
@@ -6731,6 +8243,35 @@
         ],
         "title": "Velas",
         "type": "object"
+      },
+      "VersionEstrategia": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "nota": {
+            "title": "Nota",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "at",
+          "huella",
+          "nota"
+        ],
+        "title": "VersionEstrategia",
+        "type": "object"
       }
     }
   },
@@ -6868,6 +8409,263 @@
           }
         },
         "summary": "Desplegar",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots-real": {
+      "get": {
+        "operationId": "estado_real_api_bots_real_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Estado Real",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots-real/limite-diario": {
+      "put": {
+        "description": "Bajarlo, siempre; subirlo exige 'DINERO REAL'.",
+        "operationId": "limite_diario_api_bots_real_limite_diario_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LimiteDiario"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Limite Diario",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots-real/parar-todo": {
+      "post": {
+        "description": "El interruptor: para todos los bots reales y cancela sus órdenes abiertas. Sin confirmación:\nparar tiene que ser fácil.",
+        "operationId": "parar_todo_real_api_bots_real_parar_todo_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParadaGeneral"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Parar Todo Real",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots-real/reanudar-todo": {
+      "post": {
+        "description": "Quita el interruptor general (cada bot sigue parado hasta reanudarlo uno a uno).",
+        "operationId": "reanudar_todo_real_api_bots_real_reanudar_todo_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Reanudar Todo Real",
         "tags": [
           "bots"
         ]
@@ -7066,6 +8864,172 @@
           }
         },
         "summary": "Detalle",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}/activar-real": {
+      "post": {
+        "description": "Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',\nel exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN\nFICTICIO'. 422 en llano con lo que falte. Solo desde el panel: el conector MCP no puede.",
+        "operationId": "activar_real_api_bots__bot_id__activar_real_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivarReal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Activar Real",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}/limites": {
+      "put": {
+        "description": "Bajar límites, siempre; subirlos en un bot real exige 'ACTIVAR <nombre>'.",
+        "operationId": "cambiar_limites_api_bots__bot_id__limites_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioLimites"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Cambiar Limites",
         "tags": [
           "bots"
         ]
@@ -7840,6 +9804,555 @@
         ]
       }
     },
+    "/api/conexiones": {
+      "get": {
+        "description": "Cada exchange con su estado, y la configuración del conector MCP para Claude.",
+        "operationId": "conexiones_api_conexiones_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conexiones"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Conexiones",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
+    "/api/conexiones/disponibles": {
+      "get": {
+        "description": "Los exchanges que se pueden conectar, con los campos de sus claves y cómo conseguirlas.",
+        "operationId": "disponibles_api_conexiones_disponibles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExchangeDisponible"
+                  },
+                  "title": "Response Disponibles Api Conexiones Disponibles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Disponibles",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
+    "/api/conexiones/{exchange}/activar": {
+      "post": {
+        "description": "Usa ese exchange en pruebas o en real. Real exige claves distintas, evidencia de pruebas\n(si el exchange tiene red de pruebas), que la clave no pueda retirar si se sabe, y 'DINERO\nREAL'. 422 en llano con lo que falte.",
+        "operationId": "activar_api_conexiones__exchange__activar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivarExchange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoExchange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Activar",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
+    "/api/conexiones/{exchange}/claves/{red}": {
+      "delete": {
+        "operationId": "borrar_claves_api_conexiones__exchange__claves__red__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Borrar Claves",
+        "tags": [
+          "conexiones"
+        ]
+      },
+      "put": {
+        "description": "Al almacén de credenciales de Windows. Nunca se devuelven. 422 en llano si falta algún campo\no si las reales coinciden con las de pruebas.",
+        "operationId": "guardar_claves_api_conexiones__exchange__claves__red__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClavesExchange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Guardar Claves",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
+    "/api/conexiones/{exchange}/mercados": {
+      "get": {
+        "description": "Los pares de contado del exchange (datos públicos: no necesita claves).",
+        "operationId": "mercados_api_conexiones__exchange__mercados_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "red",
+            "required": false,
+            "schema": {
+              "default": "real",
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MercadosExchange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Mercados",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
+    "/api/conexiones/{exchange}/probar/{red}": {
+      "post": {
+        "description": "Lee saldo y permisos con esas claves. No envía ninguna orden.",
+        "operationId": "probar_api_conexiones__exchange__probar__red__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "red",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "title": "Red",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PruebaExchange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Probar",
+        "tags": [
+          "conexiones"
+        ]
+      }
+    },
     "/api/datos": {
       "get": {
         "description": "De cuándo son los datos que usa el panel y cómo va la última actualización.",
@@ -8428,6 +10941,563 @@
         "summary": "Estudio",
         "tags": [
           "investigacion"
+        ]
+      }
+    },
+    "/api/medida": {
+      "get": {
+        "operationId": "lista_api_medida_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estrategias"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Lista",
+        "tags": [
+          "medida"
+        ]
+      },
+      "post": {
+        "description": "Valida y guarda (nueva estrategia o nueva versión). 422 en llano si no es válida.",
+        "operationId": "guardar_api_medida_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevaEstrategia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleEstrategia"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Guardar",
+        "tags": [
+          "medida"
+        ]
+      }
+    },
+    "/api/medida/disenar": {
+      "post": {
+        "description": "Un turno de la conversación con Claude (CLI `claude`, suscripción; gasta cuota). Claude usa\nel conector MCP: puede escribir, validar, probar y desplegar en ficticio; NUNCA activar real.\nPuede tardar un par de minutos. 422 si `claude` no está disponible.",
+        "operationId": "disenar_api_medida_disenar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionDiseno"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaDiseno"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Disenar",
+        "tags": [
+          "medida"
+        ]
+      }
+    },
+    "/api/medida/disenar/{sesion}": {
+      "get": {
+        "description": "La conversación guardada (404 si no existe).",
+        "operationId": "conversacion_api_medida_disenar__sesion__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sesion",
+            "required": true,
+            "schema": {
+              "title": "Sesion",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaDiseno"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Conversacion",
+        "tags": [
+          "medida"
+        ]
+      }
+    },
+    "/api/medida/esquema": {
+      "get": {
+        "description": "El formato de las estrategias (JSON Schema), con ejemplos y su explicación.",
+        "operationId": "esquema_api_medida_esquema_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsquemaEstrategia"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Esquema",
+        "tags": [
+          "medida"
+        ]
+      }
+    },
+    "/api/medida/{estrategia_id}": {
+      "delete": {
+        "description": "409 si algún bot la usa.",
+        "operationId": "borrar_api_medida__estrategia_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "estrategia_id",
+            "required": true,
+            "schema": {
+              "title": "Estrategia Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Borrar",
+        "tags": [
+          "medida"
+        ]
+      },
+      "get": {
+        "operationId": "detalle_api_medida__estrategia_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "estrategia_id",
+            "required": true,
+            "schema": {
+              "title": "Estrategia Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleEstrategia"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Detalle",
+        "tags": [
+          "medida"
+        ]
+      }
+    },
+    "/api/medida/{estrategia_id}/probar": {
+      "post": {
+        "description": "La prueba sobre el pasado con velas del exchange, costes y frente a mantener.",
+        "operationId": "probar_api_medida__estrategia_id__probar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "estrategia_id",
+            "required": true,
+            "schema": {
+              "title": "Estrategia Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeticionPruebaEstrategia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoPrueba"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Probar",
+        "tags": [
+          "medida"
         ]
       }
     },

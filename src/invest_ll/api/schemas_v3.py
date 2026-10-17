@@ -202,14 +202,48 @@ class Plantillas(BaseModel):
     plantillas: list[PlantillaBot]
 
 
+ModoBot = Literal["ficticio", "pruebas", "real"]
+
+
+class LimitesBot(BaseModel):
+    """Los límites de un bot de pruebas o real (docs/panel-v4-real.md §3). Obligatorios en esos modos."""
+
+    capital_max: Decimal = Field(gt=0, description="No gasta más que esto, aunque haya saldo")
+    orden_max: Decimal = Field(gt=0, description="Ninguna orden mayor que esto")
+    perdida_max_pct: float = Field(
+        gt=0, lt=1, description="Fracción: si cae esto desde su capital, se para"
+    )
+    vender_al_parar: bool = Field(description="Al pararse por pérdida, vender todo lo suyo")
+    operaciones_max_dia: int = Field(ge=1, le=1000)
+
+
+class ConsumoLimites(BaseModel):
+    gastado: Decimal = Field(description="Capital comprometido ahora")
+    perdida_pct: float = Field(description="Fracción perdida desde su capital (0 si gana)")
+    operaciones_hoy: int
+
+
 class NuevoBot(BaseModel):
-    plantilla: str
+    plantilla: str = Field(description="Una de las plantillas, o 'medida' con `estrategia`")
     nombre: str = Field(min_length=1, max_length=60)
     monedas: list[str] = Field(min_length=1)
-    capital: Decimal = Field(gt=0, description="USDC ficticios")
+    capital: Decimal = Field(gt=0, description="USDC (ficticios en modo ficticio)")
     parametros: dict[str, str] = Field(
         default_factory=dict[str, str], description="Por clave; lo que falte, su valor por defecto"
     )
+    modo: ModoBot = Field(
+        default="ficticio",
+        description=(
+            "'real' NO se puede pedir al crear: se crea en pruebas o ficticio y se activa con "
+            "POST /api/bots/{id}/activar-real"
+        ),
+    )
+    exchange: str | None = Field(
+        default=None,
+        description="Obligatorio en pruebas y real; en ficticio, precios de Hyperliquid",
+    )
+    estrategia: str | None = Field(default=None, description="Id de una estrategia a medida")
+    limites: LimitesBot | None = Field(default=None, description="Obligatorios en pruebas y real")
 
 
 class PuntoBot(BaseModel):
@@ -244,6 +278,25 @@ class ResumenBot(BaseModel):
     curva: list[PuntoBot] = Field(description="Unos 100 puntos desde que arrancó")
     ultima_actividad: datetime | None
     aviso: str | None = Field(description="P. ej. 'Panel cerrado de 14:02 a 18:30: no operó'")
+    modo: ModoBot
+    exchange: str | None
+    estrategia: str | None = Field(description="Id de la estrategia a medida, si lo es")
+    limites: LimitesBot | None
+    consumo: ConsumoLimites | None
+    probado_en_ficticio_dias: float | None = Field(
+        description="Días que su estrategia lleva en ficticio (para activar real)"
+    )
+
+
+class EstadoReal(BaseModel):
+    """Lo de dinero real, siempre a la vista: el interruptor general y el límite diario."""
+
+    bots_reales: int
+    en_marcha: int
+    perdida_hoy: Decimal
+    limite_diario: Decimal | None = Field(description="Pérdida máxima diaria de todos los reales")
+    parado_todo: bool = Field(description="True si se pulsó 'Parar todo lo real' y no se reanudó")
+    aviso: str | None
 
 
 class Bots(BaseModel):
@@ -252,6 +305,7 @@ class Bots(BaseModel):
     valor: Decimal | None
     ganancia: Decimal | None
     ganancia_pct: float | None
+    real: EstadoReal
     at: datetime
     nota: str = Field(
         description="'Dinero ficticio. Los bots solo funcionan con el panel abierto.'"

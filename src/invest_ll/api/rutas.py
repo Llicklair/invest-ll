@@ -26,11 +26,13 @@ from invest_ll.api import (
     cartera,
     chat,
     conexion,
+    conexiones,
     datos,
     estado,
     estrategias,
     inicio,
     investigacion,
+    medida,
     mercado,
     plan,
     practica,
@@ -58,6 +60,8 @@ PESTANAS = (
     vivo,
     practica,
     bots,
+    conexiones,
+    medida,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""

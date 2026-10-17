@@ -21,6 +21,7 @@ from invest_ll.api.errores import del_dominio, no_encontrado
 from invest_ll.api.schemas_v3 import (
     Bots,
     DetalleBot,
+    EstadoReal,
     EventoBot,
     EvidenciaBot,
     NuevoBot,
@@ -32,6 +33,7 @@ from invest_ll.api.schemas_v3 import (
     PuntoBot,
     ResumenBot,
 )
+from invest_ll.api.schemas_v4 import ActivarReal, CambioLimites, LimiteDiario, ParadaGeneral
 from invest_ll.bots import motor
 from invest_ll.bots.motor import NOTA, Motor
 from invest_ll.bots.plantillas import PLANTILLAS
@@ -268,3 +270,44 @@ def borrar(bot_id: str) -> None:
     m = _motor()
     _bot(m, bot_id)
     m.borrar_bot(bot_id)
+
+
+# -- Dinero real (docs/panel-v4-real.md §3). ESQUELETO DEL CONTRATO v4: cuerpos pendientes. --------
+
+
+@router.post("/bots/{bot_id}/activar-real", tags=["bots"])
+def activar_real(bot_id: str, peticion: ActivarReal) -> DetalleBot:
+    """Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',
+    el exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN
+    FICTICIO'. 422 en llano con lo que falte. Solo desde el panel: el conector MCP no puede."""
+    raise NotImplementedError("pendiente de implementar")
+
+
+@router.put("/bots/{bot_id}/limites", tags=["bots"])
+def cambiar_limites(bot_id: str, cambio: CambioLimites) -> DetalleBot:
+    """Bajar límites, siempre; subirlos en un bot real exige 'ACTIVAR <nombre>'."""
+    raise NotImplementedError("pendiente de implementar")
+
+
+@router.get("/bots-real", tags=["bots"])
+def estado_real() -> EstadoReal:
+    raise NotImplementedError("pendiente de implementar")
+
+
+@router.post("/bots-real/parar-todo", tags=["bots"])
+def parar_todo_real() -> ParadaGeneral:
+    """El interruptor: para todos los bots reales y cancela sus órdenes abiertas. Sin confirmación:
+    parar tiene que ser fácil."""
+    raise NotImplementedError("pendiente de implementar")
+
+
+@router.post("/bots-real/reanudar-todo", tags=["bots"])
+def reanudar_todo_real() -> EstadoReal:
+    """Quita el interruptor general (cada bot sigue parado hasta reanudarlo uno a uno)."""
+    raise NotImplementedError("pendiente de implementar")
+
+
+@router.put("/bots-real/limite-diario", tags=["bots"])
+def limite_diario(peticion: LimiteDiario) -> EstadoReal:
+    """Bajarlo, siempre; subirlo exige 'DINERO REAL'."""
+    raise NotImplementedError("pendiente de implementar")
