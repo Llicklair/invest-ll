@@ -51,7 +51,7 @@ export function ResumenCuenta({ className }: { className?: string }) {
             <dt className="text-tinta-suave">En monedas</dt>
             <dd className="text-right font-medium text-tinta">{cuenta.posiciones.length ? `${cuenta.posiciones.length} ${cuenta.posiciones.length === 1 ? "moneda" : "monedas"}` : "ninguna"}</dd>
           </dl>
-          <p className="mt-2 text-xs text-tinta-suave">A precios de las {horaSegundos(cuenta.at)}. Dinero ficticio.</p>
+          <p className="mt-2 text-xs text-tinta-suave">A precios de las {horaSegundos(cuenta.at)}.</p>
         </>
       ) : (
         <p className="mt-3 text-sm text-tinta-suave">Cargando tu cuenta…</p>
@@ -236,7 +236,7 @@ export function ListasCuenta({
               </tbody>
             </table>
           ) : (
-            <Vacio>Aún no tienes ninguna moneda. Compra la que quieras con el boleto: es dinero ficticio.</Vacio>
+            <Vacio>Aún no tienes ninguna moneda. Compra la que quieras con el boleto.</Vacio>
           )
         ) : lista === "ordenes" ? (
           <>
@@ -346,7 +346,7 @@ function FichasCuenta({
   cancelando: boolean;
 }) {
   if (lista === "posiciones") {
-    if (!cuenta.posiciones.length) return <Vacio>Aún no tienes ninguna moneda. Compra la que quieras con el boleto: es dinero ficticio.</Vacio>;
+    if (!cuenta.posiciones.length) return <Vacio>Aún no tienes ninguna moneda. Compra la que quieras en la pestaña Operar.</Vacio>;
     return (
       <ul className="divide-y divide-linea">
         {cuenta.posiciones.map((p) => {

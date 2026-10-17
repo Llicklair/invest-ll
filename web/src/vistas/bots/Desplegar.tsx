@@ -90,7 +90,7 @@ export function Desplegar() {
       <Link href="/bots/" className="inline-flex min-h-11 items-center gap-1.5 text-[0.9375rem] font-medium text-marca hover:underline">
         <ArrowLeft aria-hidden="true" className="h-4 w-4" /> Tus bots
       </Link>
-      <Encabezado antetitulo="Bots · dinero ficticio" titulo="Desplegar un bot" bajada="Elige qué hace, con qué monedas y cuánto capital ficticio le das. Puedes pararlo o borrarlo cuando quieras." />
+      <Encabezado antetitulo="Bots" titulo="Desplegar un bot" bajada="Elige qué hace, con qué monedas y cuánto capital ficticio le das. Puedes pararlo o borrarlo cuando quieras." />
       <NotaBots />
 
       {plantillas.error ? <ErrorApiVista error={plantillas.error} reintentar={plantillas.recargar} /> : null}
@@ -278,7 +278,7 @@ function PasoMonedas({
         />
       </label>
       {cargando ? <p className="mt-4 text-sm text-tinta-suave">Cargando las monedas…</p> : null}
-      <div className="mt-3 grid max-h-[26rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+      <div className="mt-3 grid gap-2 sm:max-h-[26rem] sm:grid-cols-2 sm:overflow-y-auto sm:pr-1">
         {lista.map((m) => {
           const elegida = elegidas.includes(m.coin);
           return (
@@ -301,7 +301,7 @@ function PasoMonedas({
                   {m.nombre} <span className="font-normal text-tinta-suave">{m.coin}</span>
                 </span>
                 <span className="cifras block text-sm text-tinta-suave">
-                  {precioFijo(m.precio, decimalesPrecio(m.precio, m.decimales_cantidad))} USDC · <CambioPct pct={m.var_24h} className="text-xs" /> en 24 h
+                  {precioFijo(m.precio, decimalesPrecio(m.precio, m.decimales_cantidad))} USDC · <span className="whitespace-nowrap"><CambioPct pct={m.var_24h} className="text-xs" /> en 24 h</span>
                 </span>
               </span>
               {sugeridas.has(m.coin) ? <span className="shrink-0 rounded-full bg-destaque-suave px-2 py-0.5 text-xs font-medium text-destaque-tinta">Sugerida</span> : null}

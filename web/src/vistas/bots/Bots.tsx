@@ -50,7 +50,7 @@ function ListaBots() {
   return (
     <div className="space-y-8">
       <Encabezado
-        antetitulo="En vivo · dinero ficticio"
+        antetitulo="En vivo"
         titulo="Bots"
         bajada="Bots que compran y venden solos con dinero ficticio. Aquí ves, en vivo, cuánto genera cada uno y si lo hace mejor que solo mantener sus monedas."
         accion={

@@ -1,6 +1,5 @@
 "use client";
 
-import { FlaskConical } from "lucide-react";
 import { useId, useState } from "react";
 
 import { api, pedir } from "@/api/cliente";
@@ -338,10 +337,6 @@ export function Boleto({ moneda, inicial, className }: { moneda: MonedaVivo; ini
       >
         {enviar.enCurso ? "Enviando…" : `${lado === "compra" ? "Comprar" : "Vender"} ${coin}${tipo === "limite" ? " con límite" : ""}`}
       </button>
-      <p className="mt-2 flex items-center gap-1.5 text-xs text-tinta-suave">
-        <FlaskConical aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-        Dinero ficticio: no sale nada a ningún exchange.
-      </p>
 
       {enviar.resultado ? (
         <Aviso tipo="hecho" vivo className="mt-3 text-sm">
