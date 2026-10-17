@@ -64,7 +64,8 @@ class TestRendimiento:
         fila = cuerpo["bolsa"][0]
         assert fila["que_es"] == "Oro"
         assert fila["datos_hasta"] == "2026-09-30", "sin fecha, un historico parado parece de hoy"
-        assert len(fila["sparkline"]) == 63
+        # Tres meses naturales (del 1 de julio al 30 de septiembre): 66 sesiones de bolsa.
+        assert len(fila["sparkline"]) == 66
 
     def test_sin_historico_suficiente_es_null_no_cero(self, cliente: Api) -> None:
         guardar("GLD", subida(30))
@@ -83,7 +84,10 @@ class TestSerie:
         ).json()
         todo = cliente.get("/api/mercado/serie", params={"symbol": "BTC/USDT", "tramo": "todo"})
 
-        assert tres_meses["sesiones"] == 63
+        # Tres meses son 91 dias naturales tambien en cripto, que cotiza los siete dias: el cierre
+        # de hace 91 dias y los 91 siguientes (antes, 63 velas: dos meses de Bitcoin).
+        assert tres_meses["sesiones"] == 92
+        assert tres_meses["puntos"][0]["fecha"].startswith("2026-07-01")
         assert tres_meses["hasta"] == "2026-09-30"
         assert tres_meses["puntos"][-1]["valor"] == 499.0
         assert todo.json()["sesiones"] == 400

@@ -8,7 +8,9 @@ panel como el chat sin que uno dependa del otro. `invest_ll.dashboard.data` lo r
 from __future__ import annotations
 
 import hashlib
+from bisect import bisect_right
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -146,13 +148,24 @@ def discover_assets(root: Path = RAIZ_DATOS) -> list[AvailableAsset]:
     return encontrados
 
 
-# Ventanas para la tabla de rendimiento, en sesiones bursátiles.
+# Ventanas en sesiones bursátiles: las usa la comparación normalizada (`normalised_series`).
 VENTANAS: tuple[tuple[str, int], ...] = (
     ("1 mes", 21),
     ("3 meses", 63),
     ("1 año", 252),
     ("5 años", 1260),
 )
+
+# Ventanas de la tabla de rendimiento, en DÍAS NATURALES. Contarlas en velas daba a cada mercado
+# su propio reloj: 252 velas son un año de bolsa, pero ocho meses y medio de cripto, que cotiza
+# los fines de semana. El "1 año" de Bitcoin era mentira y su "1 mes" no casaba con el de Inicio.
+VENTANAS_DIAS: tuple[tuple[str, int], ...] = (
+    ("1 mes", 30),
+    ("3 meses", 91),
+    ("1 año", 365),
+    ("5 años", 1826),
+)
+SEMANA_DIAS = 7
 
 # Los nombres llanos viven en un solo sitio (`invest_ll.nombres`); se re-exportan con el nombre de
 # antes para quien ya los importaba de aquí.
@@ -173,9 +186,32 @@ def _rendimiento(cierres: list[float], periodos: int) -> float | None:
     return cierres[-1] / anterior - 1
 
 
-# Sesiones que cubre la sparkline de cada fila (~3 meses). Una sola imagen por fila, sin ejes:
-# es la única redundancia visual que la tabla se permite, igual que hace CoinMarketCap.
+# Sesiones que cubría la sparkline cuando se contaba en velas; se conserva el nombre para quien
+# lo importaba. La de la tabla cubre `SPARKLINE_DIAS`.
 SPARKLINE_SESIONES = 63
+
+# Días naturales que cubre la sparkline de cada fila (3 meses), desde el mismo cierre con el que se
+# mide "3 meses". Una sola imagen por fila, sin ejes: es la única redundancia visual que la tabla
+# se permite, igual que hace CoinMarketCap.
+SPARKLINE_DIAS = 91
+
+
+def desde_hace(bars: Sequence[Bar], dias: int) -> int | None:
+    """Posición del último cierre de hace `dias` días naturales (o de antes), contando desde el
+    último. `None` si el histórico no llega tan atrás: no se sabe, no es un 0%."""
+    if not bars:
+        return None
+    limite = bars[-1].timestamp - timedelta(days=dias)
+    posicion = bisect_right([b.timestamp for b in bars], limite) - 1
+    return posicion if posicion >= 0 else None
+
+
+def _rendimiento_en_dias(bars: Sequence[Bar], dias: int) -> float | None:
+    """Variación desde el cierre de hace `dias` días naturales. `None` si no hay histórico."""
+    posicion = desde_hace(bars, dias)
+    if posicion is None or bars[posicion].close == 0:
+        return None
+    return bars[-1].close / bars[posicion].close - 1
 
 
 def _ytd(bars: Sequence[Bar]) -> float | None:
@@ -221,19 +257,20 @@ def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]
         }
 
         dia = _rendimiento(cierres, 1)
-        semana = _rendimiento(cierres, 5)
+        semana = _rendimiento_en_dias(serie.bars, SEMANA_DIAS)
         fila["1 dia"] = None if dia is None else round(dia * 100, 1)
         fila["1 semana"] = None if semana is None else round(semana * 100, 1)
 
-        for etiqueta, periodos in VENTANAS:
-            rendimiento = _rendimiento(cierres, periodos)
+        for etiqueta, dias in VENTANAS_DIAS:
+            rendimiento = _rendimiento_en_dias(serie.bars, dias)
             fila[etiqueta] = None if rendimiento is None else round(rendimiento * 100, 1)
 
         ytd = _ytd(serie.bars)
         fila["YTD"] = None if ytd is None else round(ytd * 100, 1)
 
         fila["desde maximo"] = round((cierres[-1] / maximo - 1) * 100, 1) if maximo else None
-        fila["sparkline"] = [round(c, 4) for c in cierres[-SPARKLINE_SESIONES:]]
+        inicio_chispa = desde_hace(serie.bars, SPARKLINE_DIAS) or 0
+        fila["sparkline"] = [round(c, 4) for c in cierres[inicio_chispa:]]
         fila["desde"] = serie.bars[0].timestamp.date()
         fila["datos hasta"] = serie.bars[-1].timestamp.date()
         filas.append(fila)
