@@ -16,7 +16,16 @@ from invest_ll.errors import InvestLLError
 from invest_ll.estrategias import datos, objetivo
 from invest_ll.estrategias.catalogo import ficha
 from invest_ll.nombres import base, es_cripto
-from invest_ll.plan.hoy import Entrada, ParteDeHoy, Precio, Resultado, calcular
+from invest_ll.plan import calendario
+from invest_ll.plan.hoy import (
+    EnElBroker,
+    Entrada,
+    ParteDeHoy,
+    Precio,
+    Resultado,
+    calcular,
+    en_el_broker,
+)
 from invest_ll.portfolio.derive import derive_portfolio
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -100,7 +109,25 @@ def calcular_hoy(
         )
     tenidos_cripto = [base(s) for s in posiciones if es_cripto(s)]
     cripto = _parte(plan, "cripto", hoy, avisos, tenidos_cripto) if cartera_legible else None
-    bolsa = _parte(plan, "bolsa", hoy, avisos, ())
+    # Lo del bróker se mira en su cartera (la real): para saber si sobra algo que vender hace
+    # falta lo que tienes y el precio de cada fondo tenido, también de los que la estrategia ya no
+    # quiere (no están en su objetivo de hoy).
+    posiciones_bolsa = posiciones
+    broker_legible = cartera_legible
+    if actividades_bolsa is not None:
+        try:
+            del_broker = derive_portfolio(actividades_bolsa)
+            posiciones_bolsa = {p.symbol: p.quantity for p in del_broker.open_positions}
+            broker_legible = True
+        except InvestLLError as error:
+            posiciones_bolsa = {}
+            broker_legible = False
+            avisos.append(
+                f"Tu registro de movimientos cuenta una historia imposible ({error}): no se mira "
+                "si toca vender algo en tu bróker hasta arreglarlo."
+            )
+    tenidos_bolsa = [base(s) for s in posiciones_bolsa if not es_cripto(s)]
+    bolsa = _parte(plan, "bolsa", hoy, avisos, tenidos_bolsa)
     resultado = calcular(
         Entrada(
             hoy=hoy,
@@ -112,6 +139,8 @@ def calcular_hoy(
             bolsa=bolsa,
             pausa=pausa,
             actividades_bolsa=actividades_bolsa,
+            posiciones_bolsa=posiciones_bolsa,
+            broker_legible=broker_legible,
         )
     )
     return Resultado(
@@ -119,6 +148,29 @@ def calcular_hoy(
         avisos=tuple(dict.fromkeys([*avisos, *resultado.avisos])),
         proxima_fecha=resultado.proxima_fecha,
         resumen=resultado.resumen,
+    )
+
+
+def lo_del_broker(
+    plan: Plan | None, actividades: Sequence[Activity], *, hasta: date | None = None
+) -> EnElBroker:
+    """Lo que el plan tiene en tu bróker: unidades por fondo y lo que está sin invertir.
+
+    `actividades` son las de la cartera real (donde se anota lo del bróker). Vacío sin plan, o si
+    el registro cuenta una historia imposible (eso ya lo avisa quien deriva la cartera).
+    """
+    if plan is None:
+        return EnElBroker(unidades={}, libre=Decimal(0))
+    try:
+        derivada = derive_portfolio(actividades)
+    except InvestLLError:
+        return EnElBroker(unidades={}, libre=Decimal(0))
+    posiciones = {p.symbol: p.quantity for p in derivada.open_positions}
+    return en_el_broker(
+        actividades,
+        calendario.inicio(fecha_de_creacion(plan), plan.dia_del_mes),
+        posiciones,
+        hasta=hasta,
     )
 
 

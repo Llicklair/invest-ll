@@ -73,7 +73,13 @@ def filas_cripto(
     return pd.DataFrame(filas)
 
 
-def filas_bolsa(desde: date = DESDE, hasta: date = HASTA) -> pd.DataFrame:
+SESIONES_DE_CAIDA: Final = 280
+
+
+def filas_bolsa(
+    desde: date = DESDE, hasta: date = HASTA, *, cae: str | None = None
+) -> pd.DataFrame:
+    """Los ocho fondos y SHY; con `cae`, ese fondo lleva sus últimas 280 sesiones bajando."""
     filas: list[dict[str, object]] = []
     sesiones: list[date] = []
     d = desde
@@ -81,10 +87,16 @@ def filas_bolsa(desde: date = DESDE, hasta: date = HASTA) -> pd.DataFrame:
         if d.weekday() < 5:
             sesiones.append(d)
         d += timedelta(days=1)
+    desde_la_caida = len(sesiones) - SESIONES_DE_CAIDA
     for j, simbolo in enumerate((*ASSETS, CASH)):
         for t, sesion in enumerate(sesiones):
             # SHY, la liquidez de los fondos, sube despacio y sin vaivenes.
             cierre = 80.0 * 1.0001**t if simbolo == CASH else _precio(t, 50.0 + 10 * j, 0.0004, j)
+            if simbolo == cae and t > desde_la_caida:
+                # Un año largo bajando sin respiro: el freno de tendencia lo deja fuera.
+                cierre = _precio(desde_la_caida, 50.0 + 10 * j, 0.0004, j) * 0.997 ** (
+                    t - desde_la_caida
+                )
             filas.append(
                 {
                     "symbol": simbolo,
@@ -106,6 +118,7 @@ def escribir_paneles(
     bolsa: bool = True,
     btc: Literal["sube", "baja"] = "sube",
     hasta: date = HASTA,
+    cae: str | None = None,
 ) -> None:
     """Escribe los paneles sintéticos bajo `raiz` (por defecto, el directorio de trabajo)."""
     if cripto:
@@ -113,4 +126,4 @@ def escribir_paneles(
         filas_cripto(btc=btc, hasta=hasta).to_parquet(raiz / CRIPTO)
     if bolsa:
         (raiz / BOLSA).parent.mkdir(parents=True, exist_ok=True)
-        filas_bolsa(hasta=hasta).to_parquet(raiz / BOLSA)
+        filas_bolsa(hasta=hasta, cae=cae).to_parquet(raiz / BOLSA)
