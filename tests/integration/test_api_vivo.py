@@ -14,7 +14,7 @@ import asyncio
 import json
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -22,10 +22,13 @@ import pytest
 
 from invest_ll.api import vivo as rutas_vivo
 from invest_ll.api.schemas_v3 import Bots, EstadoReal
+from invest_ll.bots import motor
+from invest_ll.bots.motor import Motor
 from invest_ll.vivo import servicio
 from invest_ll.vivo.fuente import FuenteFalsa, Libro, Nivel
 
 from ..fixtures.vivo import Reloj, bucle, fuente_con_datos, mensaje
+from ..unit.bots_apoyo import Mercado as MercadoBots
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator
@@ -346,7 +349,7 @@ def test_canales_o_intervalo_que_no_existen(cliente: Api, fuente: FuenteHyperliq
     assert respuesta.status_code == 422
     assert respuesta.json()["detail"] == (
         "Canales que no existen: precios. Valen: monedas, libro, operaciones, vela, cuenta, "
-        "bots, estado."
+        "bots, estado, actividad."
     )
     respuesta = cliente.get("/api/vivo/stream", params={"intervalo": "2m"})
     assert respuesta.status_code == 422
@@ -408,3 +411,60 @@ def test_el_stream_sigue_la_moneda(
     cliente.get("/api/vivo/stream", params={"coin": "ETH", "intervalo": "4h", "canales": "vela"})
     assert ("candle", "ETH", "4h") in fuente.suscripciones()
     assert ("l2Book", "ETH", "") not in fuente.suscripciones()  # no pidió libro
+
+
+REJILLA = {"precio_bajo": "90", "precio_alto": "110", "escalones": "4"}
+
+
+@pytest.fixture
+def motor_de_bots(tmp_path: Path) -> Iterator[tuple[Motor, MercadoBots]]:
+    m = MercadoBots()
+    m.precio("BTC", 100)
+    mot = Motor(m.fuente, tmp_path / "bots", reloj=m.reloj, zona=UTC)
+    motor.usar(mot)
+    yield mot, m
+    motor.usar(None)
+
+
+def test_el_canal_de_actividad_empieza_con_lo_ultimo(
+    cliente: Api,
+    fuente: FuenteHyperliquid,
+    monkeypatch: pytest.MonkeyPatch,
+    corto: None,
+    motor_de_bots: tuple[Motor, MercadoBots],
+) -> None:
+    mot, _ = motor_de_bots
+    mot.desplegar("rejilla", "Rejilla", ["BTC"], Decimal(1000), REJILLA)
+    monkeypatch.setattr(rutas_vivo, "MAX_EVENTOS", 1)
+    texto = cliente.get("/api/vivo/stream", params={"canales": "actividad"}).text
+    [(nombre, datos)] = eventos(texto)
+    assert nombre == "actividad"
+    assert datos["inicial"] is True
+    assert [x["tipo"] for x in datos["movimientos"]] == ["arranque"]
+
+
+def test_el_canal_de_actividad_luego_solo_manda_lo_nuevo(
+    motor_de_bots: tuple[Motor, MercadoBots],
+) -> None:
+    mot, mercado = motor_de_bots
+    mot.desplegar("rejilla", "Rejilla", ["BTC"], Decimal(1000), REJILLA)
+    leida = rutas_vivo.actividad_nueva(None)
+    assert leida is not None
+    visto, primera = leida
+    assert primera is not None
+    mercado.reloj.avanzar(timedelta(seconds=1))
+    mot.paso()  # arranca la rejilla: compra
+    leida = rutas_vivo.actividad_nueva(visto)
+    assert leida is not None
+    visto, nueva = leida
+    assert nueva is not None
+    datos = nueva.model_dump(mode="json")
+    assert datos["inicial"] is False
+    assert [x["tipo"] for x in datos["movimientos"]] == ["compra"]
+    assert rutas_vivo.actividad_nueva(visto) == (visto, None)  # nada nuevo: nada que mandar
+
+
+def test_sin_motor_el_canal_de_actividad_calla() -> None:
+    motor.usar(None)
+    assert rutas_vivo.actividad_nueva(None) is None
+

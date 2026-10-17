@@ -395,3 +395,30 @@ body[data-barra-accion] .relleno-barra-inferior {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Bots en directo (docs/panel-v5.md §4): lo que acaba de llegar se resalta un momento, y una cifra
+   que cambia destella hacia arriba o hacia abajo. Con movimiento reducido, nada destella. */
+.destello-nuevo {
+  animation: destello-nuevo 2.4s ease-out;
+}
+@keyframes destello-nuevo {
+  from {
+    background-color: var(--color-destaque-suave);
+  }
+}
+.destello-sube {
+  animation: destello-sube 1.2s ease-out;
+}
+@keyframes destello-sube {
+  from {
+    background-color: var(--color-sube-suave);
+  }
+}
+.destello-baja {
+  animation: destello-baja 1.2s ease-out;
+}
+@keyframes destello-baja {
+  from {
+    background-color: var(--color-baja-suave);
+  }
+}

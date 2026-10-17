@@ -2,8 +2,6 @@
 
 import { ArrowRight, Bot, CandlestickChart, Sprout } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
 import { api, pedir } from "@/api/cliente";
 import type { Bots as DatosBots, CanalVivo, Inicio as DatosInicio, ResumenBot } from "@/api/tipos";
 import { ProveedorVivo, useVivo } from "@/api/vivo";
@@ -15,25 +13,16 @@ import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useConsulta } from "@/lib/consulta";
 import { formatoImporte } from "@/lib/decimal";
-import { haceCuanto } from "@/lib/formato";
 import { horaSegundos } from "@/lib/vivo";
-import { EstadoChip, MiniCurva, PctColor, usdc } from "@/vistas/bots/comun";
-import { ChipModo, pausadoSolo } from "@/vistas/bots/real";
+import { FeedActividad } from "@/vistas/bots/Actividad";
+import { usdc } from "@/vistas/bots/comun";
+import { pausadoSolo } from "@/vistas/bots/real";
+import { TablaBots } from "@/vistas/bots/TablaBots";
 
 import { MercadoEnUnaLinea, QueTocaHacer, TuDinero, TuPlan } from "./plan";
 
-/** El Resumen solo necesita los bots y el estado de la fuente: ni libro ni velas. */
-const CANALES_RESUMEN: readonly CanalVivo[] = ["bots", "estado"];
-
-/** Repinta cada segundo lo que dice "hace 12 s". */
-function useAhora(cadaMs = 1000): number {
-  const [ahora, setAhora] = useState(() => Date.now());
-  useEffect(() => {
-    const t = window.setInterval(() => setAhora(Date.now()), cadaMs);
-    return () => window.clearInterval(t);
-  }, [cadaMs]);
-  return ahora;
-}
+/** El Resumen solo necesita los bots, su actividad y el estado de la fuente: ni libro ni velas. */
+const CANALES_RESUMEN: readonly CanalVivo[] = ["bots", "estado", "actividad"];
 
 // -- Sin nada todavia ----------------------------------------------------------------------------
 
@@ -123,43 +112,7 @@ function porActividad(a: ResumenBot, b: ResumenBot): number {
   return Date.parse(b.ultima_actividad ?? "") - Date.parse(a.ultima_actividad ?? "") || 0;
 }
 
-function FilaBot({ bot, ahora }: { bot: ResumenBot; ahora: number }) {
-  return (
-    <tr className="group relative border-t border-linea hover:bg-superficie-2/60">
-      <th scope="row" className="min-w-[11rem] py-3 pr-3 pl-4 text-left font-normal sm:pl-5">
-        <Link
-          href={`/bots/ficha/?id=${encodeURIComponent(bot.id)}`}
-          className="font-semibold text-tinta after:absolute after:inset-0 hover:underline focus-visible:outline-none"
-        >
-          {bot.nombre}
-        </Link>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-tinta-suave">
-          {bot.modo !== "ficticio" ? <ChipModo modo={bot.modo} exchange={bot.exchange} /> : null}
-          {bot.nombre_plantilla} · {bot.monedas.join(", ")}
-        </span>
-      </th>
-      <td className="px-3 py-3 max-md:hidden">
-        <EstadoChip estado={bot.estado} />
-      </td>
-      <td className="cifras px-3 py-3 text-right font-medium whitespace-nowrap text-tinta">{usdc(bot.valor, { decimales: 2 })}</td>
-      <td className="cifras px-3 py-3 text-right whitespace-nowrap">
-        <PctColor valor={bot.ganancia_pct} />
-      </td>
-      <td className="cifras px-3 py-3 text-right whitespace-nowrap max-sm:hidden">
-        <PctColor valor={bot.ganancia_24h_pct} />
-      </td>
-      <td className="w-32 px-3 py-3 max-lg:hidden">
-        <MiniCurva curva={bot.curva} capital={Number(bot.capital)} alto={32} />
-      </td>
-      <td className="py-3 pr-4 pl-3 text-right text-sm whitespace-nowrap text-tinta-suave max-sm:hidden sm:pr-5">
-        {bot.ultima_actividad ? haceCuanto(bot.ultima_actividad, ahora) : "sin operar aún"}
-      </td>
-    </tr>
-  );
-}
-
 function TusBots({ datos }: { datos: DatosBots | null }) {
-  const ahora = useAhora();
   if (!datos) return <Esqueleto className="h-72" />;
   const mezcla = datos.bots.some((b) => b.modo !== "ficticio");
   const enMarcha = datos.bots.filter((b) => b.estado === "en_marcha").length;
@@ -189,39 +142,7 @@ function TusBots({ datos }: { datos: DatosBots | null }) {
       </div>
       {datos.bots.length ? (
         <>
-          <table className="w-full text-[0.9375rem]">
-            <caption className="sr-only">Tus bots, el que se movió hace menos primero</caption>
-            <thead className="text-xs text-tinta-suave">
-              <tr>
-                <th scope="col" className="pb-2 pl-4 text-left font-medium sm:pl-5">
-                  Bot
-                </th>
-                <th scope="col" className="px-3 pb-2 text-left font-medium max-md:hidden">
-                  Estado
-                </th>
-                <th scope="col" className="px-3 pb-2 text-right font-medium">
-                  Vale
-                </th>
-                <th scope="col" className="px-3 pb-2 text-right font-medium">
-                  Ganancia
-                </th>
-                <th scope="col" className="px-3 pb-2 text-right font-medium max-sm:hidden">
-                  Hoy
-                </th>
-                <th scope="col" className="px-3 pb-2 font-medium max-lg:hidden">
-                  <span className="sr-only">Curva</span>
-                </th>
-                <th scope="col" className="pr-4 pb-2 pl-3 text-right font-medium max-sm:hidden sm:pr-5">
-                  Última actividad
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((b) => (
-                <FilaBot key={b.id} bot={b} ahora={ahora} />
-              ))}
-            </tbody>
-          </table>
+          <TablaBots bots={lista} etiqueta="Tus bots, el que se movió hace menos primero" />
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-linea px-5 py-3 sm:px-6">
             <EnlaceFlecha href="/bots/">{datos.bots.length > lista.length ? `Ver los ${datos.bots.length} bots` : "Ver tus bots"}</EnlaceFlecha>
             <Link href="/bots/nuevo/" className="inline-flex min-h-11 items-center text-[0.9375rem] font-semibold text-marca underline-offset-4 hover:underline">
@@ -304,8 +225,9 @@ function PanelResumen() {
 
       <TusBots datos={bots} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-8">
         <div className="min-w-0 space-y-8">
+          {bots && bots.bots.length ? <FeedActividad limite={10} /> : null}
           {inicio.error && !d ? (
             <ErrorApiVista error={inicio.error} prefijo="No se pudo leer cómo va tu plan:" reintentar={inicio.recargar} />
           ) : !d ? (

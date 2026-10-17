@@ -203,5 +203,13 @@ export interface EventosVivo {
   cuenta: CuentaPractica;
   bots: Bots;
   estado: EstadoVivo;
+  /** v5: los movimientos de los bots; el primero trae lo ultimo (`inicial`), los demas lo nuevo. */
+  actividad: Actividad;
 }
 export type CanalVivo = keyof EventosVivo;
+
+// Panel v5 (docs/panel-v5.md §4): los bots en directo.
+export type Actividad = S["Actividad"];
+export type MovimientoBot = S["MovimientoBot"];
+export type MetricasBot = S["MetricasBot"];
+export type PendienteBot = S["PendienteBot"];

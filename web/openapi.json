@@ -280,6 +280,35 @@
         "title": "ActivarReal",
         "type": "object"
       },
+      "Actividad": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "inicial": {
+            "default": true,
+            "description": "En el stream: true en el primer envío (lo último que hay); false en los siguientes, que solo traen lo nuevo",
+            "title": "Inicial",
+            "type": "boolean"
+          },
+          "movimientos": {
+            "description": "El más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/MovimientoBot"
+            },
+            "title": "Movimientos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "movimientos",
+          "at"
+        ],
+        "title": "Actividad",
+        "type": "object"
+      },
       "Activo": {
         "description": "Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.",
         "properties": {
@@ -1663,6 +1692,10 @@
             "description": "Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)",
             "title": "Mantener Pct"
           },
+          "metricas": {
+            "$ref": "#/components/schemas/MetricasBot",
+            "description": "v5: sus métricas, sacadas de sus operaciones"
+          },
           "modo": {
             "enum": [
               "ficticio",
@@ -1708,6 +1741,14 @@
             },
             "title": "Parametros",
             "type": "object"
+          },
+          "pendientes": {
+            "description": "v5: qué hará después, lo más cercano primero",
+            "items": {
+              "$ref": "#/components/schemas/PendienteBot"
+            },
+            "title": "Pendientes",
+            "type": "array"
           },
           "peor_caida": {
             "anyOf": [
@@ -1808,7 +1849,9 @@
           "posiciones",
           "lista_operaciones",
           "eventos",
-          "curva_mantener"
+          "curva_mantener",
+          "metricas",
+          "pendientes"
         ],
         "title": "DetalleBot",
         "type": "object"
@@ -4013,6 +4056,168 @@
         "title": "MercadosExchange",
         "type": "object"
       },
+      "MetricasBot": {
+        "properties": {
+          "aciertos": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción de las cerradas que ganó algo",
+            "title": "Aciertos"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuando con tan pocas operaciones no dicen nada",
+            "title": "Aviso"
+          },
+          "cerradas": {
+            "description": "Ventas con resultado conocido",
+            "title": "Cerradas",
+            "type": "integer"
+          },
+          "comisiones": {
+            "description": "Todas las que ha pagado",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comisiones",
+            "type": "string"
+          },
+          "compras": {
+            "title": "Compras",
+            "type": "integer"
+          },
+          "factor_beneficio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo ganado en las ventas que ganaron entre lo perdido en las que perdieron (None si aún no ha perdido en ninguna)",
+            "title": "Factor Beneficio"
+          },
+          "frente_a_mantener": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Su ganancia menos la de solo mantener, en fracción (+0.02 = 2 puntos mejor)",
+            "title": "Frente A Mantener"
+          },
+          "ganancia_media": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia Media"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "operaciones_dia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None hasta que lleva un día",
+            "title": "Operaciones Dia"
+          },
+          "perdida_media": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Negativa",
+            "title": "Perdida Media"
+          },
+          "realizada": {
+            "description": "La suma de los resultados de sus ventas",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Realizada",
+            "type": "string"
+          },
+          "sin_realizar": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que ganaría o perdería si vendiera ahora lo que tiene",
+            "title": "Sin Realizar"
+          },
+          "tiempo_dentro": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción del tiempo, desde que arrancó, con alguna moneda comprada",
+            "title": "Tiempo Dentro"
+          },
+          "ventas": {
+            "title": "Ventas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operaciones",
+          "compras",
+          "ventas",
+          "cerradas",
+          "aciertos",
+          "factor_beneficio",
+          "ganancia_media",
+          "perdida_media",
+          "realizada",
+          "sin_realizar",
+          "comisiones",
+          "tiempo_dentro",
+          "operaciones_dia",
+          "frente_a_mantener",
+          "aviso"
+        ],
+        "title": "MetricasBot",
+        "type": "object"
+      },
       "MiniMercado": {
         "properties": {
           "fecha": {
@@ -4313,6 +4518,150 @@
           "nota"
         ],
         "title": "Movimiento",
+        "type": "object"
+      },
+      "MovimientoBot": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bot_id": {
+            "title": "Bot Id",
+            "type": "string"
+          },
+          "bot_nombre": {
+            "title": "Bot Nombre",
+            "type": "string"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "coin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coin"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision"
+          },
+          "id": {
+            "description": "Estable: el mismo al reabrir el panel (para no repetirlo)",
+            "title": "Id",
+            "type": "string"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "USDC, sin la comisión",
+            "title": "Importe"
+          },
+          "modo": {
+            "enum": [
+              "ficticio",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "nombre_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Moneda"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "resultado": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo en las ventas: lo cobrado menos la comisión y lo que costó lo vendido",
+            "title": "Resultado"
+          },
+          "texto": {
+            "description": "En llano: el porqué de la operación o lo que pasó",
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "compra",
+              "venta",
+              "arranque",
+              "parada",
+              "error",
+              "hueco",
+              "info"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "bot_id",
+          "bot_nombre",
+          "modo",
+          "tipo",
+          "texto"
+        ],
+        "title": "MovimientoBot",
         "type": "object"
       },
       "MovimientoRegistrado": {
@@ -5471,6 +5820,103 @@
           "motivo"
         ],
         "title": "Pausa",
+        "type": "object"
+      },
+      "PendienteBot": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "coin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coin"
+          },
+          "cuando": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuando"
+          },
+          "distancia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que tiene que moverse el precio de ahora hasta `precio`",
+            "title": "Distancia"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Al que se dispara (rejilla) o con el que compara",
+            "title": "Precio"
+          },
+          "texto": {
+            "description": "En llano y con sus datos",
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "compra",
+              "venta",
+              "mirar",
+              "nada"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "texto"
+        ],
+        "title": "PendienteBot",
         "type": "object"
       },
       "Perfil": {
@@ -8282,6 +8728,98 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/actividad": {
+      "get": {
+        "description": "Los últimos movimientos de los bots (o de uno), el más reciente primero. En directo, por el\ncanal `actividad` de `GET /api/vivo/stream`. 404 si se pide un bot que no existe.",
+        "operationId": "actividad_api_actividad_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "bot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bot"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Actividad"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Actividad",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
     "/api/bots": {
       "get": {
         "description": "Todos los bots con lo que llevan generado, valorados a precios de ahora.",
@@ -14277,7 +14815,7 @@
             "name": "canales",
             "required": false,
             "schema": {
-              "default": "monedas,libro,operaciones,vela,cuenta,bots,estado",
+              "default": "monedas,libro,operaciones,vela,cuenta,bots,estado,actividad",
               "title": "Canales",
               "type": "string"
             }

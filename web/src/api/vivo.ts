@@ -20,15 +20,17 @@
 import { createContext, createElement, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { api, comoErrorApi, pedir, urlApi } from "./cliente";
-import type { Bots, CanalVivo, CuentaPractica, EstadoVivo, EventosVivo, LibroVivo, Monedas, OperacionMercado, VelaVivo } from "./tipos";
+import type { Actividad, Bots, CanalVivo, CuentaPractica, EstadoVivo, EventosVivo, LibroVivo, Monedas, MovimientoBot, OperacionMercado, VelaVivo } from "./tipos";
 
-export const CANALES: readonly CanalVivo[] = ["monedas", "libro", "operaciones", "vela", "cuenta", "bots", "estado"];
+export const CANALES: readonly CanalVivo[] = ["monedas", "libro", "operaciones", "vela", "cuenta", "bots", "estado", "actividad"];
 
 const REPINTADO_MS = 200;
 export const SONDEO_MS = 3000;
 const PLAZO_APERTURA_MS = 8000;
 const SILENCIO_MS = 12_000;
 const MAX_OPERACIONES = 40;
+/** Los movimientos de los bots que se guardan (el feed "Ahora mismo"). */
+const MAX_MOVIMIENTOS = 200;
 
 export type Conexion =
   | { tipo: "conectando" }
@@ -55,6 +57,8 @@ interface Datos {
   operaciones: OperacionMercado[];
   cuenta: CuentaPractica | null;
   bots: Bots | null;
+  /** v5: los movimientos de los bots, el mas reciente primero; null hasta el primer envio. */
+  actividad: MovimientoBot[] | null;
 }
 type ClaveDatos = keyof Datos;
 
@@ -76,9 +80,12 @@ function claveOperacion(o: OperacionMercado): string {
 // -- El almacen ----------------------------------------------------------------------------------
 
 export class AlmacenVivo {
-  private datos: Datos = { monedas: null, libro: null, operaciones: [], cuenta: null, bots: null };
+  private datos: Datos = { monedas: null, libro: null, operaciones: [], cuenta: null, bots: null, actividad: null };
   private pendiente: Partial<Datos> = {};
   private opsPendientes: OperacionMercado[] = [];
+  private movPendientes: MovimientoBot[] = [];
+  /** Los ids de los movimientos que llegaron despues del primer envio: los que se resaltan. */
+  readonly recientes = new Set<string>();
   private estado: EstadoConexion = { conexion: { tipo: "conectando" }, fuente: null, ultimoDato: null };
   private oyentes = new Map<ClaveDatos | "conexion", Set<() => void>>();
   private oyentesVela = new Set<(v: VelaVivo) => void>();
@@ -194,6 +201,22 @@ export class AlmacenVivo {
         this.anotarHora(v.at);
         break;
       }
+      case "actividad": {
+        const v = valor as Actividad;
+        if (v.inicial) {
+          // Lo ultimo que hay (al conectar o reconectar): se junta con lo que ya hubiera.
+          this.movPendientes = [...this.movPendientes, ...v.movimientos];
+          if (this.datos.actividad === null && !v.movimientos.length) this.datos = { ...this.datos, actividad: [] };
+        } else {
+          v.movimientos.forEach((x) => this.recientes.add(x.id));
+          this.movPendientes = [...v.movimientos, ...this.movPendientes];
+        }
+        if (this.datos.actividad === null && !this.movPendientes.length) {
+          this.avisar("actividad");
+          return;
+        }
+        break;
+      }
     }
     this.programar();
   }
@@ -248,6 +271,14 @@ export class AlmacenVivo {
         datos = { ...datos, [k]: p[k] };
         cambiados.push(k);
       }
+    }
+    if (this.movPendientes.length) {
+      const juntos = new Map<string, MovimientoBot>();
+      for (const x of [...this.movPendientes, ...(datos.actividad ?? [])]) if (!juntos.has(x.id)) juntos.set(x.id, x);
+      this.movPendientes = [];
+      const lista = [...juntos.values()].sort((a, b) => (msDe(b.at) ?? 0) - (msDe(a.at) ?? 0)).slice(0, MAX_MOVIMIENTOS);
+      datos = { ...datos, actividad: lista };
+      cambiados.push("actividad");
     }
     if (this.opsPendientes.length) {
       const vistas = new Set(datos.operaciones.map(claveOperacion));
@@ -443,6 +474,7 @@ class ConexionVivo {
     }
     if (this.quiere("cuenta")) tareas.push(pedir(api.GET("/api/practica")).then((v) => a.recibir("cuenta", v)));
     if (this.quiere("bots")) tareas.push(pedir(api.GET("/api/bots")).then((v) => a.recibir("bots", v)));
+    if (this.quiere("actividad")) tareas.push(pedir(api.GET("/api/actividad")).then((v) => a.recibir("actividad", { ...v, inicial: true })));
     const resultados = await Promise.allSettled(tareas);
     if (this.parado || inicial || this.abierto) return;
     const fallos = resultados.filter((r): r is PromiseRejectedResult => r.status === "rejected");

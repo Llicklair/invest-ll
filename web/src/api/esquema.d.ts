@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/api/actividad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Actividad
+         * @description Los últimos movimientos de los bots (o de uno), el más reciente primero. En directo, por el
+         *     canal `actividad` de `GET /api/vivo/stream`. 404 si se pide un bot que no existe.
+         */
+        get: operations["actividad_api_actividad_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bots": {
         parameters: {
             query?: never;
@@ -1690,6 +1711,25 @@ export interface components {
              */
             sin_ficticio?: string | null;
         };
+        /** Actividad */
+        Actividad: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Inicial
+             * @description En el stream: true en el primer envío (lo último que hay); false en los siguientes, que solo traen lo nuevo
+             * @default true
+             */
+            inicial: boolean;
+            /**
+             * Movimientos
+             * @description El más reciente primero
+             */
+            movimientos: components["schemas"]["MovimientoBot"][];
+        };
         /**
          * Activo
          * @description Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.
@@ -2263,6 +2303,8 @@ export interface components {
              * @description Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)
              */
             mantener_pct: number | null;
+            /** @description v5: sus métricas, sacadas de sus operaciones */
+            metricas: components["schemas"]["MetricasBot"];
             /**
              * Modo
              * @enum {string}
@@ -2282,6 +2324,11 @@ export interface components {
             parametros: {
                 [key: string]: string;
             };
+            /**
+             * Pendientes
+             * @description v5: qué hará después, lo más cercano primero
+             */
+            pendientes: components["schemas"]["PendienteBot"][];
             /**
              * Peor Caida
              * @description Fracción negativa desde su máximo
@@ -3253,6 +3300,72 @@ export interface components {
              */
             red: "pruebas" | "real";
         };
+        /** MetricasBot */
+        MetricasBot: {
+            /**
+             * Aciertos
+             * @description Fracción de las cerradas que ganó algo
+             */
+            aciertos: number | null;
+            /**
+             * Aviso
+             * @description Cuando con tan pocas operaciones no dicen nada
+             */
+            aviso: string | null;
+            /**
+             * Cerradas
+             * @description Ventas con resultado conocido
+             */
+            cerradas: number;
+            /**
+             * Comisiones
+             * @description Todas las que ha pagado
+             */
+            comisiones: string;
+            /** Compras */
+            compras: number;
+            /**
+             * Factor Beneficio
+             * @description Lo ganado en las ventas que ganaron entre lo perdido en las que perdieron (None si aún no ha perdido en ninguna)
+             */
+            factor_beneficio: number | null;
+            /**
+             * Frente A Mantener
+             * @description Su ganancia menos la de solo mantener, en fracción (+0.02 = 2 puntos mejor)
+             */
+            frente_a_mantener: number | null;
+            /** Ganancia Media */
+            ganancia_media: string | null;
+            /** Operaciones */
+            operaciones: number;
+            /**
+             * Operaciones Dia
+             * @description None hasta que lleva un día
+             */
+            operaciones_dia: number | null;
+            /**
+             * Perdida Media
+             * @description Negativa
+             */
+            perdida_media: string | null;
+            /**
+             * Realizada
+             * @description La suma de los resultados de sus ventas
+             */
+            realizada: string;
+            /**
+             * Sin Realizar
+             * @description Lo que ganaría o perdería si vendiera ahora lo que tiene
+             */
+            sin_realizar: string | null;
+            /**
+             * Tiempo Dentro
+             * @description Fracción del tiempo, desde que arrancó, con alguna moneda comprada
+             */
+            tiempo_dentro: number | null;
+            /** Ventas */
+            ventas: number;
+        };
         /** MiniMercado */
         MiniMercado: {
             /**
@@ -3401,6 +3514,58 @@ export interface components {
              * @enum {string}
              */
             tipo: "compra" | "venta" | "ingreso" | "retirada";
+        };
+        /** MovimientoBot */
+        MovimientoBot: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bot Id */
+            bot_id: string;
+            /** Bot Nombre */
+            bot_nombre: string;
+            /** Cantidad */
+            cantidad?: string | null;
+            /** Coin */
+            coin?: string | null;
+            /** Comision */
+            comision?: string | null;
+            /**
+             * Id
+             * @description Estable: el mismo al reabrir el panel (para no repetirlo)
+             */
+            id: string;
+            /**
+             * Importe
+             * @description USDC, sin la comisión
+             */
+            importe?: string | null;
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "ficticio" | "pruebas" | "real";
+            /** Nombre Moneda */
+            nombre_moneda?: string | null;
+            /** Precio */
+            precio?: string | null;
+            /**
+             * Resultado
+             * @description Solo en las ventas: lo cobrado menos la comisión y lo que costó lo vendido
+             */
+            resultado?: string | null;
+            /**
+             * Texto
+             * @description En llano: el porqué de la operación o lo que pasó
+             */
+            texto: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "compra" | "venta" | "arranque" | "parada" | "error" | "hueco" | "info";
         };
         /** MovimientoRegistrado */
         MovimientoRegistrado: {
@@ -3882,6 +4047,37 @@ export interface components {
         Pausa: {
             /** Motivo */
             motivo: string;
+        };
+        /** PendienteBot */
+        PendienteBot: {
+            /** Cantidad */
+            cantidad?: string | null;
+            /** Coin */
+            coin?: string | null;
+            /** Cuando */
+            cuando?: string | null;
+            /**
+             * Distancia
+             * @description Lo que tiene que moverse el precio de ahora hasta `precio`
+             */
+            distancia?: number | null;
+            /** Importe */
+            importe?: string | null;
+            /**
+             * Precio
+             * @description Al que se dispara (rejilla) o con el que compara
+             */
+            precio?: string | null;
+            /**
+             * Texto
+             * @description En llano y con sus datos
+             */
+            texto: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "compra" | "venta" | "mirar" | "nada";
         };
         /** Perfil */
         Perfil: {
@@ -5010,6 +5206,65 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    actividad_api_actividad_get: {
+        parameters: {
+            query?: {
+                bot?: string | null;
+                limite?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Actividad"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     lista_api_bots_get: {
         parameters: {
             query?: never;

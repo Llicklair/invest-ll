@@ -13,25 +13,45 @@ import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { Hoja } from "@/componentes/Hoja";
 import { MedidorRiesgo } from "@/componentes/MedidorRiesgo";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
+import { Pestanas } from "@/componentes/Pestanas";
 import { MarcoTabla, Td, Th } from "@/componentes/tabla";
 import { Aviso, Boton, CargandoLento, ErrorApiVista, Esqueleto, Seccion, Tarjeta, clases } from "@/componentes/ui";
+import { useAncla } from "@/lib/ancla";
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { formatoCantidad, formatoImporte } from "@/lib/decimal";
 import { fecha, fraccion, fraccionCoherente, momento, signoImporteVisible } from "@/lib/formato";
 import { nombreExchange } from "@/lib/nombres";
 import { nombreIntervalo } from "@/lib/vivo";
 
+import { FeedActividad } from "./Actividad";
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, NotaBots, PctColor, diasTexto, usdc } from "./comun";
 import { CurvaBot } from "./CurvaBot";
+import { ListaPendientes, PanelMetricas } from "./Metricas";
 import { ChipModo, HojaActivarReal, HojaLimites, LimitesConsumo, PanelReal, pausadoSolo } from "./real";
 
-const CANALES: readonly CanalVivo[] = ["bots", "estado"];
+const CANALES: readonly CanalVivo[] = ["bots", "estado", "actividad"];
 const SONDEO_FICHA_MS = 5000;
 
+const PESTANAS = [
+  { clave: "resumen", texto: "Resumen" },
+  { clave: "despues", texto: "Qué hará después" },
+  { clave: "posiciones", texto: "Posiciones" },
+  { clave: "operaciones", texto: "Operaciones" },
+  { clave: "metricas", texto: "Métricas" },
+  { clave: "historial", texto: "Lo que ha pasado" },
+  { clave: "ajustes", texto: "Cómo está ajustado" },
+] as const;
+type Pestana = (typeof PESTANAS)[number]["clave"];
+
+function esPestana(v: string): v is Pestana {
+  return PESTANAS.some((p) => p.clave === v);
+}
+
 /**
- * La ficha de un bot (docs/panel-v3-vivo.md, seccion 3): la curva en vivo frente a mantener, sus
- * posiciones, sus operaciones con el porque, los eventos (arranques, paradas, huecos), los
- * parametros y Parar / Reanudar / Borrar.
+ * La ficha de un bot (docs/panel-v3-vivo.md, seccion 3; docs/panel-v5.md §4): la cifra viva arriba
+ * y, en pestañas, el resumen (curva frente a mantener, "Ahora mismo", qué hará después y las
+ * métricas clave), sus posiciones, sus operaciones con el porque, todas las métricas, los eventos
+ * (arranques, paradas, huecos) y cómo está ajustado, con Parar / Reanudar / Borrar.
  *
  * Las cifras de arriba y la curva del bot llegan por el stream (`bots`, cada ~2 s); el resto del
  * detalle (`GET /api/bots/{id}`) se vuelve a pedir cada 5 s: el stream no trae la ficha entera.
@@ -62,6 +82,9 @@ function Ficha({ id }: { id: string }) {
   const [hojaReal, setHojaReal] = useState(false);
   const [hojaLimites, setHojaLimites] = useState(false);
   const almacen = useAlmacenVivo();
+  // La pestaña va en el ancla (#metricas…): se puede enlazar y el botón de atrás la respeta.
+  const [ancla, fijarAncla] = useAncla();
+  const pestana: Pestana = esPestana(ancla) ? ancla : "resumen";
   /** Lo que devuelve una accion vale hasta el siguiente sondeo, y el stream se entera al momento. */
   const alCambiar = (d: DetalleBot) => {
     setPropio({ datos: d, vuelta });
@@ -146,129 +169,193 @@ function Ficha({ id }: { id: string }) {
           <Dato etiqueta="Peor caída">{bot.peor_caida === null ? "—" : fraccion(bot.peor_caida, 1)}</Dato>
           <Dato etiqueta="Operaciones">{bot.operaciones.toLocaleString("es-ES")}</Dato>
         </dl>
-        <CurvaBot curva={bot.curva} mantener={base?.curva_mantener ?? []} capital={Number(bot.capital)} nombre={bot.nombre} atenuada={detalle.cargando && !detalle.datos} />
-        <QueEsEsto clave="mantener" className="text-sm" />
       </section>
 
-      {bot.modo !== "ficticio" || bot.limites ? (
-        <Seccion
-          titulo="Sus límites"
-          bajada={bot.limites ? "Antes de cada orden se comprueba que cabe; si no, no sale y lo apunta." : "Sin límites no puede usarse con dinero real."}
-          accion={
-            <Boton tamano="compacto" onClick={() => setHojaLimites(true)}>
-              <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
-              {bot.limites ? "Cambiar los límites" : "Ponerle límites"}
-            </Boton>
-          }
-        >
-          {bot.limites ? (
-            <Tarjeta className="p-5">
-              <LimitesConsumo bot={bot} className="max-w-xl" />
-            </Tarjeta>
-          ) : null}
-        </Seccion>
-      ) : null}
-
-      <Seccion titulo="Lo que tiene" bajada={`Valorado a precios de ahora. Además tiene ${usdc(base?.efectivo)} sin invertir.`}>
-        {base?.posiciones.length ? (
-          <MarcoTabla etiqueta="Lo que tiene el bot">
-            <thead>
-              <tr>
-                <Th>Moneda</Th>
-                <Th numerica>Tiene</Th>
-                <Th numerica>Le costó (precio medio)</Th>
-                <Th numerica>Precio ahora</Th>
-                <Th numerica>Vale</Th>
-                <Th numerica>Si vendiera ahora</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {base.posiciones.map((p) => {
-                const s = signoImporteVisible(p.ganancia);
-                return (
-                  <tr key={p.coin}>
-                    <Td>
-                      <span className="font-medium text-tinta">{p.nombre}</span> <span className="text-tinta-suave">{p.coin}</span>
-                    </Td>
-                    <Td numerica>{formatoCantidad(p.cantidad)}</Td>
-                    <Td numerica>{formatoImporte(p.precio_medio)}</Td>
-                    <Td numerica>{formatoImporte(p.precio)}</Td>
-                    <Td numerica>{usdc(p.valor)}</Td>
-                    <Td numerica className={clases("font-medium", s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : undefined)}>
-                      {s === null ? "—" : `${usdc(p.ganancia, { conSigno: true })} (${fraccionCoherente(p.ganancia_pct, s)})`}
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </MarcoTabla>
-        ) : (
-          <p className="text-[0.9375rem] text-tinta-suave">Ahora no tiene ninguna moneda: todo está en USDC.</p>
-        )}
-      </Seccion>
-
-      <Operaciones operaciones={base?.lista_operaciones ?? []} total={bot.operaciones} />
-
-      <Seccion titulo="Lo que ha pasado" bajada="Arranques, paradas, cortes de conexión y los huecos en que el panel estuvo cerrado.">
-        <ul className="space-y-2">
-          {(base?.eventos ?? []).map((e, i) => (
-            <FilaEvento key={`${e.at}-${i}`} evento={e} />
-          ))}
-        </ul>
-      </Seccion>
-
-      <Seccion titulo="Cómo está ajustado" bajada={plantilla ? `${plantilla.nombre}: ${plantilla.frase}` : undefined}>
-        <Tarjeta className="space-y-5 p-5">
-          <dl className="grid gap-x-6 gap-y-3 text-[0.9375rem] sm:grid-cols-[minmax(10rem,auto)_1fr]">
-            <dt className="text-tinta-suave">Dónde</dt>
-            <dd className="text-tinta">
-              <ChipModo modo={bot.modo} exchange={bot.exchange} />
-            </dd>
-            <dt className="text-tinta-suave">Monedas</dt>
-            <dd className="text-tinta">{bot.monedas.join(", ")}</dd>
-            {bot.estrategia ? (
-              <>
-                <dt className="text-tinta-suave">Estrategia a medida</dt>
-                <dd className="text-tinta">
-                  <Link href={`/estrategias/medida/ficha/?id=${encodeURIComponent(bot.estrategia)}`} className="font-semibold text-marca underline underline-offset-4">
-                    {bot.nombre_plantilla.replace(/^A medida: /, "")}
-                  </Link>
-                </dd>
-              </>
-            ) : null}
-            <dt className="text-tinta-suave">En marcha desde</dt>
-            <dd className="text-tinta">
-              {fecha(bot.desde)} <span className="text-tinta-suave">({diasTexto(bot.dias)})</span>
-            </dd>
-            {Object.entries(base?.parametros ?? {}).map(([clave, valor]) => {
-              const def = plantilla?.parametros.find((p) => p.clave === clave);
-              return (
-                <div key={clave} className="contents">
-                  <dt className="text-tinta-suave">{def?.nombre ?? clave}</dt>
-                  <dd className="text-tinta">
-                    <span className="cifras font-medium">{def?.tipo === "intervalo" ? nombreIntervalo(valor) : valor.replace(".", ",")}</span>
-                    {def ? <span className="mt-0.5 block text-sm leading-relaxed text-tinta-suave">{def.explicacion}</span> : null}
-                  </dd>
+      <div>
+        <Pestanas etiqueta="Secciones del bot" pestanas={PESTANAS} actual={pestana} onCambio={fijarAncla} idPanel="panel-bot" />
+        <div id="panel-bot" role="tabpanel" aria-labelledby={`pestana-${pestana}`} tabIndex={0} className="space-y-10 pt-6">
+          {pestana === "resumen" ? (
+            <>
+              <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="min-w-0 space-y-3">
+                  <CurvaBot curva={bot.curva} mantener={base?.curva_mantener ?? []} capital={Number(bot.capital)} nombre={bot.nombre} atenuada={detalle.cargando && !detalle.datos} />
+                  <QueEsEsto clave="mantener" className="text-sm" />
                 </div>
-              );
-            })}
-          </dl>
-          <div className="flex flex-wrap items-center gap-3 border-t border-linea pt-4">
-            <ChipEvidenciaBot evidencia={bot.evidencia} />
-            <MedidorRiesgo nivel={bot.riesgo} texto={plantilla?.riesgo_texto} compacto />
-            <span className="text-sm text-tinta-suave">{bot.evidencia.texto}</span>
-          </div>
-          {plantilla?.avisos.length ? (
-            <Aviso tipo="aviso" titulo="Lo que conviene saber" className="text-sm">
-              <ul className="list-disc space-y-0.5 pl-4">
-                {plantilla.avisos.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-            </Aviso>
+                <FeedActividad botId={bot.id} limite={8} bajada="Lo último que ha hecho, en cuanto pasa." />
+              </div>
+              {base ? (
+                <Seccion
+                  titulo="Qué hará después"
+                  bajada="Lo que tiene preparado según su regla, lo más cercano primero."
+                  accion={
+                    base.pendientes.length > 3 ? (
+                      <Boton tamano="compacto" variante="fantasma" onClick={() => fijarAncla("despues")}>
+                        Ver todo
+                      </Boton>
+                    ) : undefined
+                  }
+                >
+                  <ListaPendientes pendientes={base.pendientes} max={3} />
+                </Seccion>
+              ) : null}
+              {base ? (
+                <Seccion
+                  titulo="Cómo lo está haciendo"
+                  accion={
+                    <Boton tamano="compacto" variante="fantasma" onClick={() => fijarAncla("metricas")}>
+                      Todas las métricas
+                    </Boton>
+                  }
+                >
+                  <PanelMetricas m={base.metricas} compacto />
+                </Seccion>
+              ) : null}
+              {bot.modo !== "ficticio" || bot.limites ? (
+                <Seccion
+                  titulo="Sus límites"
+                  bajada={bot.limites ? "Antes de cada orden se comprueba que cabe; si no, no sale y lo apunta." : "Sin límites no puede usarse con dinero real."}
+                  accion={
+                    <Boton tamano="compacto" onClick={() => setHojaLimites(true)}>
+                      <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+                      {bot.limites ? "Cambiar los límites" : "Ponerle límites"}
+                    </Boton>
+                  }
+                >
+                  {bot.limites ? (
+                    <Tarjeta className="p-5">
+                      <LimitesConsumo bot={bot} className="max-w-xl" />
+                    </Tarjeta>
+                  ) : null}
+                </Seccion>
+              ) : null}
+            </>
           ) : null}
-        </Tarjeta>
-      </Seccion>
+
+          {pestana === "despues" ? (
+            <Seccion titulo="Qué hará después" bajada="Lo que tiene preparado según su regla, lo más cercano primero. No adivina el precio: dice qué hará si llega.">
+              {base ? <ListaPendientes pendientes={base.pendientes} /> : <Esqueleto className="h-40" />}
+            </Seccion>
+          ) : null}
+
+          {pestana === "posiciones" ? (
+              <Seccion titulo="Lo que tiene" bajada={`Valorado a precios de ahora. Además tiene ${usdc(base?.efectivo)} sin invertir.`}>
+                {base?.posiciones.length ? (
+                  <MarcoTabla etiqueta="Lo que tiene el bot">
+                    <thead>
+                      <tr>
+                        <Th>Moneda</Th>
+                        <Th numerica>Tiene</Th>
+                        <Th numerica>Le costó (precio medio)</Th>
+                        <Th numerica>Precio ahora</Th>
+                        <Th numerica>Vale</Th>
+                        <Th numerica>Si vendiera ahora</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {base.posiciones.map((p) => {
+                        const s = signoImporteVisible(p.ganancia);
+                        return (
+                          <tr key={p.coin}>
+                            <Td>
+                              <span className="font-medium text-tinta">{p.nombre}</span> <span className="text-tinta-suave">{p.coin}</span>
+                            </Td>
+                            <Td numerica>{formatoCantidad(p.cantidad)}</Td>
+                            <Td numerica>{formatoImporte(p.precio_medio)}</Td>
+                            <Td numerica>{formatoImporte(p.precio)}</Td>
+                            <Td numerica>{usdc(p.valor)}</Td>
+                            <Td numerica className={clases("font-medium", s === 1 ? "text-sube-texto" : s === -1 ? "text-baja-texto" : undefined)}>
+                              {s === null ? "—" : `${usdc(p.ganancia, { conSigno: true })} (${fraccionCoherente(p.ganancia_pct, s)})`}
+                            </Td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </MarcoTabla>
+                ) : (
+                  <p className="text-[0.9375rem] text-tinta-suave">Ahora no tiene ninguna moneda: todo está en USDC.</p>
+                )}
+              </Seccion>
+          ) : null}
+
+          {pestana === "operaciones" ? (
+            <>
+              <FeedActividad botId={bot.id} limite={5} titulo="Lo último, en directo" bajada="Lo nuevo aparece aquí al momento; abajo, todas con su porqué." />
+              <Operaciones operaciones={base?.lista_operaciones ?? []} total={bot.operaciones} />
+            </>
+          ) : null}
+
+          {pestana === "metricas" ? (
+            <Seccion titulo="Métricas" bajada="Sacadas de todas sus operaciones, con las comisiones descontadas. Lo que dicen depende de cuántas haya hecho.">
+              {base ? <PanelMetricas m={base.metricas} /> : <Esqueleto className="h-60" />}
+            </Seccion>
+          ) : null}
+
+          {pestana === "historial" ? (
+              <Seccion titulo="Lo que ha pasado" bajada="Arranques, paradas, cortes de conexión y los huecos en que el panel estuvo cerrado.">
+                <ul className="space-y-2">
+                  {(base?.eventos ?? []).map((e, i) => (
+                    <FilaEvento key={`${e.at}-${i}`} evento={e} />
+                  ))}
+                </ul>
+              </Seccion>
+          ) : null}
+
+          {pestana === "ajustes" ? (
+              <Seccion titulo="Cómo está ajustado" bajada={plantilla ? `${plantilla.nombre}: ${plantilla.frase}` : undefined}>
+                <Tarjeta className="space-y-5 p-5">
+                  <dl className="grid gap-x-6 gap-y-3 text-[0.9375rem] sm:grid-cols-[minmax(10rem,auto)_1fr]">
+                    <dt className="text-tinta-suave">Dónde</dt>
+                    <dd className="text-tinta">
+                      <ChipModo modo={bot.modo} exchange={bot.exchange} />
+                    </dd>
+                    <dt className="text-tinta-suave">Monedas</dt>
+                    <dd className="text-tinta">{bot.monedas.join(", ")}</dd>
+                    {bot.estrategia ? (
+                      <>
+                        <dt className="text-tinta-suave">Estrategia a medida</dt>
+                        <dd className="text-tinta">
+                          <Link href={`/estrategias/medida/ficha/?id=${encodeURIComponent(bot.estrategia)}`} className="font-semibold text-marca underline underline-offset-4">
+                            {bot.nombre_plantilla.replace(/^A medida: /, "")}
+                          </Link>
+                        </dd>
+                      </>
+                    ) : null}
+                    <dt className="text-tinta-suave">En marcha desde</dt>
+                    <dd className="text-tinta">
+                      {fecha(bot.desde)} <span className="text-tinta-suave">({diasTexto(bot.dias)})</span>
+                    </dd>
+                    {Object.entries(base?.parametros ?? {}).map(([clave, valor]) => {
+                      const def = plantilla?.parametros.find((p) => p.clave === clave);
+                      return (
+                        <div key={clave} className="contents">
+                          <dt className="text-tinta-suave">{def?.nombre ?? clave}</dt>
+                          <dd className="text-tinta">
+                            <span className="cifras font-medium">{def?.tipo === "intervalo" ? nombreIntervalo(valor) : valor.replace(".", ",")}</span>
+                            {def ? <span className="mt-0.5 block text-sm leading-relaxed text-tinta-suave">{def.explicacion}</span> : null}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                  <div className="flex flex-wrap items-center gap-3 border-t border-linea pt-4">
+                    <ChipEvidenciaBot evidencia={bot.evidencia} />
+                    <MedidorRiesgo nivel={bot.riesgo} texto={plantilla?.riesgo_texto} compacto />
+                    <span className="text-sm text-tinta-suave">{bot.evidencia.texto}</span>
+                  </div>
+                  {plantilla?.avisos.length ? (
+                    <Aviso tipo="aviso" titulo="Lo que conviene saber" className="text-sm">
+                      <ul className="list-disc space-y-0.5 pl-4">
+                        {plantilla.avisos.map((a) => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
+                    </Aviso>
+                  ) : null}
+                </Tarjeta>
+              </Seccion>
+          ) : null}
+        </div>
+      </div>
 
       {base ? (
         <>

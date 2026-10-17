@@ -8,6 +8,7 @@ generación del contrato: leyendo y escribiendo `bots/` sin hacer operar a nadie
 from __future__ import annotations
 
 from datetime import UTC, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -200,3 +201,64 @@ class TestConElMotor:
         r = getattr(cliente, metodo)(ruta)
         assert r.status_code == 404
         assert r.json()["detail"].startswith("No hay ningún bot")
+
+
+REJILLA: dict[str, Any] = {
+    "plantilla": "rejilla",
+    "nombre": "Rejilla BTC",
+    "monedas": ["BTC"],
+    "capital": "1000",
+    "parametros": {"precio_bajo": "60000", "precio_alto": "70000", "escalones": "4"},
+}
+
+
+class TestEnDirecto:
+    """v5 (docs/panel-v5.md §4): el feed de movimientos, las métricas y qué hará después."""
+
+    def operar(self, cliente: Api, mercado: Mercado) -> dict[str, Any]:
+        bot = desplegar(cliente, **REJILLA)
+        m = activo()
+        m.paso()  # a 67.010 compra el escalón de 67.500 a 70.000
+        mercado.precio("BTC", 71000)
+        mercado.reloj.avanzar(timedelta(seconds=1))
+        m.paso()  # a 71.000 lo vende
+        return bot
+
+    def test_la_actividad_lleva_cada_movimiento_con_su_resultado(
+        self, cliente: Api, mercado: Mercado
+    ) -> None:
+        bot = self.operar(cliente, mercado)
+        r = cliente.get("/api/actividad")
+        assert r.status_code == 200
+        movimientos = r.json()["movimientos"]
+        tipos = [x["tipo"] for x in movimientos]
+        assert tipos[0] == "venta"  # el más reciente primero
+        assert {"compra", "arranque"} <= set(tipos)
+        venta = movimientos[0]
+        assert venta["bot_id"] == bot["id"]
+        assert venta["bot_nombre"] == "Rejilla BTC"
+        assert venta["modo"] == "ficticio"
+        assert venta["nombre_moneda"] == "Bitcoin"
+        assert Decimal(venta["resultado"]) > 0
+        compra = next(x for x in movimientos if x["tipo"] == "compra")
+        assert compra["resultado"] is None
+        uno = cliente.get("/api/actividad", params={"bot": bot["id"], "limite": 1}).json()
+        assert [x["id"] for x in uno["movimientos"]] == [venta["id"]]
+        assert cliente.get("/api/actividad", params={"bot": "no-existe"}).status_code == 404
+
+    def test_la_ficha_trae_sus_metricas_y_que_hara_despues(
+        self, cliente: Api, mercado: Mercado
+    ) -> None:
+        bot = self.operar(cliente, mercado)
+        d = cliente.get(f"/api/bots/{bot['id']}").json()
+        metricas = d["metricas"]
+        assert (metricas["compras"], metricas["ventas"], metricas["cerradas"]) == (1, 1, 1)
+        assert metricas["aciertos"] == 1.0
+        assert Decimal(metricas["realizada"]) > 0
+        assert "una venta cerrada" in metricas["aviso"]
+        pendientes = d["pendientes"]
+        # Lo vendió todo: los cuatro escalones esperan para comprar, el más alto primero.
+        assert [p["tipo"] for p in pendientes] == ["compra"] * 4
+        assert [p["precio"] for p in pendientes] == ["67500", "65000", "62500", "60000"]
+        assert pendientes[0]["distancia"] == pytest.approx(67500 / 71000 - 1)
+

@@ -1461,7 +1461,147 @@ function detalleBot(m: MundoVivo, b: BotMock): S["DetalleBot"] {
     lista_operaciones: b.operaciones.slice(0, 200),
     eventos: b.eventos,
     curva_mantener: curvaConAhora(b.curvaMantener, { t: ahora, v: valorMantener(m, b) }),
+    metricas: metricasBot(m, b, r),
+    pendientes: pendientesBot(m, b),
   };
+}
+
+// -- Panel v5: los bots en directo (docs/panel-v5.md §4) ------------------------------------------
+
+/** El resultado de cada venta, repasando las operaciones con el coste medio (como el servidor). */
+function resultadosVentas(b: BotMock): Map<S["OperacionBot"], number> {
+  const cantidad = new Map<string, number>();
+  const coste = new Map<string, number>();
+  const salida = new Map<S["OperacionBot"], number>();
+  for (const o of [...b.operaciones].reverse()) {
+    const q = cantidad.get(o.coin) ?? 0;
+    const c = coste.get(o.coin) ?? 0;
+    if (o.lado === "compra") {
+      cantidad.set(o.coin, q + Number(o.cantidad));
+      coste.set(o.coin, c + Number(o.importe) + Number(o.comision));
+      continue;
+    }
+    if (q <= 0) continue;
+    const vendida = Math.min(Number(o.cantidad), q);
+    const parte = vendida >= q ? c : (c * vendida) / q;
+    salida.set(o, Number(o.importe) - Number(o.comision) - parte);
+    cantidad.set(o.coin, q - vendida);
+    coste.set(o.coin, c - parte);
+  }
+  return salida;
+}
+
+function metricasBot(m: MundoVivo, b: BotMock, r: S["ResumenBot"]): S["MetricasBot"] {
+  const res = [...resultadosVentas(b).values()];
+  const ganadas = res.filter((x) => x > 0);
+  const perdidas = res.filter((x) => x < 0);
+  const ganado = ganadas.reduce((s, x) => s + x, 0);
+  const perdido = -perdidas.reduce((s, x) => s + x, 0);
+  const ahora = m.conectado ? m.t : m.desde;
+  const dias = (ahora - b.desde) / DIA_MS;
+  const invertido = [...b.posiciones.entries()].reduce((s, [coin, q]) => s + q.cantidad * precioVivo(m, coin) - q.coste, 0);
+  const n = b.operaciones.length;
+  return {
+    operaciones: n,
+    compras: b.operaciones.filter((o) => o.lado === "compra").length,
+    ventas: b.operaciones.filter((o) => o.lado === "venta").length,
+    cerradas: res.length,
+    aciertos: res.length ? ganadas.length / res.length : null,
+    factor_beneficio: perdido > 0 ? ganado / perdido : null,
+    ganancia_media: ganadas.length ? usd(ganado / ganadas.length) : null,
+    perdida_media: perdidas.length ? usd(-perdido / perdidas.length) : null,
+    realizada: usd(ganado - perdido),
+    sin_realizar: usd(invertido),
+    comisiones: usd(b.operaciones.reduce((s, o) => s + Number(o.comision), 0)),
+    tiempo_dentro: b.posiciones.size ? 0.62 : 0.31,
+    operaciones_dia: dias >= 1 ? n / dias : null,
+    frente_a_mantener: r.ganancia_pct !== null && r.mantener_pct !== null ? r.ganancia_pct - r.mantener_pct : null,
+    aviso: !n
+      ? "Aún no ha operado: no hay nada que medir."
+      : res.length < 5
+        ? `Con ${res.length === 0 ? "ninguna venta cerrada" : res.length === 1 ? "una venta cerrada" : `${res.length} ventas cerradas`}, los aciertos y el factor de beneficio aún no dicen nada: es pronto para sacar conclusiones.`
+        : null,
+  };
+}
+
+function pendientesBot(m: MundoVivo, b: BotMock): S["PendienteBot"][] {
+  if (b.estado === "parado") return [{ tipo: "nada", texto: "Está parado: no hará nada hasta que lo reanudes." }];
+  if (b.estado === "error") return [{ tipo: "nada", texto: "Se paró por un error: no hará nada hasta que lo reanudes." }];
+  const coin = b.monedas[0] ?? "BTC";
+  const precio = precioVivo(m, coin);
+  const ahora = m.conectado ? m.t : m.desde;
+  if (b.plantilla === "rejilla") {
+    const bajo = Number(b.parametros.precio_bajo ?? precio * 0.95);
+    const alto = Number(b.parametros.precio_alto ?? precio * 1.05);
+    const n = Number(b.parametros.escalones ?? 10);
+    const paso = (alto - bajo) / n;
+    const lista: S["PendienteBot"][] = [];
+    for (let k = 0; k < n; k++) {
+      const compra = bajo + paso * k;
+      if (compra >= precio) {
+        const venta = compra + paso;
+        lista.push({ tipo: "venta", coin, precio: venta.toFixed(2), distancia: venta / precio - 1, cantidad: (b.capital / n / compra).toFixed(4), texto: `Venderá el escalón ${k + 1} (${(b.capital / n / compra).toFixed(4)} ${coin}) si sube a ${venta.toFixed(2)}.` });
+      } else {
+        lista.push({ tipo: "compra", coin, precio: compra.toFixed(2), distancia: compra / precio - 1, importe: usd(b.capital / n), texto: `Comprará el escalón ${k + 1} (unos ${usd(b.capital / n)} USDC) si baja a ${compra.toFixed(2)}.` });
+      }
+    }
+    return lista.sort((a, z) => Number(z.precio) - Number(a.precio));
+  }
+  if (b.plantilla === "periodica") {
+    const cuando = b.proxima ?? ahora + 3_600_000;
+    const importe = Number(b.parametros.importe ?? 100);
+    return [{ tipo: "compra", importe: usd(importe), cuando: iso(cuando), texto: `Próxima compra a las ${new Date(cuando).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}: ${usd(importe)} USDC repartidos entre ${b.monedas.join(" y ")}.` }];
+  }
+  const dentro = b.posiciones.size > 0;
+  const cierre = Math.floor(ahora / 900_000) * 900_000 + 900_000;
+  if (b.plantilla === "btc-freno") {
+    const liston = precio * 0.93;
+    return [{ tipo: dentro ? "venta" : "compra", coin, precio: liston.toFixed(0), distancia: liston / precio - 1, cuando: iso(Math.floor(ahora / DIA_MS) * DIA_MS + DIA_MS), texto: dentro ? `Al cerrar la vela diaria venderá todo su Bitcoin si vale menos de ${liston.toFixed(0)} USDC, lo que valía hace 30 días.` : `Al cerrar la vela diaria comprará Bitcoin si vale más de ${liston.toFixed(0)} USDC, lo que valía hace 30 días.` }];
+  }
+  return b.monedas.map((c) => ({
+    tipo: b.posiciones.has(c) ? ("venta" as const) : ("compra" as const),
+    coin: c,
+    cuando: iso(cierre),
+    texto: b.posiciones.has(c)
+      ? `Al cerrar la vela venderá su ${c} si la media corta queda por debajo de la larga. Ahora la corta va un 0,42 % por encima de la larga.`
+      : `Al cerrar la vela comprará ${c} si la media corta queda por encima de la larga. Ahora la corta va un 0,18 % por debajo de la larga.`,
+  }));
+}
+
+/** Los movimientos de todos los bots (o de uno), el más reciente primero. */
+function movimientos(m: MundoVivo, botId: string | null, limite: number): S["MovimientoBot"][] {
+  const lista: S["MovimientoBot"][] = [];
+  for (const b of m.bots) {
+    if (botId !== null && b.id !== botId) continue;
+    const res = resultadosVentas(b);
+    for (const o of b.operaciones.slice(0, 60)) {
+      const r = res.get(o);
+      lista.push({
+        id: `op:${b.id}:${o.at}:${o.coin}:${o.lado}`,
+        at: o.at,
+        bot_id: b.id,
+        bot_nombre: b.nombre,
+        modo: b.modo,
+        tipo: o.lado,
+        texto: o.motivo,
+        coin: o.coin,
+        nombre_moneda: o.nombre,
+        cantidad: o.cantidad,
+        precio: o.precio,
+        importe: o.importe,
+        comision: o.comision,
+        resultado: r === undefined ? null : usd(r),
+      });
+    }
+    for (const e of b.eventos.slice(0, 30)) {
+      lista.push({ id: `ev:${b.id}:${e.at}:${e.tipo}`, at: e.at, bot_id: b.id, bot_nombre: b.nombre, modo: b.modo, tipo: e.tipo, texto: e.texto });
+    }
+  }
+  return lista.sort((a, z) => Date.parse(z.at) - Date.parse(a.at)).slice(0, limite);
+}
+
+function actividad(m: MundoVivo, botId: string | null, limite: number, inicial = true): S["Actividad"] {
+  return { movimientos: movimientos(m, botId, limite), inicial, at: iso(m.conectado ? m.t : m.desde) };
 }
 
 function bots(m: MundoVivo): S["Bots"] {
@@ -1702,7 +1842,7 @@ function esperar(ms: number): Promise<void> {
 
 /** ¿Es una ruta del panel v3? (las enruta `responderVivo`). */
 export function esRutaVivo(ruta: string): boolean {
-  return /^\/api\/(vivo|practica|bots|bots-real)(\/|$)/.test(ruta);
+  return /^\/api\/(vivo|practica|bots|bots-real|actividad)(\/|$)/.test(ruta);
 }
 
 // -- Dinero real (docs/panel-v4-real.md §3) -------------------------------------------------------
@@ -1876,6 +2016,12 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
       return json({ plantillas: PLANTILLAS } satisfies S["Plantillas"]);
     case "GET /api/bots":
       return json(bots(m) satisfies S["Bots"]);
+    case "GET /api/actividad": {
+      const bot = url.searchParams.get("bot");
+      if (bot !== null && !m.bots.some((b) => b.id === bot)) return fallo(404, `No hay ningún bot «${bot}».`);
+      const limite = Math.min(200, Math.max(1, Number(url.searchParams.get("limite") ?? "50") || 50));
+      return json(actividad(m, bot, limite) satisfies S["Actividad"]);
+    }
     case "POST /api/bots":
       return desplegar(m, await cuerpo(peticion));
     case "GET /api/bots-real":
@@ -1963,11 +2109,12 @@ export function abrirStream(params: URLSearchParams, h: ManejadoresStream): () =
   const m = elMundo();
   const coin = params.get("coin");
   const intervalo = params.get("intervalo") ?? "1h";
-  const canales = new Set((params.get("canales") ?? "monedas,libro,operaciones,vela,cuenta,bots,estado").split(",").map((c) => c.trim()));
+  const canales = new Set((params.get("canales") ?? "monedas,libro,operaciones,vela,cuenta,bots,estado,actividad").split(",").map((c) => c.trim()));
   const temporizadores: number[] = [];
   let vivo = true;
   let ultimoSeq = m.seq;
   let tic = 0;
+  const vistos = new Set<string>();
 
   const emitir = (nombre: string, datos: unknown) => {
     if (vivo && canales.has(nombre)) h.evento(nombre, JSON.stringify(datos));
@@ -1991,6 +2138,9 @@ export function abrirStream(params: URLSearchParams, h: ManejadoresStream): () =
     emitir("monedas", monedas(m));
     emitir("cuenta", cuenta(m));
     emitir("bots", bots(m));
+    const primera = actividad(m, null, 40);
+    primera.movimientos.forEach((x) => vistos.add(x.id));
+    emitir("actividad", primera);
   };
   temporizadores.push(window.setTimeout(abrir, 200));
 
@@ -2018,6 +2168,11 @@ export function abrirStream(params: URLSearchParams, h: ManejadoresStream): () =
       emitir("cuenta", cuenta(m));
     }
     if (tic % 8 === 0) emitir("bots", bots(m));
+    if (tic % 2 === 0 && canales.has("actividad")) {
+      const nuevos = movimientos(m, null, 40).filter((x) => !vistos.has(x.id));
+      nuevos.forEach((x) => vistos.add(x.id));
+      if (nuevos.length) emitir("actividad", { movimientos: nuevos, inicial: false, at: iso(m.t) } satisfies S["Actividad"]);
+    }
   }, PASO_MS);
   temporizadores.push(ciclo);
 

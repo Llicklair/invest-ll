@@ -15,6 +15,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from invest_ll.api.schemas_v5 import MetricasBot, PendienteBot
+
 LadoPractica = Literal["compra", "venta"]
 TipoOrden = Literal["mercado", "limite"]
 EstadoBot = Literal["en_marcha", "parado", "error"]
@@ -337,3 +339,7 @@ class DetalleBot(ResumenBot):
     lista_operaciones: list[OperacionBot] = Field(description="La más reciente primero")
     eventos: list[EventoBot] = Field(description="El más reciente primero")
     curva_mantener: list[PuntoBot] = Field(description="Mismo capital, solo manteniendo")
+    metricas: MetricasBot = Field(description="v5: sus métricas, sacadas de sus operaciones")
+    pendientes: list[PendienteBot] = Field(
+        description="v5: qué hará después, lo más cercano primero"
+    )

@@ -28,12 +28,20 @@ import contextlib
 import logging
 import threading
 from bisect import bisect_right
+from collections import deque
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Final
 from zoneinfo import ZoneInfo
 
 from invest_ll import llano
+from invest_ll.bots.actividad import (
+    AL_ABRIR_POR_BOT,
+    MAX_ACTIVIDAD,
+    Movimiento,
+    de_evento,
+    de_operacion,
+)
 from invest_ll.bots.cuenta import (
     Cuenta,
     Hecha,
@@ -42,7 +50,8 @@ from invest_ll.bots.cuenta import (
     usdc,
     valor_mantener,
 )
-from invest_ll.bots.decisiones import Orden, Situacion, cerradas, precio_txt, y
+from invest_ll.bots.decisiones import CERO, Orden, Situacion, cerradas, precio_txt, y
+from invest_ll.bots.metricas import resultado_venta, resultados
 from invest_ll.bots.plantillas import Plantilla, plantilla, validar
 from invest_ll.bots.registro import (
     CARPETA,
@@ -205,6 +214,9 @@ class Motor:
         self._tarea: asyncio.Task[None] | None = None
         self.sin_precios_desde: datetime | None = None
         """Desde cuándo la fuente no da precios (o None si los da)."""
+        self._actividad: deque[tuple[int, Movimiento]] = deque(maxlen=MAX_ACTIVIDAD)
+        """Los últimos movimientos de todos los bots, con su número de orden (el feed)."""
+        self._secuencia = 0
 
     def ahora(self) -> datetime:
         return self._reloj()
@@ -235,6 +247,30 @@ class Motor:
                 self._seguir(bot)
             if self.fuente is None or not self.fuente.conectada():
                 self.sin_precios_desde = self.ahora()
+            self._rellenar_actividad()
+
+    def _rellenar_actividad(self) -> None:
+        """El feed al abrir el panel: lo último de cada bot que hay en disco, por orden de hora."""
+        semilla: list[Movimiento] = []
+        for bot in self._bots.values():
+            d = bot.definicion
+            try:
+                ops = self.registro.operaciones(bot.id)
+                eventos = self.registro.eventos(bot.id)
+            except Exception:
+                log.exception("no se pudo leer la actividad del bot %s", bot.id)
+                continue
+            # El resultado de una venta depende de todas las compras de antes: se repasan todas.
+            con_resultado = list(zip(ops, resultados(ops), strict=True))[-AL_ABRIR_POR_BOT:]
+            semilla.extend(de_operacion(bot.id, d.nombre, o, r) for o, r in con_resultado)
+            semilla.extend(de_evento(bot.id, d.nombre, e) for e in eventos[-AL_ABRIR_POR_BOT:])
+        self._actividad.clear()
+        for movimiento in sorted(semilla, key=lambda m: m.at)[-MAX_ACTIVIDAD:]:
+            self._anotar(movimiento)
+
+    def _anotar(self, movimiento: Movimiento) -> None:
+        self._secuencia += 1
+        self._actividad.append((self._secuencia, movimiento))
 
     def _seguir(self, bot: Bot) -> None:
         if self.fuente is None:
@@ -288,6 +324,28 @@ class Motor:
     def eventos(self, bot_id: str) -> list[Evento]:
         """El más reciente primero (los últimos `MAX_EVENTOS`)."""
         return list(reversed(self.registro.eventos(self.bot(bot_id).id)))[:MAX_EVENTOS]
+
+    def todas_las_operaciones(self, bot_id: str) -> list[Operacion]:
+        """Todas, de la más antigua a la más reciente: para las métricas."""
+        return self.registro.operaciones(self.bot(bot_id).id)
+
+    def actividad(
+        self, desde: int = 0, bot_id: str | None = None, limite: int = 50
+    ) -> tuple[int, list[Movimiento]]:
+        """Los movimientos posteriores al número `desde` (de ese bot, si se pide), el más reciente
+        primero, y el número del último: quien lo guarde pide la próxima vez desde ahí."""
+        with self._cerrojo:
+            lista = [
+                m
+                for n, m in reversed(self._actividad)
+                if n > desde and (bot_id is None or m.bot_id == bot_id)
+            ]
+            return self._secuencia, lista[:limite]
+
+    def velas_de(self, bot: Bot) -> dict[str, list[Vela]]:
+        """Las velas con que decide ahora (vacío si no usa velas o no hay fuente)."""
+        with self._cerrojo:
+            return self._velas(bot, self.ahora())[0]
 
     def desplegar(
         self,
@@ -368,6 +426,9 @@ class Motor:
             bot = self.bot(bot_id)
             del self._bots[bot.id]
             self.registro.borrar(bot.id)
+            # Sus movimientos se van con él: el feed no enlaza a un bot que ya no existe.
+            quedan = [(n, m) for n, m in self._actividad if m.bot_id != bot.id]
+            self._actividad = deque(quedan, maxlen=MAX_ACTIVIDAD)
 
     # -- El bucle ----------------------------------------------------------------------------------
 
@@ -498,7 +559,7 @@ class Motor:
                 esperando = f"Sin libro de órdenes de {orden.coin}: la {orden.lado} espera."
                 continue
             try:
-                hecha = self._ejecutar(bot, orden, libro)
+                hecha, resultado = self._ejecutar(bot, orden, libro)
             except LibroInsuficienteError:
                 esperando = (
                     f"El libro de {orden.coin} no da para la {orden.lado} ahora mismo: espera."
@@ -506,7 +567,7 @@ class Motor:
                 continue
             except OrdenPequenaError:
                 continue  # por debajo del mínimo de Hyperliquid: no se hace, y no hay que esperar
-            self._apuntar_operacion(bot, ahora, orden, hecha)
+            self._apuntar_operacion(bot, ahora, orden, hecha, resultado)
             memoria.update(orden.memoria)
             if p.aplicar is not None:
                 memoria = p.aplicar(memoria, orden, hecha.cantidad)
@@ -522,36 +583,46 @@ class Motor:
             e.memoria = memoria
             bot.sucio = True
 
-    def _ejecutar(self, bot: Bot, orden: Orden, libro: Libro) -> Hecha:
+    def _ejecutar(self, bot: Bot, orden: Orden, libro: Libro) -> tuple[Hecha, Decimal | None]:
+        """La orden hecha y, si es una venta, lo que ganó o perdió (con el coste de antes)."""
         cuenta = bot.cuenta
         if orden.lado == "venta":
-            return cuenta.vender(libro, orden.cantidad)
+            antes = cuenta.posiciones.get(orden.coin)
+            cantidad, coste = (antes.cantidad, antes.coste) if antes is not None else (CERO, CERO)
+            hecha = cuenta.vender(libro, orden.cantidad)
+            resultado = (
+                resultado_venta(cantidad, coste, hecha.cantidad, hecha.importe, hecha.comision)
+                if cantidad > 0
+                else None
+            )
+            return hecha, resultado
         if orden.importe is not None:
             gastar = orden.importe
         else:
             gastar = cuenta.efectivo * (orden.fraccion if orden.fraccion is not None else 1)
-        return cuenta.comprar(libro, gastar)
+        return cuenta.comprar(libro, gastar), None
 
-    def _apuntar_operacion(self, bot: Bot, ahora: datetime, orden: Orden, hecha: Hecha) -> None:
+    def _apuntar_operacion(
+        self, bot: Bot, ahora: datetime, orden: Orden, hecha: Hecha, resultado: Decimal | None
+    ) -> None:
         verbo = "Compré" if hecha.lado == "compra" else "Vendí"
         precio = _precio_guardado(hecha.precio)
         motivo = (
             f"{verbo} {llano.cantidad(hecha.cantidad)} {hecha.coin} a {precio_txt(precio)}: "
             f"{orden.porque}"
         )
-        self.registro.operacion(
-            bot.id,
-            Operacion(
-                at=ahora,
-                coin=hecha.coin,
-                lado=hecha.lado,
-                cantidad=hecha.cantidad,
-                precio=precio,
-                importe=hecha.importe,
-                comision=hecha.comision,
-                motivo=motivo,
-            ),
+        operacion = Operacion(
+            at=ahora,
+            coin=hecha.coin,
+            lado=hecha.lado,
+            cantidad=hecha.cantidad,
+            precio=precio,
+            importe=hecha.importe,
+            comision=hecha.comision,
+            motivo=motivo,
         )
+        self.registro.operacion(bot.id, operacion)
+        self._anotar(de_operacion(bot.id, bot.definicion.nombre, operacion, resultado))
         bot.estado.operaciones += 1
         bot.estado.ultima_operacion = ahora
         bot.sucio = True
@@ -594,7 +665,9 @@ class Motor:
             self._guardar(bot, ahora)
 
     def _evento(self, bot: Bot, ahora: datetime, tipo: TipoEvento, texto: str) -> None:
-        self.registro.evento(bot.id, Evento(ahora, tipo, texto))
+        evento = Evento(ahora, tipo, texto)
+        self.registro.evento(bot.id, evento)
+        self._anotar(de_evento(bot.id, bot.definicion.nombre, evento))
         bot.sucio = True
 
     def _guardar(self, bot: Bot, ahora: datetime) -> None:

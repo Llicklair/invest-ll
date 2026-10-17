@@ -12,20 +12,25 @@ import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { MedidorRiesgo } from "@/componentes/MedidorRiesgo";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { Aviso, BotonEnlace, Encabezado, Esqueleto, Segmentado, Tarjeta, clases } from "@/componentes/ui";
+import { useGuardado } from "@/lib/almacen";
 import { formatoImporte } from "@/lib/decimal";
 import { fraccion } from "@/lib/formato";
 import { horaSegundos } from "@/lib/vivo";
 
+import { FeedActividad } from "./Actividad";
+import { TablaBots } from "./TablaBots";
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, MiniCurva, NotaBots, PctColor, diasTexto, usdc } from "./comun";
 import { ChipModo, LimitesConsumo, PanelReal, bordeModo, hayNoFicticio, pausadoSolo } from "./real";
 
-const CANALES: readonly CanalVivo[] = ["bots", "estado"];
+const CANALES: readonly CanalVivo[] = ["bots", "estado", "actividad"];
 
-type Orden = "ganancia" | "dias" | "riesgo";
+type Orden = "movimiento" | "ganancia" | "dias" | "riesgo";
+type Vista = "tabla" | "tarjetas";
 
 /**
- * Bots (docs/panel-v3-vivo.md, seccion 3), al estilo de los vaults de Hyperliquid: arriba el
- * total, en vivo; debajo una tarjeta por bot con lo que ha generado frente a solo mantener.
+ * Bots (docs/panel-v3-vivo.md, seccion 3; docs/panel-v5.md §4), al estilo de los vaults de
+ * Hyperliquid: arriba el total, en vivo; debajo una tabla en directo (o una tarjeta por bot) y, al
+ * lado, "Ahora mismo": cada compra, venta y aviso de todos los bots según ocurre.
  */
 export function Bots() {
   return (
@@ -40,6 +45,7 @@ const PESO_MODO: Record<ResumenBot["modo"], number> = { real: 0, pruebas: 1, fic
 /** Lo real primero, luego pruebas y ficticio; dentro de cada modo, el orden elegido. */
 function ordenar(bots: readonly ResumenBot[], orden: Orden): ResumenBot[] {
   const copia = [...bots];
+  if (orden === "movimiento") copia.sort((a, b) => (Date.parse(b.ultima_actividad ?? "") || 0) - (Date.parse(a.ultima_actividad ?? "") || 0));
   if (orden === "ganancia") copia.sort((a, b) => (b.ganancia_pct ?? -Infinity) - (a.ganancia_pct ?? -Infinity));
   if (orden === "dias") copia.sort((a, b) => b.dias - a.dias);
   if (orden === "riesgo") copia.sort((a, b) => a.riesgo - b.riesgo || (b.ganancia_pct ?? 0) - (a.ganancia_pct ?? 0));
@@ -48,7 +54,9 @@ function ordenar(bots: readonly ResumenBot[], orden: Orden): ResumenBot[] {
 
 function ListaBots() {
   const datos = useVivo("bots");
-  const [orden, setOrden] = useState<Orden>("ganancia");
+  const [orden, setOrden] = useState<Orden>("movimiento");
+  const [vistaGuardada, fijarVista] = useGuardado("local", "invest-ll.bots.vista", "tabla");
+  const vista: Vista = vistaGuardada === "tarjetas" ? "tarjetas" : "tabla";
   const lista = useMemo(() => (datos ? ordenar(datos.bots, orden) : []), [datos, orden]);
 
   return (
@@ -99,34 +107,56 @@ function ListaBots() {
       ) : (
         <>
           <Resumen datos={datos} />
-          <section aria-labelledby="titulo-tus-bots" className="space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 id="titulo-tus-bots" className="titular text-[1.375rem] font-semibold text-tinta">
-                Tus bots <span className="text-tinta-suave">({datos.bots.length})</span>
-              </h2>
-              <Segmentado
-                etiqueta="Ordenar por"
-                opciones={[
-                  { valor: "ganancia", texto: "Ganancia" },
-                  { valor: "dias", texto: "Días" },
-                  { valor: "riesgo", texto: "Riesgo" },
-                ]}
-                valor={orden}
-                onCambio={setOrden}
-                className="[&>legend]:mb-1 [&>legend]:text-sm"
-              />
-            </div>
-            <ul className="grid items-start gap-4 md:grid-cols-2">
-              {lista.map((b) => (
-                <li key={b.id} className="min-w-0">
-                  <TarjetaBot bot={b} />
-                </li>
-              ))}
-            </ul>
-            <div className="text-sm text-tinta-suave">
-              <QueEsEsto clave="mantener" />
-            </div>
-          </section>
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <section aria-labelledby="titulo-tus-bots" className="min-w-0 space-y-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <h2 id="titulo-tus-bots" className="titular text-[1.375rem] font-semibold text-tinta">
+                  Tus bots <span className="text-tinta-suave">({datos.bots.length})</span>
+                </h2>
+                <div className="flex flex-wrap items-end gap-3">
+                  <Segmentado
+                    etiqueta="Ordenar por"
+                    opciones={[
+                      { valor: "movimiento", texto: "Último movimiento" },
+                      { valor: "ganancia", texto: "Ganancia" },
+                      { valor: "dias", texto: "Días" },
+                      { valor: "riesgo", texto: "Riesgo" },
+                    ]}
+                    valor={orden}
+                    onCambio={setOrden}
+                    className="[&>legend]:mb-1 [&>legend]:text-sm"
+                  />
+                  <Segmentado
+                    etiqueta="Ver como"
+                    opciones={[
+                      { valor: "tabla", texto: "Tabla" },
+                      { valor: "tarjetas", texto: "Tarjetas" },
+                    ]}
+                    valor={vista}
+                    onCambio={(v) => fijarVista(v)}
+                    className="[&>legend]:mb-1 [&>legend]:text-sm"
+                  />
+                </div>
+              </div>
+              {vista === "tabla" ? (
+                <Tarjeta className="overflow-hidden pt-3">
+                  <TablaBots bots={lista} etiqueta="Tus bots, en directo" />
+                </Tarjeta>
+              ) : (
+                <ul className="grid items-start gap-4 md:grid-cols-2">
+                  {lista.map((b) => (
+                    <li key={b.id} className="min-w-0">
+                      <TarjetaBot bot={b} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="text-sm text-tinta-suave">
+                <QueEsEsto clave="mantener" />
+              </div>
+            </section>
+            <FeedActividad limite={15} className="xl:sticky xl:top-6" />
+          </div>
         </>
       )}
     </div>

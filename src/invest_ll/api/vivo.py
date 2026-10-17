@@ -62,7 +62,16 @@ if TYPE_CHECKING:  # pragma: no cover
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-CANALES: Final = ("monedas", "libro", "operaciones", "vela", "cuenta", "bots", "estado")
+CANALES: Final = (
+    "monedas",
+    "libro",
+    "operaciones",
+    "vela",
+    "cuenta",
+    "bots",
+    "estado",
+    "actividad",
+)
 DECIMALES_DESCONOCIDOS: Final = 8
 """Si la fuente no dice cuántos decimales admite la cantidad (solo las fuentes de prueba)."""
 OPERACIONES_VISIBLES: Final = 50
@@ -74,6 +83,9 @@ TICK: Final = 0.1
 CADA_MONEDAS: Final = 1.0
 CADA_CUENTA: Final = 1.0
 CADA_BOTS: Final = 2.0
+CADA_ACTIVIDAD: Final = 0.5
+ACTIVIDAD_AL_CONECTAR: Final = 40
+"""Los movimientos que se mandan al conectar (luego, solo los nuevos)."""
 LATIDO: Final = 15.0
 MAX_EVENTOS: int | None = None
 """Solo para las pruebas: corta el stream tras tantos eventos (el TestClient lee la respuesta
@@ -155,7 +167,7 @@ def velas(
 def stream(
     coin: str | None = None,
     intervalo: str = "1h",
-    canales: str = "monedas,libro,operaciones,vela,cuenta,bots,estado",
+    canales: str = "monedas,libro,operaciones,vela,cuenta,bots,estado,actividad",
 ) -> StreamingResponse:
     """Server-Sent Events: cada evento lleva el JSON de su ruta REST (docs/panel-v3-vivo.md §5)."""
     pedidos = [c.strip() for c in canales.split(",") if c.strip()]
@@ -206,6 +218,7 @@ async def eventos(coin: str | None, intervalo: str, canales: set[str]) -> AsyncI
     vistas = mercado.contador_operaciones(coin) if coin is not None else 0
     latido = empezado = reloj()
     enviados = 0
+    actividad_vista: int | None = None
 
     def toca(canal: str, cada: float) -> bool:
         if canal not in canales or reloj() - ultimo.get(canal, float("-inf")) < cada:
@@ -247,6 +260,12 @@ async def eventos(coin: str | None, intervalo: str, canales: set[str]) -> AsyncI
                 bots = await asyncio.to_thread(_bots)
                 if bots is not None:
                     salida.append(evento("bots", bots))
+            if toca("actividad", CADA_ACTIVIDAD):
+                leida = await asyncio.to_thread(actividad_nueva, actividad_vista)
+                if leida is not None:
+                    actividad_vista, nueva = leida
+                    if nueva is not None:
+                        salida.append(evento("actividad", nueva))
             for texto in salida:
                 yield texto
                 enviados += 1
@@ -277,6 +296,25 @@ def _velas_nuevas(ultimas: list[Vela], vista: Vela | None) -> list[Vela]:
             return [anterior, actual]
         return [actual]
     return [actual] if actual != vista else []
+
+
+def actividad_nueva(vista: int | None) -> tuple[int, BaseModel | None] | None:
+    """Lo que el cliente no ha visto del feed de los bots: al conectar (`vista` None), lo último
+    que hay (aunque sea nada); luego, solo lo posterior al número `vista`, o nada si no hay nada
+    nuevo. None si no hay motor de bots en marcha (el canal calla)."""
+    from invest_ll.api import bots as rutas_bots
+    from invest_ll.api.schemas_v5 import Actividad
+    from invest_ll.bots import motor
+
+    m = motor.activo()
+    if m is None:
+        return None
+    limite = ACTIVIDAD_AL_CONECTAR if vista is None else 200
+    numero, lista = m.actividad(desde=vista or 0, limite=limite)
+    if vista is not None and not lista:
+        return numero, None
+    movimientos = [rutas_bots.movimiento(x) for x in lista]
+    return numero, Actividad(movimientos=movimientos, inicial=vista is None, at=m.ahora())
 
 
 def _bots() -> BaseModel | None:

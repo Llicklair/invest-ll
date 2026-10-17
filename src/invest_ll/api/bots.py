@@ -15,7 +15,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Final
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from invest_ll.api.errores import del_dominio, no_encontrado
 from invest_ll.api.schemas_v3 import (
@@ -34,13 +34,17 @@ from invest_ll.api.schemas_v3 import (
     ResumenBot,
 )
 from invest_ll.api.schemas_v4 import ActivarReal, CambioLimites, LimiteDiario, ParadaGeneral
+from invest_ll.api.schemas_v5 import Actividad, MetricasBot, MovimientoBot, PendienteBot
 from invest_ll.bots import motor
-from invest_ll.bots.motor import NOTA, Motor
+from invest_ll.bots.metricas import metricas as calcular_metricas
+from invest_ll.bots.motor import NOTA, ZONA, Motor
+from invest_ll.bots.pendientes import pendientes as calcular_pendientes
 from invest_ll.bots.plantillas import PLANTILLAS
 from invest_ll.bots.registro import CARPETA, BotNoEncontradoError
 from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
+    from invest_ll.bots.actividad import Movimiento
     from invest_ll.bots.motor import Bot
     from invest_ll.bots.plantillas import Evidencia, Plantilla
     from invest_ll.bots.registro import Punto
@@ -180,6 +184,80 @@ def _posiciones(bot: Bot) -> list[PosicionPractica]:
     return posiciones
 
 
+def _metricas(m: Motor, bot: Bot, resumen: ResumenBot) -> MetricasBot:
+    r = calcular_metricas(
+        m.todas_las_operaciones(bot.id),
+        desde=bot.definicion.creado,
+        ahora=m.ahora(),
+        posiciones=bot.cuenta.posiciones,
+        precios=bot.estado.ultimos_precios,
+    )
+    frente = (
+        resumen.ganancia_pct - resumen.mantener_pct
+        if resumen.ganancia_pct is not None and resumen.mantener_pct is not None
+        else None
+    )
+    return MetricasBot(
+        operaciones=r.operaciones,
+        compras=r.compras,
+        ventas=r.ventas,
+        cerradas=r.cerradas,
+        aciertos=r.aciertos,
+        factor_beneficio=r.factor_beneficio,
+        ganancia_media=_dinero(r.ganancia_media),
+        perdida_media=_dinero(r.perdida_media),
+        realizada=r.realizada.quantize(CENTIMO),
+        sin_realizar=_dinero(r.sin_realizar),
+        comisiones=r.comisiones.quantize(CENTIMO),
+        tiempo_dentro=r.tiempo_dentro,
+        operaciones_dia=r.operaciones_dia,
+        frente_a_mantener=frente,
+        aviso=r.aviso,
+    )
+
+
+def _pendientes(m: Motor, bot: Bot) -> list[PendienteBot]:
+    lista = calcular_pendientes(bot, m.ahora(), m.velas_de(bot), ZONA)
+    precios = bot.estado.ultimos_precios
+    salida: list[PendienteBot] = []
+    for p in lista:
+        actual = precios.get(p.coin) if p.coin is not None else None
+        salida.append(
+            PendienteBot(
+                tipo=p.tipo,
+                texto=p.texto,
+                coin=p.coin,
+                precio=_cantidad(p.precio) if p.precio is not None else None,
+                distancia=float(p.precio / actual - 1) if p.precio is not None and actual else None,
+                importe=_dinero(p.importe),
+                cantidad=_cantidad(p.cantidad) if p.cantidad is not None else None,
+                cuando=p.cuando,
+            )
+        )
+    return salida
+
+
+def movimiento(mov: Movimiento) -> MovimientoBot:
+    """Del motor al contrato (lo usa también el canal `actividad` del stream)."""
+    return MovimientoBot(
+        id=mov.id,
+        at=mov.at,
+        bot_id=mov.bot_id,
+        bot_nombre=mov.bot_nombre,
+        # Puente hasta los bots reales (v4): hoy todos son ficticios.
+        modo="ficticio",
+        tipo=mov.tipo,
+        texto=mov.texto,
+        coin=mov.coin,
+        nombre_moneda=nombre_hyperliquid(mov.coin) if mov.coin is not None else None,
+        cantidad=_cantidad(mov.cantidad) if mov.cantidad is not None else None,
+        precio=_cantidad(mov.precio) if mov.precio is not None else None,
+        importe=_dinero(mov.importe),
+        comision=_cantidad(mov.comision) if mov.comision is not None else None,
+        resultado=_dinero(mov.resultado),
+    )
+
+
 def _detalle(m: Motor, bot: Bot) -> DetalleBot:
     with m.cerrojo:  # que el bucle no lo cambie a mitad
         resumen = _resumen(m, bot)
@@ -207,6 +285,8 @@ def _detalle(m: Motor, bot: Bot) -> DetalleBot:
             curva_mantener=[
                 PuntoBot(at=p.at, valor=float(p.mantener)) for p in curva if p.mantener is not None
             ],
+            metricas=_metricas(m, bot, resumen),
+            pendientes=_pendientes(m, bot),
         )
 
 
@@ -244,6 +324,17 @@ def lista() -> Bots:
         at=m.ahora(),
         nota=NOTA,
     )
+
+
+@router.get("/actividad", tags=["bots"])
+def actividad(bot: str | None = None, limite: int = Query(default=50, ge=1, le=200)) -> Actividad:
+    """Los últimos movimientos de los bots (o de uno), el más reciente primero. En directo, por el
+    canal `actividad` de `GET /api/vivo/stream`. 404 si se pide un bot que no existe."""
+    m = _motor()
+    if bot is not None:
+        _bot(m, bot)
+    _, lista = m.actividad(bot_id=bot, limite=limite)
+    return Actividad(movimientos=[movimiento(x) for x in lista], inicial=True, at=m.ahora())
 
 
 @router.post("/bots", tags=["bots"], status_code=201)
