@@ -9,7 +9,6 @@ import { CargandoLento, Encabezado, ErrorApiVista, Tarjeta } from "@/componentes
 import { useEstado } from "@/contexto/estado";
 import { useAncla } from "@/lib/ancla";
 import { useConsulta } from "@/lib/consulta";
-import { NavEstrategias } from "@/vistas/medida/comun";
 
 import { Cuestionario } from "./Cuestionario";
 import { useCatalogo } from "./datos";
@@ -33,7 +32,8 @@ function quitarAncla() {
 }
 
 /**
- * Estrategias: ¿como invierto? Un asistente en tres pasos (docs/panel-v2.md, 4.2). El recorrido
+ * Mi plan (antes Estrategias → Para tu plan): ¿como invierto a largo plazo? Un asistente en tres
+ * pasos (docs/panel-v2.md, 4.2; docs/panel-v5.md, seccion 2). El recorrido
  * se guarda en la pestana; `#catalogo` entra a mirar todas sin responder y `#plan` abre tu plan
  * para cambiarlo.
  */
@@ -70,10 +70,9 @@ export function Estrategias() {
   return (
     <div>
       <Encabezado
-        titulo="Estrategias"
-        bajada="Cómo invertir tu dinero: cinco preguntas, una propuesta explicada y tu plan."
+        titulo="Mi plan"
+        bajada="Tu inversión a largo plazo: cinco preguntas, una propuesta explicada y tu plan."
       />
-      <NavEstrategias />
 
       {planActual && paso !== 2 ? (
         <Tarjeta className="mb-8 flex flex-wrap items-center justify-between gap-4 p-5">

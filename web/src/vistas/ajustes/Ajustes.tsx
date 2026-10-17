@@ -1,14 +1,13 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { API_BASE, MODO_EJEMPLO } from "@/api/cliente";
 import { SeccionDatos } from "@/componentes/DatosAlDia";
 import { Encabezado, Nota, Seccion, Tarjeta, clases } from "@/componentes/ui";
 import { useGuardado } from "@/lib/almacen";
-
-import { Conexiones } from "./Conexiones";
 
 const TEMAS = [
   { valor: "sistema", texto: "Como el sistema", icono: Monitor },
@@ -87,22 +86,23 @@ function Escenarios() {
   );
 }
 
+/** Las conexiones vivian aqui (`#conexion`) hasta v5: quien llegue por ese ancla va a Conexiones. */
+function useAnclaConexion() {
+  const router = useRouter();
+  useEffect(() => {
+    if (window.location.hash === "#conexion") router.replace("/conexiones/");
+  }, [router]);
+}
+
 /**
- * Ajustes (docs/panel-v2.md, 4.5; docs/panel-v4-real.md §4): las conexiones con los exchanges y con
- * Claude, el tema, los datos y acerca de.
+ * Ajustes (docs/panel-v2.md, 4.5; docs/panel-v5.md, seccion 2): el tema, los datos y acerca de.
+ * Los exchanges y el conector con Claude tienen su seccion, Conexiones.
  */
 export function Ajustes() {
+  useAnclaConexion();
   return (
     <div className="space-y-14">
-      <Encabezado antetitulo="Más" titulo="Ajustes" bajada="Tus exchanges y el conector con Claude, cómo se ve el panel y de dónde salen los datos." />
-
-      <Seccion
-        titulo="Conexiones"
-        id="conexion"
-        bajada="Cada exchange pasa por tres pasos, de la red de pruebas al dinero real, sin saltarse ninguno. Las claves nunca salen de este ordenador."
-      >
-        <Conexiones />
-      </Seccion>
+      <Encabezado titulo="Ajustes" bajada="Cómo se ve el panel, de dónde salen los datos y qué es INVEST LL." />
 
       <Seccion titulo="Tema" id="tema">
         <Tema />

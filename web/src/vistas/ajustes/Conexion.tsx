@@ -329,7 +329,7 @@ export function TarjetaModoPlan({ pie }: { pie?: ReactNode }) {
 /**
  * Conectar Binance para tu plan (docs/panel-v2.md, 4.6): un camino de tres etapas con su estado.
  * Los cuatro cerrojos de live/mode.py no se relajan: el panel solo cambia de donde salen el modo y
- * las claves. Desde v4 vive dentro de Binance, en Ajustes · Conexiones (pestana "Para tu plan").
+ * las claves. Desde v4 vive dentro de Binance, en Conexiones (pestana "Para tu plan").
  */
 export function CaminoPlanBinance() {
   const { conexion, error, cargando, modo } = useModo();
@@ -420,7 +420,7 @@ export function CaminoPlanBinance() {
                 esta etapa se marcará sola. Es la prueba de que sabes cómo funciona, no una casilla que se marca a mano.
               </p>
               {modo === "pruebas" ? (
-                <BotonEnlace href="/invertir/" variante="primario">
+                <BotonEnlace href="/plan/invertir/" variante="primario">
                   Ir a Invertir
                 </BotonEnlace>
               ) : (
@@ -473,7 +473,7 @@ export function CaminoPlanBinance() {
           ) : (
             <p className="text-[0.9375rem] text-tinta">
               El dinero real está activado. Puedes volver a{" "}
-              <Link href="/ajustes/#conexion" className="font-semibold text-marca underline underline-offset-4" onClick={() => window.scrollTo({ top: 0 })}>
+              <Link href="/conexiones/" className="font-semibold text-marca underline underline-offset-4" onClick={() => window.scrollTo({ top: 0 })}>
                 simulación
               </Link>{" "}
               cuando quieras.

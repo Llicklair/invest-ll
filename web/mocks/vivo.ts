@@ -1555,7 +1555,7 @@ function desplegar(m: MundoVivo, o: Objeto): Response {
     if (!exchange) return fallo(422, "En pruebas, elige en qué exchange opera.");
     const x = exchangeEn(exchange, "pruebas");
     if (!x) return fallo(422, `No conozco ningún exchange «${exchange}».`);
-    if (!x.ok) return fallo(422, `${x.nombre} no está conectado en pruebas: guarda y prueba sus claves de pruebas en Ajustes → Conexiones.`);
+    if (!x.ok) return fallo(422, `${x.nombre} no está conectado en pruebas: guarda y prueba sus claves de pruebas en Conexiones.`);
   }
   let lim: S["LimitesBot-Output"] | null = null;
   if (o.limites !== undefined && o.limites !== null) {
@@ -1714,7 +1714,7 @@ function activarReal(m: MundoVivo, b: BotMock, o: Objeto): Response {
   if (!b.exchange) return fallo(422, "Este bot no tiene exchange (es ficticio, con precios de Hyperliquid). Despliega uno en pruebas con su misma estrategia y actívalo cuando esté listo.");
   if (!b.limites) return fallo(422, "Ponle límites antes de activar el dinero real: capital máximo, tamaño por orden, pérdida máxima y operaciones por día.");
   const x = exchangeEn(b.exchange, "real");
-  if (!x?.ok) return fallo(422, `${x?.nombre ?? b.exchange} no está activado con dinero real: actívalo antes en Ajustes → Conexiones.`);
+  if (!x?.ok) return fallo(422, `${x?.nombre ?? b.exchange} no está activado con dinero real: actívalo antes en Conexiones.`);
   const e = b.estrategia ? estrategiaMock(b.estrategia) : null;
   const dias = e ? e.diasFicticio : (b.probadoDias ?? 0);
   const sinFicticio = dias < 7;

@@ -126,7 +126,6 @@ export function Laboratorio() {
   return (
     <div>
       <Encabezado
-        antetitulo="Más"
         titulo="Laboratorio"
         bajada="Para quien sabe de inversiones: probar estrategias con tus parámetros, la investigación en curso y las alertas de datos. Nada de esto mueve dinero."
       />

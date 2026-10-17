@@ -165,6 +165,25 @@ export function fechaCorta(valor: string | null | undefined): string {
   return d ? sinPunto(FECHA_SIN_ANIO.format(d)) : valor;
 }
 
+/**
+ * Cuanto hace, en llano y corto: "hace 12 s", "hace 3 min", "hace 2 h", "hace 3 días". Para lo que
+ * se mueve en directo (la ultima operacion de un bot); `ahora` lo pasa quien repinta cada segundo.
+ */
+export function haceCuanto(valor: string | null | undefined, ahora: number): string {
+  if (!valor) return SIN_DATO;
+  const t = Date.parse(valor);
+  if (Number.isNaN(t)) return SIN_DATO;
+  const s = Math.max(0, Math.round((ahora - t) / 1000));
+  if (s < 5) return "ahora mismo";
+  if (s < 60) return `hace ${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.floor(h / 24);
+  return `hace ${d} ${d === 1 ? "día" : "días"}`;
+}
+
 /** "1 de noviembre". */
 export function diaYMes(valor: string | null | undefined): string {
   if (!valor) return SIN_DATO;

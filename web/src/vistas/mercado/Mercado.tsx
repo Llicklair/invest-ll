@@ -170,8 +170,7 @@ export function Mercado() {
   return (
     <div>
       <Encabezado
-        antetitulo="Más"
-        titulo="Mercado"
+        titulo="Mercados"
         bajada="Cómo han ido el oro, la bolsa o el bitcoin. No es una señal de nada: es lo que ha pasado, con su fecha."
       />
       <div className="relative mb-8 max-w-md">

@@ -144,7 +144,7 @@ export function TuPlan({
       }),
     );
     refrescarDatos();
-    router.push("/invertir/");
+    router.push("/plan/invertir/");
     return r;
   });
 

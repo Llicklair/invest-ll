@@ -69,7 +69,7 @@ export function NadaQueHacer({ resumen }: { resumen: string }) {
       {/pausa/i.test(resumen) ? (
         <>
           {" "}
-          <Link href="/cartera/#proteccion" className="font-semibold text-marca underline underline-offset-4">
+          <Link href="/plan/cartera/#proteccion" className="font-semibold text-marca underline underline-offset-4">
             Ver la pausa en Cartera
           </Link>
         </>

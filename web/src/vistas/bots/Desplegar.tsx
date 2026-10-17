@@ -153,6 +153,17 @@ export function Desplegar() {
     setElegidas(e.monedas);
   };
 
+  // Desde Estrategias → Plantillas («Desplegar un bot con esta») llega ?plantilla=: queda elegida en
+  // cuanto cargan las plantillas. Se ajusta al pintar, no en un efecto (patron de React para
+  // estado que depende de algo que llega despues).
+  const pedidaPlantilla = params.get("plantilla");
+  const [plantillaPrecargada, setPlantillaPrecargada] = useState(false);
+  if (!plantillaPrecargada && pedidaPlantilla && !origen && plantillas.datos) {
+    setPlantillaPrecargada(true);
+    const p = plantillas.datos.plantillas.find((x) => x.clave === pedidaPlantilla);
+    if (p) elegirPlantilla(p);
+  }
+
   const enviar = () => {
     if (!origen || capitalLimpio === null) return;
     const params: Record<string, string> = {};
@@ -388,7 +399,8 @@ function PasoQueHace({
           return (
             <label key={p.clave} className={tarjeta(elegida)}>
               <input type="radio" name={nombre} className="sr-only" checked={elegida} onChange={() => onPlantilla(p)} />
-              <span className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+              {/* El riesgo, siempre en el mismo sitio: arriba a la derecha (debajo, en el movil). */}
+              <span className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                 <span className="flex min-w-0 items-start gap-3">
                   {punto(elegida)}
                   <span className="min-w-0">
@@ -396,7 +408,9 @@ function PasoQueHace({
                     <span className="block text-[0.9375rem] text-tinta-suave">{p.frase}</span>
                   </span>
                 </span>
-                <MedidorRiesgo nivel={p.riesgo} texto={p.riesgo_texto} compacto />
+                <span className="pl-8 sm:pt-1 sm:pl-0">
+                  <MedidorRiesgo nivel={p.riesgo} texto={p.riesgo_texto} compacto />
+                </span>
               </span>
               <span className="mt-3 flex flex-wrap items-center gap-2 pl-8">
                 <ChipEvidenciaBot evidencia={p.evidencia} />
@@ -544,8 +558,8 @@ function PasoDonde({
           {!cargando && !exchanges.length ? (
             <Aviso tipo="aviso" titulo="Ningún exchange está conectado en pruebas">
               Conecta uno en{" "}
-              <Link href="/ajustes/#conexion" className="font-semibold underline underline-offset-4">
-                Ajustes → Conexiones
+              <Link href="/conexiones/" className="font-semibold underline underline-offset-4">
+                Conexiones
               </Link>{" "}
               (guarda y prueba sus claves de pruebas) y vuelve.
             </Aviso>

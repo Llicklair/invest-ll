@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChartCandlestick, ChartLine, Compass, HandCoins, House, LayoutGrid, Microscope, Settings, Wallet, type LucideIcon } from "lucide-react";
+import { Bot, ChartCandlestick, Compass, LayoutDashboard, LayoutGrid, Plug, Settings, Sprout, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -9,7 +9,7 @@ import { API_BASE, MODO_EJEMPLO } from "@/api/cliente";
 import { useModo } from "@/contexto/modo";
 import { useGuardado } from "@/lib/almacen";
 
-import { PildoraModo } from "./PildoraModo";
+import { IndicadorDirecto } from "./IndicadorDirecto";
 import { Pregunta } from "./Pregunta";
 import { Aviso, clases } from "./ui";
 
@@ -19,38 +19,26 @@ interface Destino {
   icono: LucideIcon;
 }
 
-/** Las cuatro secciones del camino (docs/panel-v2.md, seccion 3), en el orden en que se usan. */
-export const PRINCIPAL: readonly (Destino & { bajada: string })[] = [
-  { ruta: "/", texto: "Inicio", icono: House, bajada: "Tu dinero hoy y qué toca hacer" },
-  { ruta: "/estrategias/", texto: "Estrategias", icono: Compass, bajada: "Cómo invertir, sin jerga" },
-  { ruta: "/invertir/", texto: "Invertir", icono: HandCoins, bajada: "Qué toca hoy, en Binance y en tu bróker" },
-  { ruta: "/cartera/", texto: "Cartera", icono: Wallet, bajada: "Lo que tienes, lo que vendiste y tus movimientos" },
-];
-
 /**
- * Panel v3 (docs/panel-v3-vivo.md, seccion 4): en vivo y con dinero ficticio. Van DESPUES del
- * camino de Laura (quien no sabe empieza por Estrategias) y juntas, con su rotulo, para quien ya
- * juega. Bots antes que Operar: mirar a un bot frente a "solo mantener" es el paso suave;
- * comprar y vender a mano, el mas activo.
+ * Las siete secciones (docs/panel-v5.md, seccion 2), sin grupos: cada una es una cosa. Resumen es
+ * el panel de control; Bots, Estrategias y Operar, el dinero que se mueve (solo o a mano); Mi plan,
+ * el largo plazo; Conexiones y Ajustes, lo que se configura.
  */
-export const EN_VIVO: readonly (Destino & { bajada: string })[] = [
-  { ruta: "/bots/", texto: "Bots", icono: Bot, bajada: "Bots que operan solos, en vivo, frente a solo mantener" },
-  { ruta: "/operar/", texto: "Operar", icono: ChartCandlestick, bajada: "Compra y vende a precios en vivo de Hyperliquid" },
+export const SECCIONES: readonly (Destino & { bajada: string })[] = [
+  { ruta: "/", texto: "Resumen", icono: LayoutDashboard, bajada: "Todo tu dinero y lo que está pasando ahora" },
+  { ruta: "/bots/", texto: "Bots", icono: Bot, bajada: "Bots que compran y venden solos, en directo" },
+  { ruta: "/estrategias/", texto: "Estrategias", icono: Compass, bajada: "Las reglas que siguen los bots: plantillas, a medida y laboratorio" },
+  { ruta: "/operar/", texto: "Operar", icono: ChartCandlestick, bajada: "Compra y vende a mano con precios en directo, y los mercados" },
+  { ruta: "/plan/", texto: "Mi plan", icono: Sprout, bajada: "Tu inversión a largo plazo: el plan, qué toca invertir y tu cartera" },
+  { ruta: "/conexiones/", texto: "Conexiones", icono: Plug, bajada: "Tus exchanges y el conector con Claude" },
+  { ruta: "/ajustes/", texto: "Ajustes", icono: Settings, bajada: "Tema, datos y acerca de" },
 ];
 
-/**
- * La barra inferior del movil tiene 5 huecos: Inicio y Estrategias (la puerta de quien no sabe),
- * Bots y Operar (la de quien ya juega) y "Más". Invertir y Cartera pasan a "Más" en el movil
- * porque Inicio ya lleva a los dos ("Qué toca hacer" y "Tu dinero hoy").
- */
-const BARRA_MOVIL: readonly string[] = ["/", "/estrategias/", "/bots/", "/operar/"];
+/** La barra inferior del movil tiene 5 huecos: las cuatro primeras secciones y "Más". */
+const BARRA_MOVIL: readonly string[] = ["/", "/bots/", "/estrategias/", "/operar/"];
 
-/** "Más": lo que no es el camino principal. */
-export const MAS: readonly (Destino & { bajada: string })[] = [
-  { ruta: "/mercado/", texto: "Mercado", icono: ChartLine, bajada: "Cómo van el oro, la bolsa o el bitcoin, con su fecha" },
-  { ruta: "/laboratorio/", texto: "Laboratorio", icono: Microscope, bajada: "Para quien sabe: pruebas, investigación y alertas" },
-  { ruta: "/ajustes/", texto: "Ajustes", icono: Settings, bajada: "Exchanges, el conector con Claude, tema y datos" },
-];
+/** Lo que en el movil vive en "Más": Mi plan, Conexiones y Ajustes. */
+export const EN_MAS_MOVIL: readonly (Destino & { bajada: string })[] = SECCIONES.filter((d) => !BARRA_MOVIL.includes(d.ruta));
 
 function normalizar(ruta: string): string {
   return ruta.endsWith("/") ? ruta : `${ruta}/`;
@@ -63,7 +51,7 @@ function esActiva(actual: string, destino: string): boolean {
 
 function Logo() {
   return (
-    <Link href="/" className="inline-flex min-h-11 items-center gap-2.5 rounded-lg" aria-label="INVEST LL, ir a Inicio">
+    <Link href="/" className="inline-flex min-h-11 items-center gap-2.5 rounded-lg" aria-label="INVEST LL, ir al Resumen">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true" className="shrink-0">
         <rect width="30" height="30" rx="9" fill="var(--marca)" />
         <path d="M7 19.5 12 14l4 3.5 7-8" fill="none" stroke="var(--marca-tinta)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -110,24 +98,6 @@ function EnlaceLateral({ d, activa, compacta }: { d: Destino; activa: boolean; c
   );
 }
 
-function Grupo({ titulo, compacta, children }: { titulo: string; compacta: boolean; children: ReactNode }) {
-  if (compacta) {
-    return (
-      <>
-        <p className="sr-only">{titulo}</p>
-        <hr className="mx-3 my-3 border-0 border-t border-linea" aria-hidden="true" />
-        <ul className="space-y-1">{children}</ul>
-      </>
-    );
-  }
-  return (
-    <>
-      <p className="mt-7 mb-2 px-3 text-xs font-semibold tracking-wider text-tinta-suave uppercase">{titulo}</p>
-      <ul className="space-y-1">{children}</ul>
-    </>
-  );
-}
-
 /**
  * La barra lateral. En Operar se estrecha a un carril de iconos con su palabra debajo: la
  * pantalla de exchange necesita el ancho para el grafico, el libro y el boleto a la vez.
@@ -140,31 +110,17 @@ function BarraLateral({ ruta, compacta }: { ruta: string; compacta: boolean }) {
         compacta ? "w-[5.5rem] px-2 pt-5" : "w-64 px-4",
       )}
     >
-      <div className={compacta ? "flex flex-col items-center gap-3" : "px-2"}>
-        {compacta ? <LogoCompacto /> : <Logo />}
-        <div className={compacta ? undefined : "mt-4"}>
-          <PildoraModo compacta={compacta} />
-        </div>
-      </div>
+      <div className={compacta ? "flex flex-col items-center gap-3" : "px-2"}>{compacta ? <LogoCompacto /> : <Logo />}</div>
       <nav aria-label="Secciones" className={clases("flex-1 overflow-y-auto", compacta ? "mt-4" : "mt-8")}>
         <ul className="space-y-1">
-          {PRINCIPAL.map((d) => (
+          {SECCIONES.map((d) => (
             <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
           ))}
         </ul>
-        <Grupo titulo="En vivo · dinero ficticio" compacta={compacta}>
-          {EN_VIVO.map((d) => (
-            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
-          ))}
-        </Grupo>
-        <Grupo titulo="Más" compacta={compacta}>
-          {MAS.map((d) => (
-            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
-          ))}
-        </Grupo>
       </nav>
+      <IndicadorDirecto compacta={compacta} />
       {compacta ? null : (
-        <p className="px-3 text-xs leading-relaxed text-tinta-suave">Un sistema que no puede mentirte sobre sus propios resultados.</p>
+        <p className="mt-4 px-3 text-xs leading-relaxed text-tinta-suave">Un sistema que no puede mentirte sobre sus propios resultados.</p>
       )}
     </aside>
   );
@@ -172,7 +128,7 @@ function BarraLateral({ ruta, compacta }: { ruta: string; compacta: boolean }) {
 
 function LogoCompacto() {
   return (
-    <Link href="/" className="inline-flex h-11 w-11 items-center justify-center rounded-lg" aria-label="INVEST LL, ir a Inicio">
+    <Link href="/" className="inline-flex h-11 w-11 items-center justify-center rounded-lg" aria-label="INVEST LL, ir al Resumen">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
         <rect width="30" height="30" rx="9" fill="var(--marca)" />
         <path d="M7 19.5 12 14l4 3.5 7-8" fill="none" stroke="var(--marca-tinta)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -186,21 +142,17 @@ function CabeceraMovil() {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-linea bg-fondo/90 px-4 backdrop-blur-md lg:hidden">
       <Logo />
-      <PildoraModo />
+      <IndicadorDirecto compacta={false} movil />
     </header>
   );
 }
 
-/** Lo que en el movil vive en "Más": todo lo que no esta en la barra inferior. */
-export const EN_MAS_MOVIL: readonly (Destino & { bajada: string })[] = [...PRINCIPAL, ...EN_VIVO].filter((d) => !BARRA_MOVIL.includes(d.ruta));
-
 function BarraInferior({ ruta }: { ruta: string }) {
-  const todos = [...PRINCIPAL, ...EN_VIVO];
   const destinos: Destino[] = [
-    ...BARRA_MOVIL.map((r) => todos.find((d) => d.ruta === r)).filter((d): d is Destino & { bajada: string } => d !== undefined),
+    ...BARRA_MOVIL.map((r) => SECCIONES.find((d) => d.ruta === r)).filter((d): d is Destino & { bajada: string } => d !== undefined),
     { ruta: "/mas/", texto: "Más", icono: LayoutGrid },
   ];
-  const enMas = ["/mas/", ...EN_MAS_MOVIL.map((m) => m.ruta), ...MAS.map((m) => m.ruta)].some((r) => normalizar(ruta).startsWith(r));
+  const enMas = ["/mas/", ...EN_MAS_MOVIL.map((m) => m.ruta)].some((r) => normalizar(ruta).startsWith(r));
   return (
     <nav
       aria-label="Secciones"
@@ -296,13 +248,15 @@ function AvisoSinModo() {
 }
 
 /**
- * El marco de todas las pantallas: barra lateral en escritorio, barra inferior en movil, la
- * pildora del modo siempre arriba y el boton de Pregunta flotando.
+ * El marco de todas las pantallas: barra lateral en escritorio, barra inferior en movil, el
+ * indicador de si llegan datos en directo y el boton de Pregunta flotando. La pildora del modo del
+ * plan vive en Mi plan: es de su dinero, no de los bots.
  */
 export function Marco({ children }: { children: ReactNode }) {
   const ruta = usePathname();
-  // Operar es una pantalla de exchange: usa todo el ancho y la barra lateral se estrecha.
-  const ancha = normalizar(ruta).startsWith("/operar/");
+  // Operar es una pantalla de exchange: usa todo el ancho y la barra lateral se estrecha (Mercados,
+  // dentro de Operar, es una pantalla normal).
+  const ancha = normalizar(ruta) === "/operar/";
   useEffect(() => {
     // El boton de Pregunta se recoge en el carril (globals.css): no tapa el boleto ni la cuenta.
     if (ancha) document.body.dataset.ancha = "";

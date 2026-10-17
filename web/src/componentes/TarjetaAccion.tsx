@@ -108,7 +108,7 @@ export function TarjetaAccion({
         </Chip>
         {binance ? (
           modo === "simulacion" ? (
-            <BotonEnlace href="/ajustes/#conexion" variante="secundario">
+            <BotonEnlace href="/conexiones/" variante="secundario">
               <PlugZap aria-hidden="true" className="h-4 w-4" />
               Conectar Binance para hacerlo de verdad
             </BotonEnlace>
@@ -133,12 +133,12 @@ export function TarjetaAccion({
   );
 }
 
-/** La version de Inicio: una fila que lleva a Invertir, donde se hace. */
+/** La version del Resumen: una fila que lleva a Invertir, donde se hace. */
 export function FilaAccion({ accion: a }: { accion: Accion }) {
   return (
     <li>
       <Link
-        href={`/invertir/#accion-${a.id}`}
+        href={`/plan/invertir/#accion-${a.id}`}
         className="flex min-h-16 items-center gap-4 rounded-xl px-3 py-3 hover:bg-superficie-2"
       >
         <IconoDonde donde={a.donde} lado={a.lado} />

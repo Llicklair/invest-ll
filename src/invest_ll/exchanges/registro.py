@@ -1,7 +1,7 @@
 """Dónde se piden los conectores. **Un solo sitio** (como `live/factory.py` para Binance en v2).
 
 Lo usan los bots reales (para ejecutar), las pruebas de estrategias sobre el pasado (para las
-velas) y Ajustes → Conexiones (para probar claves).
+velas) y Conexiones (para probar claves).
 
 - `conector(exchange, red)`: con claves, para operar. Antes de darlo comprueba **otra vez** los
   cerrojos de `activacion` (activo en esa red, claves de ahora probadas, evidencia, permisos): lo

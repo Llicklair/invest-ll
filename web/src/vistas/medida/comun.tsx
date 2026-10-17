@@ -1,8 +1,6 @@
 "use client";
 
 import { Activity, Banknote, History, PencilLine, Sparkles, UserRound } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 
 import type { AutorEstrategia, EstadoEstrategia, ResultadoPrueba } from "@/api/tipos";
@@ -12,36 +10,6 @@ import { fecha, fraccion, signoVisible } from "@/lib/formato";
 import { useGuardado } from "@/lib/almacen";
 import { nombreExchange } from "@/lib/nombres";
 import { nombreIntervalo } from "@/lib/vivo";
-
-/** Las dos puertas de Estrategias: el camino de v2 (tu plan) y las estrategias a medida (v4). */
-export function NavEstrategias() {
-  const ruta = usePathname();
-  const enMedida = ruta.startsWith("/estrategias/medida");
-  const enlaces = [
-    { href: "/estrategias/", texto: "Para tu plan", activa: !enMedida },
-    { href: "/estrategias/medida/", texto: "A medida", activa: enMedida },
-  ];
-  return (
-    <nav aria-label="Estrategias" className="-mt-4 mb-8 border-b border-linea">
-      <ul className="flex gap-1">
-        {enlaces.map((e) => (
-          <li key={e.href}>
-            <Link
-              href={e.href}
-              aria-current={e.activa ? "page" : undefined}
-              className={clases(
-                "-mb-px inline-flex min-h-12 items-center border-b-2 px-4 text-[0.9375rem]",
-                e.activa ? "border-marca font-semibold text-tinta" : "border-transparent text-tinta-suave hover:text-tinta",
-              )}
-            >
-              {e.texto}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
 
 const ESTADO: Record<EstadoEstrategia, { texto: string; tono: "neutro" | "marca" | "destaque" | "real"; Icono: typeof History }> = {
   borrador: { texto: "Borrador", tono: "neutro", Icono: PencilLine },

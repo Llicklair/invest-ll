@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 
-import { Invertir } from "@/vistas/invertir/Invertir";
+import { Redirigir } from "@/componentes/Redirigir";
 
 export const metadata: Metadata = { title: "Invertir" };
 
+// Ruta vieja (docs/panel-v5.md, seccion 2): ahora vive en /plan/invertir/.
 export default function Pagina() {
-  return <Invertir />;
+  return <Redirigir a="/plan/invertir/" que="Invertir" />;
 }

@@ -1,6 +1,6 @@
 """Lo que se le puede pedir a un exchange, sin saber cuál es (docs/panel-v4-real.md §1).
 
-Los bots reales, las pruebas de estrategias sobre el pasado y Ajustes → Conexiones solo conocen este
+Los bots reales, las pruebas de estrategias sobre el pasado y Conexiones solo conocen este
 protocolo. La implementación genérica (ccxt) y lo propio de cada exchange viven en este paquete; las
 pruebas usan un conector falso. **Solo contado (spot), sin apalancamiento.**
 

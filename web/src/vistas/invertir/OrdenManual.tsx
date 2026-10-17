@@ -47,7 +47,7 @@ export function OrdenManual({ alEnviar }: { alEnviar: () => void }) {
         {modo === null
           ? "No se sabe en qué modo está el panel: no se ofrece enviar nada hasta que la API responda."
           : "En simulación el panel no envía nada."}{" "}
-        <Link href="/ajustes/#conexion" className="font-semibold text-marca underline underline-offset-4">
+        <Link href="/conexiones/" className="font-semibold text-marca underline underline-offset-4">
           Conectar Binance
         </Link>
       </p>

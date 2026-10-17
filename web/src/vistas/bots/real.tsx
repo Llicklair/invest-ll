@@ -361,7 +361,7 @@ export function HojaActivarReal({
   const bloqueos: { texto: string; accion?: { texto: string; href?: string; onClick?: () => void } }[] = [];
   if (!exchange) bloqueos.push({ texto: "No tiene exchange: es un bot ficticio, con precios de Hyperliquid. Despliega uno en pruebas con su misma estrategia y actívalo cuando esté listo.", accion: { texto: "Desplegar en pruebas", href: `/bots/nuevo/?modo=pruebas${bot.estrategia ? `&estrategia=${encodeURIComponent(bot.estrategia)}` : ""}` } });
   if (!bot.limites) bloqueos.push({ texto: "No tiene límites. Sin límites no se puede usar dinero real.", accion: { texto: "Ponerle límites", onClick: onPonerLimites } });
-  if (exchange && estadoExchange && estadoExchange.activo !== "real") bloqueos.push({ texto: `${nombre} no está activado con dinero real.`, accion: { texto: "Ir a Conexiones", href: "/ajustes/#conexion" } });
+  if (exchange && estadoExchange && estadoExchange.activo !== "real") bloqueos.push({ texto: `${nombre} no está activado con dinero real.`, accion: { texto: "Ir a Conexiones", href: "/conexiones/" } });
   if (real?.parado_todo) bloqueos.push({ texto: "Está puesto «Parar todo lo real». Quítalo antes (arriba, en Bots)." });
 
   const coincide = escrito === esperado;

@@ -353,14 +353,14 @@ def por_que_no(e: Estado, red: Red) -> list[str]:
         if activo == "real":
             return []
         return [
-            f"{f.nombre} no está activo con dinero real: actívalo en Ajustes → Conexiones.",
+            f"{f.nombre} no está activo con dinero real: actívalo en Conexiones.",
             *que_falta(e, "real"),
         ]
     faltan = que_falta(e, "pruebas")
     if faltan:
         return faltan
     if activo == "sin_conectar":
-        return [f"{f.nombre} no está conectado: actívalo en Ajustes → Conexiones."]
+        return [f"{f.nombre} no está conectado: actívalo en Conexiones."]
     if comprobacion_vigente(e, "pruebas") is None:
         return [
             f"Las claves de la red de pruebas de {f.nombre} no se han probado: vuelve a "

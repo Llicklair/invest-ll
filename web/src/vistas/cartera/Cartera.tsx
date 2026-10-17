@@ -256,7 +256,7 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
         <Aviso tipo="info" titulo="Es un fondo de tu plan">
           Si lo {lado === "sell" ? "vendiste" : "compraste"} siguiendo tu plan, anótalo desde Invertir con {boton}: así cuenta en
           tu plan y se guarda con lo que {lado === "sell" ? "cobraste" : "pagaste"} en tu bróker.{" "}
-          <Link href={`/invertir/#accion-${delPlan.id}`} className="font-semibold underline underline-offset-4" onClick={onCerrar}>
+          <Link href={`/plan/invertir/#accion-${delPlan.id}`} className="font-semibold underline underline-offset-4" onClick={onCerrar}>
             Ir a {boton}
           </Link>
         </Aviso>
@@ -456,7 +456,7 @@ export function Cartera() {
               tono="neutro"
               titulo="Aún no tienes nada"
               accion={
-                <BotonEnlace href="/invertir/" variante="primario">
+                <BotonEnlace href="/plan/invertir/" variante="primario">
                   Ver qué toca hacer
                 </BotonEnlace>
               }

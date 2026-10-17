@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 
-import { Laboratorio } from "@/vistas/laboratorio/Laboratorio";
+import { Redirigir } from "@/componentes/Redirigir";
 
 export const metadata: Metadata = { title: "Laboratorio" };
 
+// Ruta vieja (docs/panel-v5.md, seccion 2): ahora vive en /estrategias/laboratorio/.
 export default function Pagina() {
-  return <Laboratorio />;
+  return <Redirigir a="/estrategias/laboratorio/" que="El laboratorio" />;
 }

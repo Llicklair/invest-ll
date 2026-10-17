@@ -14,7 +14,7 @@ import { useConsulta } from "@/lib/consulta";
 import { momento } from "@/lib/formato";
 import { nombreIntervalo } from "@/lib/vivo";
 
-import { ChipAutor, ChipEstadoEstrategia, LineaPrueba, NavEstrategias, useConversaciones } from "./comun";
+import { ChipAutor, ChipEstadoEstrategia, LineaPrueba, useConversaciones } from "./comun";
 import { EditorEstrategia } from "./Editor";
 
 const PLANTILLA_NUEVA = JSON.stringify(
@@ -87,7 +87,6 @@ export function Biblioteca() {
           </BotonEnlace>
         }
       />
-      <NavEstrategias />
 
       <div className="space-y-12">
         <Seccion

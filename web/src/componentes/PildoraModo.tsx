@@ -43,10 +43,10 @@ export function PildoraModo({ className, compacta = false }: { className?: strin
     // En el carril estrecho (Operar): solo el icono del modo, con su nombre para el lector y al pasar.
     return (
       <Link
-        href="/ajustes/#conexion"
+        href="/conexiones/"
         className={clases("inline-flex h-11 w-11 items-center justify-center rounded-full", estilo, className)}
         aria-live="polite"
-        title={detalle ? `${texto}: ${detalle}. Cambiar en Ajustes · Conexión` : texto}
+        title={detalle ? `${texto}: ${detalle}. Cambiar en Conexiones · Binance` : texto}
       >
         <Icono aria-hidden="true" className="h-5 w-5" strokeWidth={2} />
         <span className="sr-only">Modo: {texto}</span>
@@ -55,7 +55,7 @@ export function PildoraModo({ className, compacta = false }: { className?: strin
   }
   return (
     <Link
-      href="/ajustes/#conexion"
+      href="/conexiones/"
       className={clases(
         // 36 px a la vista; el area que se pulsa llega a 44 px con el ::before.
         "relative inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold whitespace-nowrap before:absolute before:inset-x-0 before:-inset-y-1",
@@ -63,7 +63,7 @@ export function PildoraModo({ className, compacta = false }: { className?: strin
         className,
       )}
       aria-live="polite"
-      title={detalle ? `${texto}: ${detalle}. Cambiar en Ajustes · Conexión` : undefined}
+      title={detalle ? `${texto}: ${detalle}. Cambiar en Conexiones · Binance` : undefined}
     >
       <Icono aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
       <span className="sr-only">Modo: </span>

@@ -78,7 +78,7 @@ function TarjetaConexion() {
           <Esqueleto className="h-10" />
         )
       ) : null}
-      <BotonEnlace href="/ajustes/#conexion" variante="secundario" tamano="compacto">
+      <BotonEnlace href="/conexiones/" variante="secundario" tamano="compacto">
         {modo === "simulacion" ? "Conectar Binance" : "Cambiar"}
       </BotonEnlace>
     </Tarjeta>
@@ -140,7 +140,7 @@ export function Invertir() {
                     tono="neutro"
                     titulo="Todavía no tienes un plan"
                     accion={
-                      <BotonEnlace href="/estrategias/" variante="primario">
+                      <BotonEnlace href="/plan/" variante="primario">
                         Hacer mi plan
                       </BotonEnlace>
                     }
@@ -230,7 +230,7 @@ export function Invertir() {
             <p className="mt-2 text-[0.9375rem] text-tinta-suave">
               Todo lo que compras aquí o anotas pasa a tu cartera, con su fecha y su precio.
             </p>
-            <BotonEnlace href="/cartera/" variante="fantasma" tamano="compacto" className="mt-2 -ml-3">
+            <BotonEnlace href="/plan/cartera/" variante="fantasma" tamano="compacto" className="mt-2 -ml-3">
               Ver mi cartera
             </BotonEnlace>
           </Tarjeta>

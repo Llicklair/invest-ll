@@ -139,7 +139,7 @@ function ConectarClaude({ mcp }: { mcp: ConfigMcp }) {
 }
 
 /**
- * Ajustes · Conexiones (docs/panel-v4-real.md §4): el modo de tu plan (lo que la pildora de arriba
+ * Conexiones (docs/panel-v4-real.md §4; su propia seccion desde docs/panel-v5.md): el modo de tu plan (lo que la pildora de arriba
  * dice), la lista de exchanges con su estado y el asistente de cada uno, y el conector con Claude.
  */
 export function Conexiones() {

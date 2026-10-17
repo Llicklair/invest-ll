@@ -158,7 +158,7 @@ export function Propuesta() {
           {registrar.resultado.registradas > 0 ? (
             <Aviso tipo="hecho" vivo>
               Registradas {registrar.resultado.registradas} compra(s) en tu registro: ya están en{" "}
-              <Link href="/cartera/" className="font-semibold underline underline-offset-2">
+              <Link href="/plan/cartera/" className="font-semibold underline underline-offset-2">
                 Cartera
               </Link>
               . Es contabilidad tuya, al último cierre descargado — NO se ha comprado nada en ningún mercado. Para dinero
@@ -209,7 +209,7 @@ export function Propuesta() {
             <Nota>
               Registrar anota la decisión en tu ledger; no envía ninguna orden. Enviar de verdad exige confirmar cada orden
               por separado, en{" "}
-              <Link href="/invertir/" className="text-marca underline underline-offset-2">
+              <Link href="/plan/invertir/" className="text-marca underline underline-offset-2">
                 Invertir → Avanzado
               </Link>{" "}
               o con invest-ll-execute.

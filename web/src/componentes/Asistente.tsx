@@ -62,8 +62,11 @@ export function Asistente({
                   )}
                 >
                   {hecho ? <Check aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.5} /> : null}
-                  <span className="hidden sm:inline">{i + 1}. </span>
-                  <span className={es ? undefined : "hidden sm:inline"}>{p}</span>
+                  {/* Numero y texto en el mismo trozo: al partirse la linea, el numero no se queda solo. */}
+                  <span className={es ? undefined : "hidden sm:inline"}>
+                    <span className="hidden sm:inline">{i + 1}. </span>
+                    {p}
+                  </span>
                 </span>
               </>
             );

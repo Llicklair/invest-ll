@@ -309,7 +309,7 @@ class TestCerrojos:
         mundo = Mundo(tmp_path)
         mundo.guardar("pruebas", PRUEBAS)
         assert por_que_no(mundo.estado(), "pruebas") == [
-            "Bybit no está conectado: actívalo en Ajustes → Conexiones."
+            "Bybit no está conectado: actívalo en Conexiones."
         ]
 
     def test_la_huella_cambia_con_las_claves_y_no_las_lleva(self) -> None:
