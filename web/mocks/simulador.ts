@@ -101,7 +101,7 @@ function trigger(id: string, symbol: string, regla: string, umbral: string, arma
     regla === "loss-from-entry"
       ? `pierde mas del ${pct}% desde tu entrada (coste medio con comisiones)`
       : `cae mas del ${pct}% desde el cierre maximo de los datos descargados`;
-  return { trigger_id: id, symbol, regla, umbral, armado, descripcion: `${symbol}: proponer la venta si ${condicion}` };
+  return { trigger_id: id, symbol, nombre: nombreDe(symbol), regla, umbral, armado, descripcion: `${symbol}: proponer la venta si ${condicion}` };
 }
 
 /** Una fila del registro de ordenes, con el nombre llano y la moneda del par (v2.1). */
@@ -263,6 +263,8 @@ function estado(m: Mundo): S["Estado"] {
     activos: DEFINICIONES.map((d) => ({
       id: d.id,
       symbol: d.simbolo,
+      nombre: nombreDe(d.simbolo),
+      moneda: monedaDe(d.simbolo),
       provider: d.proveedor,
       interval: "DAY_1",
       is_crypto: d.cripto,
@@ -406,6 +408,7 @@ function cotizaciones(m: Mundo): S["Cotizaciones"] {
     const sinDatos = cripto && sim === "LUNA/USDT";
     return {
       activo: sim,
+      nombre: nombreDe(sim),
       precio,
       var_24h: sinDatos ? null : Math.round((r - 0.5) * (cripto ? 1200 : 500)) / 100,
       volumen_24h_m: sinDatos ? null : Math.round((cripto ? 4000 : 900) / (i + 1) * (0.6 + r) * 10) / 10,
@@ -752,6 +755,7 @@ function comprobarTriggers(m: Mundo): S["ComprobacionTriggers"] {
       disparados.push({
         trigger_id: t.trigger_id,
         symbol: t.symbol,
+        nombre: nombreDe(t.symbol),
         medido: medido.toFixed(4),
         umbral: t.umbral,
         cantidad_propuesta: cantidad,

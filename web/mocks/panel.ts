@@ -375,6 +375,8 @@ export function carteraV1(p: EstadoPanel, avisosBase: string[]): S["Cartera"] {
   const valor = abiertas.reduce((s, a) => s + (a.valor === null ? 0 : Number(a.valor)), 0);
   return {
     cartera: deModo(p),
+    moneda: deModo(p) === "pruebas" ? "USDT" : "EUR",
+    nota_moneda: deModo(p) === "pruebas" ? null : "Aproximado: sin contar el cambio euro-dólar.",
     vacia,
     error: null,
     avisos: [
@@ -565,6 +567,7 @@ export function inicio(p: EstadoPanel, pausa: string | null): S["Inicio"] {
         estrategia: parte.estrategia,
         nombre: d?.nombre ?? parte.estrategia,
         mercado: d?.mercado ?? "bolsa",
+        moneda: (d?.mercado ?? "bolsa") === "cripto" ? "USDT" : "EUR",
         valor: pos.length ? valor : "0.00",
         puesto: d2(pos.reduce((s, x) => s + x.coste, 0)),
       };
