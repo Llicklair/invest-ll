@@ -21,7 +21,10 @@ import socket
 from collections.abc import Iterator
 from typing import Any, NoReturn
 
+import keyring
 import pytest
+
+from .almacen_en_memoria import AlmacenEnMemoria
 
 _SOCKET_REAL = socket.socket
 
@@ -50,6 +53,24 @@ def bloquear_red(request: pytest.FixtureRequest) -> Iterator[None]:
         yield
     finally:
         socket.socket = _SOCKET_REAL  # type: ignore[assignment]
+
+
+@pytest.fixture(autouse=True)
+def almacen_de_claves() -> Iterator[AlmacenEnMemoria]:
+    """**Ningún test toca el almacén de credenciales del sistema.**
+
+    El panel guarda las claves de Binance con `keyring` (en Windows, el Administrador de
+    credenciales). Sin esto, cualquier test que pasara por el modo efectivo leería —y los de la
+    conexión escribirían— las credenciales reales de quien corre la suite. Se pone en todos los
+    tests y se quita al acabar; quien quiera mirar lo guardado pide este fixture.
+    """
+    anterior = keyring.get_keyring()
+    almacen = AlmacenEnMemoria()
+    keyring.set_keyring(almacen)
+    try:
+        yield almacen
+    finally:
+        keyring.set_keyring(anterior)
 
 
 @pytest.fixture(autouse=True)

@@ -46,6 +46,12 @@ Thumbs.db
 /attempts/
 /portfolio/
 /research/runs/
+# Panel v2: la cartera de la red de pruebas, el plan y el modo elegido en el panel. Anclados por
+# lo mismo que /portfolio/: src/invest_ll/plan/ es codigo y no puede caer en la regla.
+# Las claves NO van en ningun fichero: viven en el almacen de credenciales del sistema.
+/portfolio-pruebas/
+/plan/
+/config/
 # paper/ is tracked on purpose: a forward-test record committed before the outcome is
 # known is the only proof that it was not fitted afterwards.
 

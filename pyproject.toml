@@ -21,6 +21,10 @@ dependencies = [
     # lo conoce (tests/unit/test_dashboard_data.py lo vigila).
     "fastapi>=0.115",
     "uvicorn>=0.30",
+    # Las claves de Binance que se pegan en el panel van al almacen de credenciales del sistema
+    # (en Windows, el Administrador de credenciales), nunca a un fichero. Solo lo usa
+    # src/invest_ll/live/credenciales.py; la linea de comandos sigue leyendo solo del entorno.
+    "keyring>=25",
 ]
 
 [project.scripts]

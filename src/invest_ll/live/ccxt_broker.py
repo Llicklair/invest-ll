@@ -249,6 +249,11 @@ def _limpiar(error: Exception) -> str:
     return texto[:LONGITUD_MAXIMA_ERROR]
 
 
+def mensaje_seguro(error: Exception) -> str:
+    """El mensaje de un error de ccxt, sin nada que pueda llevar una credencial (`_limpiar`)."""
+    return _limpiar(error)
+
+
 def build_exchange(mode: Testnet | Real, *, exchange_id: str = "binance") -> CcxtExchange:
     """Construye el exchange de ccxt con las credenciales del modo.
 

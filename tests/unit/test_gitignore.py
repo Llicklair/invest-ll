@@ -49,6 +49,30 @@ def test_ningun_fichero_de_codigo_esta_ignorado() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "ruta",
+    [
+        "plan/plan.json",
+        "config/panel.json",
+        "portfolio-pruebas/activities.jsonl",
+        "portfolio/activities.jsonl",
+    ],
+)
+def test_los_datos_del_panel_no_llegan_a_git(ruta: str) -> None:
+    """El plan, el modo elegido y la cartera de pruebas son datos tuyos, no código."""
+    if not (RAIZ / ".git").exists():
+        pytest.skip("fuera de un repositorio git")
+    assert _git(RAIZ, "check-ignore", "--no-index", ruta).strip() == ruta
+
+
+@pytest.mark.parametrize("ruta", ["src/invest_ll/plan/hoy.py", "src/invest_ll/plan/__init__.py"])
+def test_el_paquete_plan_si_llega_a_git(ruta: str) -> None:
+    """`/plan/` está anclado: no se traga `src/invest_ll/plan/`, como pasó con portfolio."""
+    if not (RAIZ / ".git").exists():
+        pytest.skip("fuera de un repositorio git")
+    assert _git(RAIZ, "check-ignore", "--no-index", ruta).strip() == ""
+
+
 @pytest.mark.parametrize(("regla", "lo_ve"), [("portfolio/", True), ("/portfolio/", False)])
 def test_el_guardian_ve_la_regla_sin_anclar(tmp_path: Path, regla: str, lo_ve: bool) -> None:
     """Prueba del propio guardián, con el caso exacto que costó el paquete.
