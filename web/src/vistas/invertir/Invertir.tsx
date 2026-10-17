@@ -26,7 +26,7 @@ import { formatoCantidad } from "@/lib/decimal";
 import { momento } from "@/lib/formato";
 
 import { HojaConfirmar } from "./HojaConfirmar";
-import { HojaYaComprado } from "./HojaYaComprado";
+import { HojaYaHecho } from "./HojaYaHecho";
 import { OrdenManual } from "./OrdenManual";
 
 function TarjetaConexion() {
@@ -87,7 +87,8 @@ function TarjetaConexion() {
 
 /**
  * Invertir: hazlo (docs/panel-v2.md, 4.3). Que toca hoy, agrupado por donde se hace; confirmar
- * una orden de Binance; anotar una compra del broker; la orden a mano plegada; la conexion.
+ * una orden de Binance; anotar una compra o una venta del broker (v2.2: primero lo que toca
+ * vender, despues la lista de la compra); la orden a mano plegada; la conexion.
  */
 export function Invertir() {
   const { versionDatos, refrescarDatos } = useEstado();
@@ -99,6 +100,9 @@ export function Invertir() {
   const h = hoy.datos;
   const binance = h?.acciones.filter((a) => a.donde === "binance") ?? [];
   const broker = h?.acciones.filter((a) => a.donde === "broker") ?? [];
+  // La API manda las ventas primero: lo que liberan ya esta sumado en la lista de la compra.
+  const ventas = broker.filter((a) => a.lado === "sell");
+  const compras = broker.filter((a) => a.lado === "buy");
   const recargar = () => {
     setVersion((v) => v + 1);
     refrescarDatos();
@@ -170,13 +174,38 @@ export function Invertir() {
               {broker.length ? (
                 <Seccion
                   titulo="En tu bróker"
-                  bajada="Tu lista de la compra. Lo compras tú donde tengas tus fondos y luego lo anotas aquí."
+                  bajada={
+                    ventas.length
+                      ? "Primero vende lo que te dice tu estrategia; con ese dinero, y con tu aportación si toca, compra lo de tu lista. Lo haces tú donde tengas tus fondos y luego lo anotas aquí."
+                      : "Tu lista de la compra. Lo compras tú donde tengas tus fondos y luego lo anotas aquí."
+                  }
                 >
-                  <div className="space-y-4">
-                    {broker.map((a) => (
-                      <TarjetaAccion key={a.id} accion={a} modo={modo} onConfirmar={setConfirmar} onHecho={setHecho} />
-                    ))}
-                  </div>
+                  {ventas.length && compras.length ? (
+                    <>
+                      <h3 className="text-[0.9375rem] font-semibold text-tinta">1. Vende</h3>
+                      <div className="space-y-4">
+                        {ventas.map((a) => (
+                          <TarjetaAccion key={a.id} accion={a} modo={modo} onConfirmar={setConfirmar} onHecho={setHecho} />
+                        ))}
+                      </div>
+                      <div className="pt-2">
+                        <h3 className="text-[0.9375rem] font-semibold text-tinta">2. Después, compra</h3>
+                        {/* El registro cuenta lo cobrado en el orden en que se anota (plan.hoy.en_el_broker). */}
+                        <p className="text-sm text-tinta-suave">Anota primero la venta: estas compras se pagan en parte con lo que sacas de ella.</p>
+                      </div>
+                      <div className="space-y-4">
+                        {compras.map((a) => (
+                          <TarjetaAccion key={a.id} accion={a} modo={modo} onConfirmar={setConfirmar} onHecho={setHecho} />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {broker.map((a) => (
+                        <TarjetaAccion key={a.id} accion={a} modo={modo} onConfirmar={setConfirmar} onHecho={setHecho} />
+                      ))}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-x-4">
                     <QueEsEsto clave="broker" />
                     <QueEsEsto clave="ucits" />
@@ -209,7 +238,7 @@ export function Invertir() {
       </div>
 
       <HojaConfirmar accion={confirmar} modo={modo} onCerrar={() => setConfirmar(null)} onTerminado={recargar} />
-      <HojaYaComprado accion={hecho} onCerrar={() => setHecho(null)} onTerminado={recargar} />
+      <HojaYaHecho accion={hecho} onCerrar={() => setHecho(null)} onTerminado={recargar} />
     </div>
   );
 }

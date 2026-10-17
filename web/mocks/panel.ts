@@ -59,6 +59,11 @@ export interface EstadoPanel {
   frio: boolean;
   siguiente: number;
   datos: DatosMock;
+  /**
+   * Lo cobrado al vender en tu broker con el plan y aun no reinvertido (contrato v2.2): el
+   * efectivo de la parte de bolsa, en la cartera real.
+   */
+  libre: number;
 }
 
 /** `/api/datos` del ejemplo: de cuando es cada fuente y la ultima actualizacion (en curso o hecha). */
@@ -167,8 +172,32 @@ function compraBroker(id: string, fecha: string, simbolo: string, participacione
   };
 }
 
+/**
+ * "vender": la Prudente con freno compro en abril sus fondos, y uno (TLT, bonos a mas de 20 anos)
+ * lleva meses bajando: la estrategia lo ha dejado fuera y pesa un 16 % de la parte.
+ */
+function carteraVender(): CarteraMock {
+  const compras = [
+    compraBroker("m-5", "2026-04-01", "SPY", 2.8, 690, 719.5, 3),
+    compraBroker("m-6", "2026-04-01", "IEF", 38, 93, 94.9, 3),
+    compraBroker("m-10", "2026-04-01", "GLD", 7, 330, 360, 3),
+    compraBroker("m-11", "2026-04-01", "TLT", 18, 95, 86, 3),
+  ];
+  return {
+    posiciones: [...compras.map((c) => c.pos), { simbolo: "BTC/USDT", cantidad: 0.0075, coste: 450, abierta: "2026-05-04" }],
+    retiradas: [],
+    movimientos: [
+      mov("m-7", "2026-05-04", "compra", "BTC/USDT", 0.0075, 59880, "panel", 0.9),
+      ...compras.map((c) => c.mov).reverse(),
+      mov("m-0", "2026-03-30", "ingreso", null, 9500, null, "manual"),
+    ],
+    efectivo: 0,
+  };
+}
+
 function carteraReal(e: Escenario): CarteraMock {
   if (e === "primera-vez" || e === "vacio" || e === "en-frio") return { posiciones: [], retiradas: [], movimientos: [], efectivo: 0 };
+  if (e === "vender") return carteraVender();
   const spy = compraBroker("m-5", "2026-04-01", "SPY", 5.437, 650, 719.5, 3);
   const ief = compraBroker("m-6", "2026-04-01", "IEF", 30.6, 93, 94.9, 3);
   const posiciones: Pos[] = [spy.pos, ief.pos, { simbolo: "BTC/USDT", cantidad: 0.0075, coste: 450, abierta: "2026-05-04" }];
@@ -224,12 +253,20 @@ const PLAN_EJEMPLO: S["Plan"] = {
   actualizado: "2026-04-01T09:00:00Z",
 };
 
+const PLAN_VENDER: S["Plan"] = {
+  ...PLAN_EJEMPLO,
+  partes: [
+    { estrategia: "bolsa-prudente", inicial: "9000.00", mensual: "180.00" },
+    { estrategia: "btc-freno", inicial: "600.00", mensual: "20.00" },
+  ],
+};
+
 export function nuevoEstado(e: Escenario): EstadoPanel {
   const conPruebas = ["pruebas", "listo-para-real", "real", "fallo-red"].includes(e);
   const conReal = e === "listo-para-real" || e === "real";
   return {
     escenario: e,
-    plan: e === "primera-vez" || e === "vacio" || e === "en-frio" ? null : PLAN_EJEMPLO,
+    plan: e === "primera-vez" || e === "vacio" || e === "en-frio" ? null : e === "vender" ? PLAN_VENDER : PLAN_EJEMPLO,
     primeraAportacion: false,
     modo: e === "real" ? "real" : conPruebas || e === "entorno" ? "pruebas" : "simulacion",
     modoOrigen: e === "entorno" ? "entorno" : "panel",
@@ -256,6 +293,7 @@ export function nuevoEstado(e: Escenario): EstadoPanel {
       fallaFondos: e === "datos-viejos",
       aplicada: false,
     },
+    libre: 0,
   };
 }
 
@@ -390,6 +428,8 @@ export function carteraV1(p: EstadoPanel, avisosBase: string[]): S["Cartera"] {
     invertido_abiertas: d2(invertido),
     valor_total: sinPrecio.length ? null : d2(valor),
     efectivo: d2(c.efectivo),
+    // Lo del broker vive en la cartera real: en la de pruebas no esta.
+    efectivo_broker: d2(deModo(p) === "real" ? p.libre : 0),
     realizado_total: d2(c.retiradas.reduce((s, r) => s + Number(r.pnl_realizado), 0)),
   };
 }
@@ -402,7 +442,8 @@ function patrimonio(p: EstadoPanel): S["Patrimonio"] {
   const c = p.carteras[deModo(p)];
   const abiertas = agrupadas(c).map(abierta);
   const sinPrecio = abiertas.some((a) => a.valor === null);
-  const efectivo = Math.max(0, c.efectivo);
+  // v2.2: nunca menos que lo cobrado al vender en tu broker y aun sin reinvertir.
+  const efectivo = Math.max(0, c.efectivo, deModo(p) === "real" ? p.libre : 0);
   const puesto = agrupadas(c).reduce((s, x) => s + x.coste, 0) + efectivo;
   const valor = abiertas.reduce((s, a) => s + (a.valor === null ? 0 : Number(a.valor)), 0) + efectivo;
   const ganancia = abiertas.reduce((s, a) => s + (a.pnl_no_realizado === null ? 0 : Number(a.pnl_no_realizado)), 0);
@@ -444,7 +485,98 @@ const COMPRA_BROKER: Record<string, { de: string; equivalente: string }> = {
   SPY: { de: "un ETF del S&P 500", equivalente: "un ETF UCITS del S&P 500 (p. ej. iShares Core S&P 500, ISIN IE00B5BMR087)" },
   IEF: { de: "un ETF de bonos del Tesoro de EE.UU.", equivalente: "un ETF UCITS de bonos del Tesoro de EE.UU. a 7-10 años" },
   GLD: { de: "un ETC de oro", equivalente: "un ETC de oro físico (p. ej. iShares Physical Gold, ISIN IE00B4ND3602)" },
+  TLT: { de: "un ETF de bonos del Tesoro de EE.UU. a más de 20 años", equivalente: "un ETF UCITS de bonos del Tesoro de EE.UU. a más de 20 años" },
 };
+
+/** Los fondos que puede llegar a tener cada estrategia de bolsa (`Motor.simbolos` en la API). */
+function fondosDe(estrategia: string): string[] {
+  if (estrategia === "bolsa-prudente") return ["SPY", "EFA", "EEM", "IEF", "TLT", "GLD", "DBC", "VNQ", "SHY"];
+  return (PESOS[estrategia] ?? []).map(([s]) => s);
+}
+
+/** El umbral de la API (`UMBRAL_VENTA`): un fondo sobra si pesa 10 puntos mas que su objetivo. */
+const UMBRAL_VENTA = 0.1;
+
+/**
+ * Las acciones del broker de una parte de bolsa, como `plan.hoy._bolsa` (contrato v2.2) en
+ * juguete: primero se vende entero lo que la estrategia ya no quiere y pesa al menos el umbral;
+ * lo liberado (y lo cobrado que siga sin reinvertir) se suma a la lista de la compra, repartido
+ * por el peso de cada fondo entre los que aun no se han comprado.
+ */
+function accionesBolsa(p: EstadoPanel, parte: S["ParteDelPlan-Output"], nombreEstrategia: string, mesTexto: string): S["Accion"][] {
+  const pesos = PESOS[parte.estrategia] ?? [];
+  const objetivo = new Map(pesos);
+  const delPlan = agrupadas(p.carteras.real).filter((x) => x.referencia && fondosDe(parte.estrategia).includes(x.simbolo));
+  const valores = delPlan.map((x) => ({ pos: x, cierre: ultimoCierre(x.simbolo) }));
+  const capital = valores.reduce((s, v) => s + (v.cierre ? v.pos.cantidad * v.cierre.precio : 0), 0) + p.libre;
+  const ventas: S["Accion"][] = [];
+  let liberado = p.libre;
+  for (const { pos, cierre } of valores) {
+    if (!cierre || capital <= 0 || objetivo.has(pos.simbolo) || p.hechas.has(`v-${pos.simbolo}`)) continue;
+    const valor = pos.cantidad * cierre.precio;
+    if (valor / capital < UMBRAL_VENTA) continue;
+    liberado += valor;
+    const corto = COMPRA_BROKER[pos.simbolo]?.de ?? nombre(pos.simbolo);
+    ventas.push({
+      id: `v-${pos.simbolo}`,
+      donde: "broker",
+      estrategia: parte.estrategia,
+      titulo: `Vende todo tu ${corto.replace(/^un /, "")} (unos ${es(Math.round(valor), 0)} €)`,
+      explicacion: `Lleva meses bajando: tu estrategia sale de él y su parte espera en bonos del Tesoro a corto plazo. Es el ${Math.round((valor / capital) * 100)} % de tu parte de bolsa; lo que saques va a la lista de la compra.`,
+      activo: nombre(pos.simbolo),
+      simbolo: pos.simbolo,
+      par: null,
+      lado: "sell",
+      cantidad: pos.cantidad.toFixed(4),
+      importe: d2(valor),
+      moneda: "EUR",
+      precio_ref: d2(cierre.precio),
+      precio_ref_moneda: monedaDe(pos.simbolo),
+      referencia: pos.simbolo,
+      precio_fecha: cierre.fecha,
+      equivalente: COMPRA_BROKER[pos.simbolo]?.equivalente ?? null,
+    });
+  }
+  const pendientes = pesos.filter(([s]) => !p.hechas.has(`b-${s}`));
+  const reparto = pendientes.length ? pendientes : pesos;
+  const sumaPesos = reparto.reduce((s, [, w]) => s + w, 0);
+  const origen = ventas.length ? "lo que sacas al vender" : "lo que cobraste al vender y aún no has invertido";
+  const dinero = Number(parte.mensual) + (p.primeraAportacion ? Number(parte.inicial) : 0);
+  const compras: S["Accion"][] = [];
+  for (const [simbolo, peso] of pesos) {
+    const c = ultimoCierre(simbolo);
+    if (!c) continue;
+    const aporte = p.hechas.has(`b-${simbolo}`) ? 0 : dinero * peso;
+    const deVentas = liberado > 0 && reparto.some(([s]) => s === simbolo) && sumaPesos > 0 ? (liberado * peso) / sumaPesos : 0;
+    const importe = aporte + deVentas;
+    if (importe < 1) continue;
+    const compra = COMPRA_BROKER[simbolo];
+    const conVentas = deVentas >= 1 ? `; y unos ${es(Math.round(deVentas), 0)} € de ${origen}` : "";
+    compras.push({
+      id: `b-${simbolo}`,
+      donde: "broker",
+      estrategia: parte.estrategia,
+      titulo: `Compra unos ${es(Math.round(importe), 0)} € de ${compra?.de ?? nombre(simbolo)}`,
+      explicacion:
+        aporte > 0
+          ? `Tu aportación de ${mesTexto} (${es(dinero, 0)} €): el ${Math.round(peso * 100)} % va a ${nombre(simbolo)}, según el reparto de ${nombreEstrategia}${conVentas}.`
+          : `Con ${origen}: tu estrategia quiere un ${Math.round(peso * 100)} % de tu parte de bolsa en ${nombre(simbolo)}.`,
+      activo: nombre(simbolo),
+      simbolo,
+      par: null,
+      lado: "buy",
+      cantidad: (importe / c.precio).toFixed(4),
+      importe: d2(importe),
+      moneda: "EUR",
+      precio_ref: d2(c.precio),
+      precio_ref_moneda: monedaDe(simbolo),
+      referencia: simbolo,
+      precio_fecha: c.fecha,
+      equivalente: compra?.equivalente ?? null,
+    });
+  }
+  return [...ventas, ...compras];
+}
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -474,6 +606,11 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
     const dinero = Number(parte.mensual) + (p.primeraAportacion ? Number(parte.inicial) : 0);
     if (d.mercado === "cripto" && p.escasez === "sin-cripto") {
       avisos.push(`Faltan los datos de Binance: no se puede calcular qué toca en ${d.nombre}. Actualízalos en Ajustes · Datos.`);
+      continue;
+    }
+    if (d.mercado === "bolsa" && (p.libre > 0 || agrupadas(p.carteras.real).some((x) => x.referencia && !PESOS[parte.estrategia]?.some(([s]) => s === x.simbolo) && fondosDe(parte.estrategia).includes(x.simbolo)))) {
+      // v2.2: hay algo que vender o dinero de una venta por reinvertir.
+      acciones.push(...accionesBolsa(p, parte, d.nombre, mesTexto));
       continue;
     }
     for (const [simbolo, peso] of PESOS[parte.estrategia] ?? []) {
@@ -533,7 +670,8 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
       }
     }
   }
-  // Ventas antes que compras; aqui solo hay compras.
+  // Como la API: lo de Binance primero; en el broker, las ventas antes que las compras.
+  acciones.sort((a, b) => Number(a.donde === "broker") - Number(b.donde === "broker"));
   const proxima = proximaFecha(p.plan);
   const [, mm, dd] = proxima.split("-");
   const proximaTexto = `${Number(dd)} de ${MESES[Number(mm) - 1] ?? ""}`;
@@ -541,12 +679,20 @@ export function hoy(p: EstadoPanel): S["Hoy"] {
     sin_plan: false,
     modo: p.modo,
     acciones,
-    resumen: acciones.length
-      ? `Hoy toca tu aportación de ${mesTexto}: ${acciones.length === 1 ? "una compra" : `${acciones.length} compras`}.`
-      : `No toca hacer nada. Tu próxima aportación es el ${proximaTexto}.`,
+    resumen: acciones.length ? resumenHoy(acciones, mesTexto) : `No toca hacer nada. Tu próxima aportación es el ${proximaTexto}.`,
     proxima_fecha: proxima,
     avisos,
   };
+}
+
+function resumenHoy(acciones: S["Accion"][], mesTexto: string): string {
+  const ventas = acciones.filter((a) => a.donde === "broker" && a.lado === "sell").length;
+  if (!ventas) return `Hoy toca tu aportación de ${mesTexto}: ${acciones.length === 1 ? "una compra" : `${acciones.length} compras`}.`;
+  const enBinance = acciones.filter((a) => a.donde === "binance").length;
+  const compras = acciones.length - enBinance - ventas;
+  const broker = [`${ventas} ${ventas === 1 ? "venta" : "ventas"}`, ...(compras ? [`${compras} ${compras === 1 ? "compra" : "compras"}`] : [])].join(" y ");
+  const binance = enBinance ? `${enBinance} ${enBinance === 1 ? "orden" : "órdenes"} en Binance${compras ? "; " : " y "}` : "";
+  return `Hoy toca: ${binance}${broker} en tu bróker.`;
 }
 
 // -- Inicio -----------------------------------------------------------------------------------------
@@ -559,17 +705,22 @@ export function inicio(p: EstadoPanel, pausa: string | null): S["Inicio"] {
   if (p.plan) {
     plan = p.plan.partes.map((parte) => {
       const d = definicion(parte.estrategia);
-      const simbolos = (PESOS[parte.estrategia] ?? []).map(([s]) => s);
-      const pos = agrupadas(c).filter((x) => simbolos.includes(x.simbolo));
+      const bolsa = (d?.mercado ?? "bolsa") === "bolsa";
+      // Bolsa: la cartera del broker (la real) en cualquier modo, con lo que tiene sin invertir.
+      const donde = bolsa ? p.carteras.real : c;
+      const simbolos = bolsa ? fondosDe(parte.estrategia) : (PESOS[parte.estrategia] ?? []).map(([s]) => s);
+      const pos = agrupadas(donde).filter((x) => simbolos.includes(x.simbolo));
       const abiertas = pos.map(abierta);
-      const valor = abiertas.some((a) => a.valor === null) ? null : d2(abiertas.reduce((s, a) => s + Number(a.valor ?? 0), 0));
+      const libre = bolsa ? p.libre : 0;
+      const valor = abiertas.some((a) => a.valor === null) ? null : abiertas.reduce((s, a) => s + Number(a.valor ?? 0), 0) + libre;
       return {
         estrategia: parte.estrategia,
         nombre: d?.nombre ?? parte.estrategia,
         mercado: d?.mercado ?? "bolsa",
-        moneda: (d?.mercado ?? "bolsa") === "cripto" ? "USDT" : "EUR",
-        valor: pos.length ? valor : "0.00",
-        puesto: d2(pos.reduce((s, x) => s + x.coste, 0)),
+        moneda: bolsa ? "EUR" : "USDT",
+        valor: valor === null ? null : d2(valor),
+        puesto: d2(pos.reduce((s, x) => s + x.coste, 0) + libre),
+        efectivo: d2(libre),
       };
     });
   }
@@ -644,9 +795,10 @@ export function anotarHecha(p: EstadoPanel, id: string, o: Record<string, unknow
   const cantidad = Number(o.cantidad);
   const precio = Number(o.precio);
   const comision = Number(o.comision ?? 0);
-  if (!(cantidad > 0)) return validacion("Las participaciones que compraste tienen que ser más que 0.");
+  if (!(cantidad > 0)) return validacion(`Las participaciones que ${accion.lado === "sell" ? "vendiste" : "compraste"} tienen que ser más que 0.`);
   if (!(precio > 0)) return validacion("El precio por participación tiene que ser más que 0.");
   const fecha = String(o.fecha ?? HOY);
+  if (accion.lado === "sell") return anotarVenta(p, accion, cantidad, precio, comision, fecha);
   if (fecha > HOY) return fallo(422, `La fecha de la compra (${fecha}) es posterior a hoy.`);
   if (fecha < "2026-10-01") return fallo(422, `La fecha de la compra (${fecha}) es anterior a la aportación de octubre: anótala como un movimiento suelto en Cartera.`);
   p.hechas.add(id);
@@ -657,6 +809,56 @@ export function anotarHecha(p: EstadoPanel, id: string, o: Record<string, unknow
   const compra = compraBroker(`m-${p.siguiente}`, fecha, accion.referencia ?? accion.simbolo, cantidad, precio, ref, comision);
   c.posiciones.push(compra.pos);
   c.movimientos.unshift(compra.mov);
+  // Lo que no era de la aportacion sale de lo cobrado al vender (v2.2).
+  const parte = p.plan?.partes.find((x) => x.estrategia === accion.estrategia);
+  const peso = new Map(PESOS[accion.estrategia] ?? []).get(accion.simbolo) ?? 0;
+  const aporte = (Number(parte?.mensual ?? 0) + (p.primeraAportacion ? Number(parte?.inicial ?? 0) : 0)) * peso;
+  p.libre = Math.max(0, p.libre - Math.max(0, cantidad * precio + comision - aporte));
+  return json({ activity_id: `act-${p.siguiente}` } satisfies S["MovimientoRegistrado"], 201);
+}
+
+/**
+ * "Ya lo he vendido" (contrato v2.2), como `api.plan._venta`: lo cobrado entre el precio de
+ * referencia son las unidades que salen; aqui siempre se vende todo, que es lo que pide la accion.
+ * Mas de un 25 % por encima de lo que vale lo que tienes es un error de tecleo: 422 en llano.
+ */
+function anotarVenta(p: EstadoPanel, accion: S["Accion"], cantidad: number, precio: number, comision: number, fecha: string): Response {
+  if (fecha > HOY) return fallo(422, "La fecha de la venta no puede ser posterior a hoy.");
+  const cobrado = cantidad * precio;
+  const valor = Number(accion.importe);
+  if (cobrado > valor * 1.25) {
+    return fallo(
+      422,
+      `Según tu registro, lo que tienes de ${accion.activo} valía unos ${es(Math.round(valor), 0)} € ese día y dices haber cobrado ${es(cobrado, 2)} €: es más de lo que tienes. Revisa las participaciones y el precio. Si tenías más de lo que consta aquí, anota antes lo que falte con «Anotar un movimiento».`,
+    );
+  }
+  const c = p.carteras.real;
+  const vendidas = c.posiciones.filter((x) => x.simbolo === accion.simbolo);
+  const unidades = vendidas.reduce((s, x) => s + x.cantidad, 0);
+  const coste = vendidas.reduce((s, x) => s + x.coste, 0);
+  const abierta = vendidas.map((x) => x.abierta).sort()[0] ?? fecha;
+  c.posiciones = c.posiciones.filter((x) => x.simbolo !== accion.simbolo);
+  p.siguiente += 1;
+  const venta = mov(`m-${p.siguiente}`, fecha, "venta", accion.simbolo, unidades, cobrado / unidades, "plan", comision, {
+    participaciones: cantidad,
+    precio,
+  });
+  venta.nota = `Vendiste ${es(cantidad, 3).replace(/,?0+$/, "")} participaciones a ${es(precio, 2)} € en tu bróker; se anota como la venta de todo lo que tenías de ${accion.simbolo} con tu plan (${es(unidades, 2)}, el fondo de EE.UU. de referencia), por lo que cobraste.`;
+  c.movimientos.unshift(venta);
+  const recuperado = cobrado - comision;
+  c.retiradas.unshift({
+    activo: accion.simbolo,
+    nombre: nombre(accion.simbolo),
+    moneda: "EUR",
+    abierta,
+    retirada: fecha,
+    dias: Math.round((Date.parse(fecha) - Date.parse(abierta)) / 86_400_000),
+    invertido: d2(coste),
+    recuperado: d2(recuperado),
+    pnl_realizado: d2(recuperado - coste),
+  });
+  p.libre += recuperado;
+  p.hechas.add(accion.id);
   return json({ activity_id: `act-${p.siguiente}` } satisfies S["MovimientoRegistrado"], 201);
 }
 

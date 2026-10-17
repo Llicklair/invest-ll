@@ -14,7 +14,7 @@ import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useConsulta } from "@/lib/consulta";
 import { signoDecimal } from "@/lib/decimal";
-import { diaYMes, enMoneda, euros, fechaCorta } from "@/lib/formato";
+import { diaYMes, enMoneda, fechaCorta } from "@/lib/formato";
 
 const PASOS_BIENVENIDA = [
   { icono: MessagesSquare, titulo: "Cinco preguntas", texto: "Cuánto tienes, cuándo lo necesitarás y qué harías si bajara. Sin jerga." },
@@ -203,12 +203,19 @@ function TuPlan({ datos }: { datos: DatosInicio }) {
           <li key={p.estrategia} className="py-3">
             <div className="flex items-baseline justify-between gap-3">
               <span className="font-semibold text-tinta">{p.nombre}</span>
-              <span className="cifras font-semibold text-tinta">{euros(p.valor)}</span>
+              {/* Cada parte en la moneda de sus acciones (contrato v2.1): euros en el bróker, USDT en Binance. */}
+              <span className="cifras font-semibold text-tinta">{enMoneda(p.valor, p.moneda)}</span>
             </div>
             <div className="mt-0.5 flex items-baseline justify-between gap-3 text-sm text-tinta-suave">
               <span>{p.mercado === "bolsa" ? "Bolsa · en tu bróker" : "Cripto · en Binance"}</span>
-              <span className="cifras">puesto {euros(p.puesto)}</span>
+              <span className="cifras">puesto {enMoneda(p.puesto, p.moneda)}</span>
             </div>
+            {signoDecimal(p.efectivo) === 1 ? (
+              <p className="cifras mt-0.5 text-sm text-tinta-suave">
+                {enMoneda(p.efectivo, p.moneda)} de ello, sin invertir en tu bróker: lo que cobraste al vender y aún no has vuelto a
+                invertir.
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>

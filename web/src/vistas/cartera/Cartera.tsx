@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 
 import { api, pedir } from "@/api/cliente";
-import type { Movimiento, NuevoMovimiento, PosicionAbierta, PosicionRetirada, TipoMovimiento } from "@/api/tipos";
+import type {
+  Cartera as DatosCartera,
+  Movimiento,
+  NuevoMovimiento,
+  PosicionAbierta,
+  PosicionRetirada,
+  TipoMovimiento,
+} from "@/api/tipos";
 import { BuscadorActivo, type OpcionActivo } from "@/componentes/BuscadorActivo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { Hoja } from "@/componentes/Hoja";
@@ -30,10 +37,10 @@ import {
 import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useAccion, useConsulta } from "@/lib/consulta";
-import { formatoCantidad, signoDecimal } from "@/lib/decimal";
+import { compararDecimal, formatoCantidad, signoDecimal } from "@/lib/decimal";
 import { enMoneda, fecha, fechaCorta, hoyLocal, mesYAnioCorto, momento, simboloMoneda } from "@/lib/formato";
 import { leerImporte } from "@/lib/importe";
-import { base, enLaMoneda, monedaSupuesta, nombreLlano, unidad } from "@/lib/nombres";
+import { base, enLaMoneda, unidad } from "@/lib/nombres";
 
 import { Proteccion } from "./Proteccion";
 
@@ -111,7 +118,7 @@ const TEXTO_MOVIMIENTO = { compra: "Compra", venta: "Venta", ingreso: "Ingreso",
 /** El detalle de un movimiento, en llano. Los de referencia cuentan lo que de verdad compraste (`nota`). */
 function detalleMovimiento(m: Movimiento): string | null {
   if (m.tipo !== "compra" && m.tipo !== "venta") return m.nota;
-  if (m.es_referencia) return m.nota ?? "Compra de tu bróker anotada desde tu plan.";
+  if (m.es_referencia) return m.nota ?? `${m.tipo === "venta" ? "Venta" : "Compra"} de tu bróker anotada desde tu plan.`;
   const cuantas = m.simbolo?.includes("/") ? base(m.simbolo) : formatoCantidad(m.cantidad) === "1" ? "participación" : "participaciones";
   return `${formatoCantidad(m.cantidad)} ${cuantas} a ${enMoneda(m.precio, m.moneda)}`;
 }
@@ -163,31 +170,21 @@ const TIPOS: readonly { valor: TipoMovimiento; texto: string }[] = [
 ];
 
 /**
- * Los activos que el panel conoce (`GET /api/estado`), con su nombre llano y la moneda de su
- * precio. `GET /api/estado` solo trae el simbolo: el nombre y la moneda salen de la mesa de
- * rendimiento (v2.1) y, si no esta, del respaldo de lib/nombres.ts.
+ * Los activos que el panel conoce (`GET /api/estado`), con el nombre llano y la moneda de su
+ * precio que trae cada uno (contrato v2.1: `Activo.nombre` y `Activo.moneda`).
  */
 function useActivosConocidos(): OpcionActivo[] {
-  const { estado, versionDatos } = useEstado();
-  const rendimiento = useConsulta(`rendimiento:${versionDatos}`, () => pedir(api.GET("/api/mercado/rendimiento")));
+  const { estado } = useEstado();
   return useMemo(() => {
-    const filas = rendimiento.datos ? [...rendimiento.datos.bolsa, ...rendimiento.datos.cripto] : [];
-    const porSimbolo = new Map(filas.map((f) => [f.activo, f]));
     const vistos = new Set<string>();
     const lista: OpcionActivo[] = [];
     for (const a of estado?.activos ?? []) {
       if (vistos.has(a.symbol)) continue;
       vistos.add(a.symbol);
-      const f = porSimbolo.get(a.symbol);
-      lista.push({
-        simbolo: a.symbol,
-        nombre: f?.nombre ?? nombreLlano(a.symbol),
-        moneda: f?.moneda ?? monedaSupuesta(a.symbol),
-        cripto: a.is_crypto,
-      });
+      lista.push({ simbolo: a.symbol, nombre: a.nombre, moneda: a.moneda, cripto: a.is_crypto });
     }
     return lista.sort((x, y) => x.nombre.localeCompare(y.nombre, "es"));
-  }, [estado, rendimiento.datos]);
+  }, [estado]);
 }
 
 function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerrar: () => void }) {
@@ -200,13 +197,15 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
   const [comision, setComision] = useState("0");
   const conActivo = tipo === "compra" || tipo === "venta";
   const conocidos = useActivosConocidos();
-  // Si es un fondo de tu plan, la compra se anota desde "Ya lo he comprado": asi cuenta en el plan
-  // y se guarda con lo que de verdad pagaste en tu broker.
+  // Si es un fondo de tu plan que hoy toca comprar o vender, se anota desde "Ya lo he comprado" o
+  // "Ya lo he vendido": asi cuenta en el plan y se guarda con lo que de verdad pagaste o cobraste.
   const hoy = useConsulta(conActivo ? `hoy:${versionDatos}` : null, () => pedir(api.GET("/api/plan/hoy")));
+  const lado = tipo === "compra" ? "buy" : "sell";
   const delPlan =
-    tipo === "compra" && activo
-      ? (hoy.datos?.acciones.find((a) => a.donde === "broker" && (a.referencia ?? a.simbolo) === activo.simbolo) ?? null)
+    conActivo && activo
+      ? (hoy.datos?.acciones.find((a) => a.donde === "broker" && a.lado === lado && (a.referencia ?? a.simbolo) === activo.simbolo) ?? null)
       : null;
+  const boton = lado === "sell" ? "«Ya lo he vendido»" : "«Ya lo he comprado»";
   const moneda = conActivo ? (activo?.moneda ?? "") : "EUR";
   const sufijo = moneda ? simboloMoneda(moneda) : undefined;
 
@@ -255,10 +254,10 @@ function FormularioAnotar({ alAnotar, onCerrar }: { alAnotar: () => void; onCerr
       ) : null}
       {delPlan ? (
         <Aviso tipo="info" titulo="Es un fondo de tu plan">
-          Si lo compraste siguiendo tu plan, anótalo desde Invertir con «Ya lo he comprado»: así cuenta en tu plan y se guarda
-          con lo que pagaste en tu bróker.{" "}
+          Si lo {lado === "sell" ? "vendiste" : "compraste"} siguiendo tu plan, anótalo desde Invertir con {boton}: así cuenta en
+          tu plan y se guarda con lo que {lado === "sell" ? "cobraste" : "pagaste"} en tu bróker.{" "}
           <Link href={`/invertir/#accion-${delPlan.id}`} className="font-semibold underline underline-offset-4" onClick={onCerrar}>
-            Ir a «Ya lo he comprado»
+            Ir a {boton}
           </Link>
         </Aviso>
       ) : null}
@@ -355,36 +354,47 @@ function OrdenesEnviadas({ version }: { version: number }) {
 }
 
 /**
- * La linea "En total". La API suma sin convertir (contrato v2.1: "sin contar el cambio
- * euro-dolar"); si hay importes en varias monedas, se dice que la suma es aproximada.
+ * Lo que tienes sin invertir, en una frase. `efectivo` sale de tus movimientos (negativo si
+ * faltan ingresos por anotar); `efectivo_broker` es lo cobrado al vender con el plan y aún no
+ * reinvertido (v2.2), que tienes seguro en tu bróker aunque el efectivo salga menor.
  */
-function Total({ abiertas, valor, invertido, efectivo }: { abiertas: PosicionAbierta[]; valor: string | null; invertido: string; efectivo: string }) {
-  const monedas = [...new Set(abiertas.map((p) => p.moneda))];
-  const moneda = monedas.length === 1 ? (monedas[0] ?? "EUR") : "EUR";
-  const mezcla = monedas.length > 1;
+function sinInvertir(c: Pick<DatosCartera, "efectivo" | "efectivo_broker" | "moneda">): string | null {
+  const enBroker = signoDecimal(c.efectivo_broker) === 1;
+  const total = enBroker && compararDecimal(c.efectivo_broker, c.efectivo) >= 0 ? c.efectivo_broker : c.efectivo;
+  if (signoDecimal(total) !== 1) return null;
+  const cifra = enMoneda(total, c.moneda);
+  if (!enBroker) return `Además, ${cifra} sin invertir.`;
+  if (total === c.efectivo_broker) {
+    return `Además, ${cifra} sin invertir en tu bróker: lo que cobraste al vender con tu plan y aún no has vuelto a invertir.`;
+  }
+  return `Además, ${cifra} sin invertir; de ello, ${enMoneda(c.efectivo_broker, c.moneda)} en tu bróker, de lo que vendiste con tu plan.`;
+}
+
+/**
+ * La linea "En total", en la moneda de la cartera (`Cartera.moneda`). La API suma sin convertir y
+ * `nota_moneda` lo dice ("Aproximado: sin contar el cambio euro-dólar.").
+ */
+function Total({ c }: { c: DatosCartera }) {
+  const aproximado = c.nota_moneda !== null;
+  const efectivo = sinInvertir(c);
   return (
     <div className="space-y-1 border-t border-linea py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-[0.9375rem] text-tinta-suave">En total</p>
         <p className="cifras text-right text-[0.9375rem] text-tinta">
-          {valor === null ? (
+          {c.valor_total === null ? (
             "No se puede sumar: falta algún precio"
           ) : (
             <>
-              Valen {mezcla ? "unos " : ""}
-              <strong className="font-semibold">{enMoneda(valor, moneda)}</strong> · pusiste {enMoneda(invertido, moneda)}
+              Valen {aproximado ? "unos " : ""}
+              <strong className="font-semibold">{enMoneda(c.valor_total, c.moneda)}</strong> · pusiste{" "}
+              {enMoneda(c.invertido_abiertas, c.moneda)}
             </>
           )}
         </p>
       </div>
-      {signoDecimal(efectivo) === 1 ? (
-        <p className="cifras text-right text-sm text-tinta-suave">Además, {enMoneda(efectivo, "EUR")} sin invertir.</p>
-      ) : null}
-      {mezcla ? (
-        <p className="text-right text-sm text-tinta-suave">
-          Aproximado: suma {monedas.map((m) => enLaMoneda(m).replace(/^en /, "")).join(" y ")} sin contar el cambio.
-        </p>
-      ) : null}
+      {efectivo ? <p className="cifras text-right text-sm text-tinta-suave">{efectivo}</p> : null}
+      {c.nota_moneda ? <p className="text-right text-sm text-tinta-suave">{c.nota_moneda}</p> : null}
     </div>
   );
 }
@@ -461,7 +471,13 @@ export function Cartera() {
                   <FilaTienes key={p.activo} p={p} />
                 ))}
               </ul>
-              <Total abiertas={c.abiertas} valor={c.valor_total} invertido={c.invertido_abiertas} efectivo={c.efectivo} />
+              <Total c={c} />
+            </Tarjeta>
+          ) : null}
+          {c && !c.error && !c.abiertas.length && signoDecimal(c.efectivo_broker) === 1 ? (
+            // Lo vendiste todo con el plan y aún no lo has reinvertido: sin fondos, pero con dinero.
+            <Tarjeta className="p-5 sm:p-6">
+              <p className="cifras text-[0.9375rem] text-tinta">{sinInvertir(c)}</p>
             </Tarjeta>
           ) : null}
           {c?.abiertas.some((p) => p.es_referencia) ? (
