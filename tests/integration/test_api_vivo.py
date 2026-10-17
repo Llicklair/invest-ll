@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from invest_ll.api import vivo as rutas_vivo
-from invest_ll.api.schemas_v3 import Bots
+from invest_ll.api.schemas_v3 import Bots, EstadoReal
 from invest_ll.vivo import servicio
 from invest_ll.vivo.fuente import FuenteFalsa, Libro, Nivel
 
@@ -315,6 +315,14 @@ def test_el_canal_de_bots_lleva_lo_de_su_ruta(
         valor=None,
         ganancia=None,
         ganancia_pct=None,
+        real=EstadoReal(
+            bots_reales=0,
+            en_marcha=0,
+            perdida_hoy=Decimal(0),
+            limite_diario=None,
+            parado_todo=False,
+            aviso=None,
+        ),
         at=AHORA,
         nota="Dinero ficticio. Los bots solo funcionan con el panel abierto.",
     )

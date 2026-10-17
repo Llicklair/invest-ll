@@ -149,6 +149,13 @@ def _resumen(m: Motor, bot: Bot) -> ResumenBot:
         curva=_puntos(bot.curva_muestreada(ahora)),
         ultima_actividad=e.ultima_operacion,
         aviso=m.aviso(bot),
+        # Puente hasta los bots reales (v4): hoy todos son ficticios, sin exchange ni limites.
+        modo="ficticio",
+        exchange=None,
+        estrategia=None,
+        limites=None,
+        consumo=None,
+        probado_en_ficticio_dias=None,
     )
 
 
@@ -225,6 +232,15 @@ def lista() -> Bots:
         valor=_dinero(valor),
         ganancia=_dinero(ganancia),
         ganancia_pct=_fraccion(ganancia, capital),
+        # Puente hasta los bots reales (v4): todavia no hay ninguno.
+        real=EstadoReal(
+            bots_reales=0,
+            en_marcha=0,
+            perdida_hoy=Decimal(0),
+            limite_diario=None,
+            parado_todo=False,
+            aviso=None,
+        ),
         at=m.ahora(),
         nota=NOTA,
     )
