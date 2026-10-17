@@ -32,12 +32,27 @@ def test_solo_dos_modulos_pueden_salir_a_la_red() -> None:
         "analysis",  # datos fundamentales
         "live",  # ejecucion de ordenes
     }
-    clientes = ("anthropic", "ccxt", "yfinance", "requests", "httpx", "urllib", "socket")
+    # Dentro de un subpaquete que no sale a la red, un unico modulo que si: lo demas del
+    # subpaquete (interpretar mensajes, la cuenta de practica) se prueba sin red.
+    modulos_permitidos = {
+        "vivo/red.py",  # la conexion con Hyperliquid (panel v3, precios en vivo)
+    }
+    clientes = (
+        "anthropic",
+        "ccxt",
+        "yfinance",
+        "requests",
+        "httpx",
+        "urllib",
+        "socket",
+        "websockets",
+        "aiohttp",
+    )
 
     infractores: list[str] = []
     for fichero in FUENTE.rglob("*.py"):
         subpaquete = fichero.relative_to(FUENTE).parts[0]
-        if subpaquete in permitidos:
+        if subpaquete in permitidos or fichero.relative_to(FUENTE).as_posix() in modulos_permitidos:
             continue
         arbol = ast.parse(fichero.read_text(encoding="utf-8"), filename=str(fichero))
         for nodo in ast.walk(arbol):
@@ -51,6 +66,27 @@ def test_solo_dos_modulos_pueden_salir_a_la_red() -> None:
                     infractores.append(f"{fichero.relative_to(FUENTE)} importa {nombre}")
 
     assert not infractores, "modulos que salen a la red sin estar declarados: " + str(infractores)
+    for modulo in modulos_permitidos:
+        assert (FUENTE / modulo).exists(), f"{modulo} ya no existe: quitalo de la lista"
+
+
+def test_la_conexion_en_vivo_solo_se_importa_al_arrancar_el_panel() -> None:
+    """`vivo/red.py` sale a la red; nadie lo importa al cargar un modulo, solo
+    `servicio.arrancar()` (que solo llama el lanzador del panel, nunca los tests)."""
+    importadores: list[str] = []
+    for fichero in FUENTE.rglob("*.py"):
+        arbol = ast.parse(fichero.read_text(encoding="utf-8"), filename=str(fichero))
+        for nodo in arbol.body:  # solo lo de nivel de modulo: lo que se ejecuta al importar
+            if not isinstance(nodo, ast.ImportFrom | ast.Import):
+                continue
+            nombres = (
+                [a.name for a in nodo.names]
+                if isinstance(nodo, ast.Import)
+                else [f"{nodo.module}.{a.name}" for a in nodo.names] + [nodo.module or ""]
+            )
+            if "invest_ll.vivo.red" in nombres:
+                importadores.append(str(fichero.relative_to(FUENTE)))
+    assert not importadores, f"importan la conexion en vivo al cargarse: {importadores}"
 
 
 def test_ningun_test_llama_al_modelo_de_verdad() -> None:

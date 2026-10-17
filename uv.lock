@@ -696,11 +696,13 @@ dependencies = [
     { name = "ccxt" },
     { name = "exchange-calendars" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "keyring" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "uvicorn" },
+    { name = "websockets" },
     { name = "yfinance" },
 ]
 
@@ -719,11 +721,13 @@ requires-dist = [
     { name = "ccxt", specifier = ">=4.4" },
     { name = "exchange-calendars", specifier = ">=4.6" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "keyring", specifier = ">=25" },
     { name = "numpy", specifier = ">=2.1" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pyarrow", specifier = ">=17" },
     { name = "uvicorn", specifier = ">=0.30" },
+    { name = "websockets", specifier = ">=13" },
     { name = "yfinance", specifier = ">=0.2.50" },
 ]
 
