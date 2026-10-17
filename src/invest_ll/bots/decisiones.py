@@ -25,7 +25,7 @@ from decimal import ROUND_DOWN, Decimal
 from typing import TYPE_CHECKING, Final, Literal
 
 from invest_ll import llano
-from invest_ll.nombres import nombre_llano
+from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Mapping, Sequence
@@ -168,7 +168,7 @@ def btc_freno(s: Situacion) -> Decision:
             notas=(f"Esperando historia de {coin}: necesita {dias + 1} velas diarias cerradas.",)
         )
     cambio = velas[-1].cierre / velas[-1 - dias].cierre - 1
-    nombre = nombre_llano(coin)
+    nombre = nombre_hyperliquid(coin)
     if cambio > 0 and not _tiene(s, coin) and s.efectivo >= MINIMO_ORDEN:
         porque = f"{nombre} vale un {pct_txt(cambio)} respecto a hace {dias} días"
         return Decision(ordenes=(Orden(coin, "compra", porque, fraccion=UNO),))

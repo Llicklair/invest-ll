@@ -36,7 +36,7 @@ from invest_ll.bots import motor
 from invest_ll.bots.motor import NOTA, Motor
 from invest_ll.bots.plantillas import PLANTILLAS
 from invest_ll.bots.registro import CARPETA, BotNoEncontradoError
-from invest_ll.nombres import nombre_llano
+from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.bots.motor import Bot
@@ -159,7 +159,7 @@ def _posiciones(bot: Bot) -> list[PosicionPractica]:
         posiciones.append(
             PosicionPractica(
                 coin=coin,
-                nombre=nombre_llano(coin),
+                nombre=nombre_hyperliquid(coin),
                 cantidad=_cantidad(p.cantidad),
                 precio_medio=_cantidad(p.precio_medio.quantize(Decimal("1e-8"))),
                 precio=precio,
@@ -184,7 +184,7 @@ def _detalle(m: Motor, bot: Bot) -> DetalleBot:
                 OperacionBot(
                     at=o.at,
                     coin=o.coin,
-                    nombre=nombre_llano(o.coin),
+                    nombre=nombre_hyperliquid(o.coin),
                     lado=o.lado,
                     cantidad=_cantidad(o.cantidad),
                     precio=_cantidad(o.precio),

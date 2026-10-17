@@ -56,7 +56,7 @@ from invest_ll.bots.registro import (
     TipoEvento,
     nuevo_id,
 )
-from invest_ll.nombres import nombre_llano
+from invest_ll.nombres import nombre_hyperliquid
 from invest_ll.vivo.ejecucion import COMISIONES, Comisiones, LibroInsuficienteError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -319,7 +319,7 @@ class Motor:
             bot = Bot(definicion, estado, [])
             self._refrescar_precios(bot)
             self.registro.crear(definicion, estado)
-            monedas_txt = y([nombre_llano(c) for c in v.monedas])
+            monedas_txt = y([nombre_hyperliquid(c) for c in v.monedas])
             self._evento(
                 bot,
                 ahora,

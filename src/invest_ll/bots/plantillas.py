@@ -23,7 +23,7 @@ from invest_ll import llano
 from invest_ll.bots import decisiones
 from invest_ll.bots.decisiones import MINIMO_ORDEN
 from invest_ll.errors import InvestLLError
-from invest_ll.nombres import nombre_llano
+from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Mapping, Sequence
@@ -107,7 +107,7 @@ class Plantilla:
     def evidencia_para(self, monedas: Sequence[str]) -> Evidencia:
         """La evidencia de un bot concreto: la regla de Bitcoin con freno se probó con Bitcoin."""
         if self.clave == "btc-freno" and tuple(monedas) != ("BTC",):
-            cuales = decisiones.y([nombre_llano(c) for c in monedas])
+            cuales = decisiones.y([nombre_hyperliquid(c) for c in monedas])
             return Evidencia(
                 "ninguna",
                 f"La regla de «Bitcoin con freno» se probó con Bitcoin; con {cuales} no hay "
