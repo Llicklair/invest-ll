@@ -25,6 +25,10 @@ dependencies = [
     # (en Windows, el Administrador de credenciales), nunca a un fichero. Solo lo usa
     # src/invest_ll/live/credenciales.py; la linea de comandos sigue leyendo solo del entorno.
     "keyring>=25",
+    # Precios en vivo de Hyperliquid (panel v3): el WebSocket y su REST publico. Solo los usa
+    # src/invest_ll/vivo/red.py (tests/unit/test_no_network_in_suite.py lo vigila).
+    "websockets>=13",
+    "httpx>=0.27",
 ]
 
 [project.scripts]

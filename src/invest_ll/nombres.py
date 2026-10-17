@@ -78,6 +78,81 @@ NOMBRES: Final[dict[str, str]] = {
     "LUNA": "Terra (LUNA)",
 }
 
+NOMBRES_HYPERLIQUID: Final[dict[str, str]] = {
+    # Las monedas de Hyperliquid que no están arriba, por su nombre allí (distingue mayúsculas).
+    # Las más negociadas; las demás se enseñan con su símbolo.
+    "HYPE": "Hyperliquid",
+    "PURR": "Purr",
+    "FARTCOIN": "Fartcoin",
+    "TRUMP": "Official Trump",
+    "BONK": "Bonk",
+    "FLOKI": "Floki",
+    "WIF": "dogwifhat",
+    "ZEC": "Zcash",
+    "XMR": "Monero",
+    "TIA": "Celestia",
+    "INJ": "Injective",
+    "SEI": "Sei",
+    "JUP": "Jupiter",
+    "PENGU": "Pudgy Penguins",
+    "VIRTUAL": "Virtuals Protocol",
+    "MKR": "Maker",
+    "CRV": "Curve",
+    "LDO": "Lido",
+    "ONDO": "Ondo",
+    "RENDER": "Render",
+    "FET": "Fetch.ai",
+    "BERA": "Berachain",
+    "KAITO": "Kaito",
+    "XPL": "Plasma",
+    "ASTER": "Aster",
+    "WLFI": "World Liberty Financial",
+    "STX": "Stacks",
+    "IP": "Story",
+    "JTO": "Jito",
+    "PYTH": "Pyth Network",
+    "STRK": "Starknet",
+    "ZRO": "LayerZero",
+    "EIGEN": "EigenLayer",
+    "ETHFI": "ether.fi",
+    "PENDLE": "Pendle",
+    "GMX": "GMX",
+    "DYDX": "dYdX",
+    "SAND": "The Sandbox",
+    "APE": "ApeCoin",
+    "IMX": "Immutable",
+    "GALA": "Gala",
+    "RUNE": "THORChain",
+    "ALGO": "Algorand",
+    "KAS": "Kaspa",
+    "W": "Wormhole",
+    "NOT": "Notcoin",
+    "MOVE": "Movement",
+    "PAXG": "Oro tokenizado (PAX Gold)",
+    "LUNC": "Terra Classic",
+    "NEIRO": "Neiro",
+    "DOGS": "Dogs",
+    "MON": "Monad",
+    "VVV": "Venice",
+}
+
+POR_MIL_HYPERLIQUID: Final = "k"
+"""Hyperliquid cotiza algunas monedas de precio diminuto por miles: `kPEPE` son 1.000 PEPE."""
+
+
+def nombre_hyperliquid(coin: str) -> str:
+    """El nombre llano de una moneda de Hyperliquid (`BTC` -> Bitcoin, `kPEPE` -> Pepe (por
+    1.000)). Si no se conoce, su símbolo tal cual."""
+    if coin in NOMBRES_HYPERLIQUID:
+        return NOMBRES_HYPERLIQUID[coin]
+    if coin in NOMBRES:
+        return NOMBRES[coin]
+    resto = coin.removeprefix(POR_MIL_HYPERLIQUID)
+    if resto != coin and resto and resto.isupper():
+        return f"{nombre_hyperliquid(resto)} (por 1.000)"
+    return coin
+
+
 _EQUIVALENTES: Final[dict[str, tuple[str, str]]] = {
     # simbolo -> (forma corta para un titulo, que comprar desde Espana)
     "SPY": (
