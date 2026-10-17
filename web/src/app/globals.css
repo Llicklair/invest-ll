@@ -246,6 +246,13 @@ body {
   outline-offset: 2px;
 }
 
+/* Titulos que reciben el foco por programa (al abrir una hoja, al cambiar de paso): el lector de
+   pantalla los anuncia, pero no son controles y no llevan anillo. */
+[data-titulo-hoja]:focus,
+h2[tabindex="-1"]:focus {
+  outline: none;
+}
+
 ::selection {
   background: var(--marca-suave);
   color: var(--tinta);

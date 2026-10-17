@@ -21,6 +21,7 @@ export function CampoImporte({
   grande = false,
   className,
   id: idPropio,
+  ejemplo,
 }: {
   etiqueta: ReactNode;
   ayuda?: ReactNode;
@@ -31,6 +32,8 @@ export function CampoImporte({
   grande?: boolean;
   className?: string;
   id?: string;
+  /** Texto de ejemplo dentro del campo vacio ("p. ej. 6.000"); nunca "0", que parece un valor. */
+  ejemplo?: string;
 }) {
   const idAuto = useId();
   const id = idPropio ?? idAuto;
@@ -57,7 +60,7 @@ export function CampoImporte({
           autoComplete="off"
           aria-invalid={error ? true : undefined}
           aria-describedby={describe}
-          placeholder="0"
+          placeholder={ejemplo}
           className={clases(
             "cifras w-full rounded-xl border bg-superficie pr-12 pl-4 text-tinta placeholder:text-tinta-suave/50 hover:border-linea-control aria-[invalid=true]:border-real",
             grande ? "min-h-14 text-2xl" : "min-h-12 text-lg",
@@ -68,6 +71,11 @@ export function CampoImporte({
           €
         </span>
       </div>
+      {error ? (
+        <p id={idError} className="text-sm font-medium text-real-tinta">
+          {error}
+        </p>
+      ) : null}
       {atajos?.length ? (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Cantidades rápidas">
           {atajos.map((a) => {
@@ -88,11 +96,6 @@ export function CampoImporte({
             );
           })}
         </div>
-      ) : null}
-      {error ? (
-        <p id={idError} className="text-sm font-medium text-real-tinta">
-          {error}
-        </p>
       ) : null}
     </div>
   );

@@ -87,7 +87,7 @@ function BloqueParte({
       {elegida ? (
         <>
           <MedidorRiesgo nivel={elegida.riesgo} texto={elegida.riesgo_texto} compacto />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <CampoImporte etiqueta="Para empezar" valor={parte.inicial} onCambio={(v) => onCambio({ ...parte, inicial: v })} />
             <CampoImporte etiqueta="Cada mes" valor={parte.mensual} onCambio={(v) => onCambio({ ...parte, mensual: v })} />
           </div>

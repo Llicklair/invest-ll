@@ -12,11 +12,20 @@ import { useConsulta } from "@/lib/consulta";
 
 import { Cuestionario } from "./Cuestionario";
 import { useCatalogo } from "./datos";
-import { perfilDe, useRecorrido } from "./estado";
+import { perfilDe, useRecorrido, type Recorrido } from "./estado";
 import { Propuesta, type PartePrecargada } from "./Propuesta";
 import { TuPlan, borradorDe } from "./TuPlan";
 
 const PASOS = ["Cuéntanos", "Te proponemos", "Tu plan"] as const;
+
+/** Mirar todas sin responder: con unos numeros de ejemplo a la vista (y editables), no en blanco. */
+function aCatalogo(r: Recorrido): Partial<Recorrido> {
+  return {
+    via: "catalogo",
+    paso: 1,
+    respuestas: { ...r.respuestas, inicial: r.respuestas.inicial || "1.000", mensual: r.respuestas.mensual || "100" },
+  };
+}
 
 function quitarAncla() {
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -38,7 +47,7 @@ export function Estrategias() {
   // Entradas por ancla: desde la bienvenida ("Ya se lo que quiero") o desde "Cambiar mi plan".
   useEffect(() => {
     if (ancla === "catalogo") {
-      cambiar({ via: "catalogo", paso: 1 });
+      cambiar(aCatalogo);
       quitarAncla();
     } else if (ancla === "plan" && (plan.datos || plan.error)) {
       cambiar({ paso: 2, precarga: plan.datos?.plan?.partes ?? [], entrada: Date.now() });
@@ -96,7 +105,7 @@ export function Estrategias() {
               window.scrollTo({ top: 0 });
             }}
             onCatalogo={() => {
-              cambiar({ paso: 1, via: "catalogo" });
+              cambiar(aCatalogo);
               window.scrollTo({ top: 0 });
             }}
           />

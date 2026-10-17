@@ -56,7 +56,15 @@ function TextoAnio({ anio }: { anio: number }) {
 }
 
 /** La recomendacion: el reparto en grande, una barra con sus dos partes y el porque. */
-function TePropomenos({ rec, huecos }: { rec: Recomendacion; huecos: Record<string, number> }) {
+function TePropomenos({
+  rec,
+  huecos,
+  nombres,
+}: {
+  rec: Recomendacion;
+  huecos: Record<string, number>;
+  nombres: Record<string, string>;
+}) {
   return (
     <Tarjeta className="overflow-hidden">
       <div className="space-y-5 p-5 sm:p-7">
@@ -108,6 +116,20 @@ function TePropomenos({ rec, huecos }: { rec: Recomendacion; huecos: Record<stri
             {a}
           </p>
         ))}
+        {rec.alternativas.length ? (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
+            <span className="text-[0.9375rem] text-tinta">También encajan contigo:</span>
+            {rec.alternativas.map((c) => (
+              <a
+                key={c}
+                href={`#estrategia-${c}`}
+                className="inline-flex min-h-11 items-center px-1 text-[0.9375rem] font-semibold text-marca underline-offset-4 hover:underline"
+              >
+                {nombres[c] ?? c}
+              </a>
+            ))}
+          </div>
+        ) : null}
       </div>
     </Tarjeta>
   );
@@ -154,9 +176,10 @@ export function Propuesta({
   onSeguir: (partes: PartePrecargada[]) => void;
 }) {
   const catalogo = useCatalogo();
-  const clavePerfil = perfil ? JSON.stringify(perfil) : null;
+  // Se recalcula cuando se deja de teclear en "Con tus numeros", no con cada tecla.
+  const clavePerfil = useRetardado(perfil ? JSON.stringify(perfil) : null, 450);
   const rec = useConsulta(clavePerfil ? `recomendar:${clavePerfil}` : null, () =>
-    pedir(api.POST("/api/estrategias/recomendar", { body: perfil as Perfil, ...conPlazo() })),
+    pedir(api.POST("/api/estrategias/recomendar", { body: JSON.parse(clavePerfil ?? "{}") as Perfil, ...conPlazo() })),
   );
   const [verIgualmente, setVerIgualmente] = useState(false);
   const [comparando, setComparando] = useState(false);
@@ -184,7 +207,8 @@ export function Propuesta({
   const ordenadas = [...todas].sort((a, b) => {
     const ia = recomendadas.indexOf(a.clave);
     const ib = recomendadas.indexOf(b.clave);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    // Las recomendadas primero; el resto, de la mas tranquila a la mas movida.
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.riesgo - b.riesgo;
   });
 
   const seguir = () => {
@@ -218,12 +242,12 @@ export function Propuesta({
     <div className="space-y-10 pb-24">
       <div className="max-w-2xl">
         <h2 className="titular text-[1.75rem] leading-tight font-semibold text-tinta lg:text-[2rem]">
-          {perfil ? "Esto es lo que te proponemos" : "Todas las estrategias"}
+          {r?.no_invertir ? "Antes de seguir" : perfil ? "Esto es lo que te proponemos" : "Todas las estrategias"}
         </h2>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-tinta-suave lg:text-base">
           {perfil
             ? "Sale de tus respuestas con unas reglas fijas, a la vista. Debajo, lo que habría pasado con tus números y todas las alternativas."
-            : "Seis formas de invertir, de la más tranquila a la más movida, con lo que habría pasado con unos números de ejemplo. Cámbialos por los tuyos."}
+            : `${todas.length || "Varias"} formas de invertir, de la más tranquila a la más movida, con lo que habría pasado con unos números de ejemplo. Cámbialos por los tuyos.`}
         </p>
       </div>
 
@@ -235,6 +259,7 @@ export function Propuesta({
           <p className="titular text-2xl leading-snug font-semibold text-tinta">Para este dinero, mejor no invertir</p>
           <p className="max-w-2xl text-[0.9375rem] leading-relaxed text-tinta">
             Para dinero que necesitas en menos de 2 años, ninguna de estas estrategias es buena idea: en su peor momento
+            {" "}
             {rangoCaidas(todas)}. Una cuenta remunerada o un depósito encajan mejor.
           </p>
           {!verIgualmente ? (
@@ -247,7 +272,9 @@ export function Propuesta({
 
       {bloqueado ? null : (
         <>
-          {r ? <TePropomenos rec={r} huecos={huecosGrafica} /> : null}
+          {r ? (
+            <TePropomenos rec={r} huecos={huecosGrafica} nombres={Object.fromEntries(todas.map((e) => [e.clave, e.nombre]))} />
+          ) : null}
 
           <section aria-labelledby="numeros-titulo" className="space-y-5">
             <div>
@@ -345,6 +372,7 @@ export function Propuesta({
         </>
       )}
 
+      {bloqueado ? null : (
       <BarraAccion>
           {comparando ? (
             <>
@@ -368,6 +396,7 @@ export function Propuesta({
             </>
           )}
       </BarraAccion>
+      )}
 
       <HojaEstrategia estrategia={hoja} onCerrar={() => setHoja(null)} />
       <Comparador

@@ -359,7 +359,7 @@ export function Conexion() {
             <li>Pega aquí la clave y el secreto, y prueba la conexión.</li>
           </ol>
           <Claves red="pruebas" conexion={conexion} onCambio={refrescarDatos} />
-          {modo === "simulacion" ? (
+          {modo === "simulacion" && pruebas?.claves_guardadas ? (
             <CambiarModo a="pruebas" conexion={conexion} onCambio={refrescarDatos} texto="Usar el modo pruebas" />
           ) : null}
           <QueEsEsto clave="pruebas" />

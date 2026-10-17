@@ -128,6 +128,7 @@ export function Cuestionario({
               onCambio={(v) => fijar("inicial", v)}
               error={error("inicial")}
               atajos={["0", "1000", "5000", "10000"]}
+              ejemplo="p. ej. 6.000"
             />
           </div>
         </Tarjeta>
@@ -141,6 +142,7 @@ export function Cuestionario({
               onCambio={(v) => fijar("mensual", v)}
               error={error("mensual")}
               atajos={["0", "50", "100", "200", "500"]}
+              ejemplo="p. ej. 200"
             />
           </div>
         </Tarjeta>

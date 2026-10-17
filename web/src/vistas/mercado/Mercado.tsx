@@ -53,7 +53,11 @@ function Grafica({ fila }: { fila: FilaRendimiento }) {
           <div key={String(t)} className="rounded-xl bg-superficie-2 px-4 py-3">
             <dt className="text-sm text-tinta-suave">{t}</dt>
             <dd className="mt-0.5 text-lg font-semibold text-tinta">
-              {typeof v === "number" || v === null ? <CambioPct pct={v as number | null} /> : <span className="cifras">{v}</span>}
+              {typeof v === "number" || v === null ? (
+                <CambioPct pct={v as number | null} neutro={t === "Desde su máximo"} />
+              ) : (
+                <span className="cifras">{v}</span>
+              )}
             </dd>
           </div>
         ))}

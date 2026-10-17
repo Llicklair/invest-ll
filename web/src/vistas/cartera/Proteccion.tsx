@@ -141,7 +141,7 @@ export function Proteccion({ simbolos }: { simbolos: string[] }) {
       {consulta.error ? <ErrorApiVista error={consulta.error} reintentar={consulta.recargar} /> : null}
       {!t && consulta.cargando ? <Cargando /> : null}
       {t ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <Tarjeta className="space-y-5 p-5 sm:p-6">
             <div className="flex items-center gap-3">
               <ShieldCheck aria-hidden="true" className="h-5 w-5 text-marca" strokeWidth={1.75} />
@@ -172,11 +172,16 @@ export function Proteccion({ simbolos }: { simbolos: string[] }) {
                 })}
               </ul>
             ) : (
-              <p className="text-[0.9375rem] text-tinta-suave">No tienes ningún freno puesto.</p>
+              <p className="text-[0.9375rem] text-tinta-suave">
+                {simbolos.length
+                  ? "No tienes ningún freno puesto."
+                  : "Cuando tengas algo comprado, aquí podrás ponerle un freno: un aviso con una propuesta de venta si cae más de lo que aceptas."}
+              </p>
             )}
             {quitar.error ? <ErrorApiVista error={quitar.error} prefijo="No se quitó:" /> : null}
-            <Comprobar armados={t.triggers.length} />
+            {t.triggers.length ? <Comprobar armados={t.triggers.length} /> : null}
 
+            {simbolos.length || t.triggers.length ? (
             <form onSubmit={enviarFreno} className="space-y-4 border-t border-linea pt-5">
               <p className="font-semibold text-tinta">Poner un freno</p>
               <div className="grid gap-4">
@@ -211,6 +216,7 @@ export function Proteccion({ simbolos }: { simbolos: string[] }) {
                 </Aviso>
               ) : null}
             </form>
+            ) : null}
           </Tarjeta>
 
           <Tarjeta className="space-y-5 p-5 sm:p-6">

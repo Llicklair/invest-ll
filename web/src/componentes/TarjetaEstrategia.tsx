@@ -88,11 +88,12 @@ export function TarjetaEstrategia({
     <Tarjeta
       como="article"
       className={clases(
-        "flex flex-col gap-5 p-5 sm:p-6",
+        "flex scroll-mt-24 flex-col gap-5 p-5 sm:p-6",
         recomendada !== null && "ring-2 ring-destaque/70",
         elegida && "ring-2 ring-marca",
       )}
-      aria-labelledby={`estrategia-${e.clave}`}
+      aria-labelledby={`titulo-${e.clave}`}
+      id={`estrategia-${e.clave}`}
     >
       <div className="space-y-3">
         {recomendada !== null ? (
@@ -101,7 +102,7 @@ export function TarjetaEstrategia({
           </Chip>
         ) : null}
         <div className="flex items-start gap-3">
-          <h3 id={`estrategia-${e.clave}`} className="titular min-w-0 flex-1 text-[1.5rem] leading-tight font-semibold text-tinta">
+          <h3 id={`titulo-${e.clave}`} className="titular min-w-0 flex-1 text-[1.5rem] leading-tight font-semibold text-tinta">
             {e.nombre}
           </h3>
           {color ? (

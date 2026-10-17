@@ -204,7 +204,8 @@ function AvisoSinModo() {
   return (
     <Aviso tipo="critico" titulo="No se ha podido leer el modo de operación" className="mb-6">
       Este panel no puede decirte si envía órdenes o no, así que no ofrece nada que mueva dinero hasta que la API
-      responda. {error.detalle}
+      responda.
+      <span className="mt-1 block text-sm opacity-90">La API dice: {error.detalle}</span>
     </Aviso>
   );
 }

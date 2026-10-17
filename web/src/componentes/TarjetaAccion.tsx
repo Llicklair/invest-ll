@@ -131,7 +131,7 @@ export function FilaAccion({ accion: a }: { accion: Accion }) {
         <IconoDonde donde={a.donde} />
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-tinta">{a.titulo}</span>
-          <span className="cifras block truncate text-sm text-tinta-suave">
+          <span className="cifras block text-sm text-tinta-suave">
             {a.donde === "binance" ? `${cuantoAccion(a)} · en Binance` : "En tu bróker · lo compras tú"}
           </span>
         </span>
