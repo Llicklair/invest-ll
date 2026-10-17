@@ -1,0 +1,10 @@
+# Dependencias y salidas de Next: se regeneran con `npm ci` / `npm run build`.
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# El .gitignore de la raiz ignora `.env.*` para no commitear secretos. Este no tiene ninguno:
+# solo dice a `npm run dev` donde escucha la API en desarrollo.
+!.env.development

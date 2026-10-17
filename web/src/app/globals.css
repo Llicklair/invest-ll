@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+/*
+ * Tokens del panel. Los colores de serie son la paleta de referencia de la skill de dataviz,
+ * validada con su script en los dos modos (huecos adyacentes: CVD >= 8,4; vision normal >= 19,3).
+ * En claro, tres huecos quedan por debajo de 3:1 sobre la superficie: por eso toda grafica lleva
+ * leyenda, etiquetas directas y su vista en tabla.
+ * Los textos de subida/bajada y los avisos se comprobaron contra WCAG (>= 4,5:1).
+ */
+:root {
+  color-scheme: light;
+  --pagina: #f9f9f7;
+  --superficie: #fcfcfb;
+  --superficie-2: #f0efec;
+  --superficie-3: #e6e5df;
+  --tinta: #0b0b0b;
+  --tinta-2: #52514e;
+  --tinta-3: #6b6a65;
+  --rejilla: #e1e0d9;
+  --eje: #c3c2b7;
+  --borde: rgba(11, 11, 11, 0.14);
+  --sube: #006300;
+  --baja: #c22f2f;
+  --acento: #1c5cab;
+  --acento-hover: #184f95;
+  --acento-tinta: #ffffff;
+  --foco: #2a78d6;
+  --peligro: #b42727;
+  --peligro-hover: #9a1f1f;
+
+  --aviso-fondo: #fdf3dc;
+  --aviso-tinta: #7a4b00;
+  --aviso-borde: #fab219;
+  --critico-fondo: #fbe7e6;
+  --critico-tinta: #8f1f1f;
+  --critico-borde: #d03b3b;
+  --info-fondo: #e8f0fb;
+  --info-tinta: #184f95;
+  --info-borde: #3987e5;
+  --ok-fondo: #e4f3e4;
+  --ok-tinta: #0f5c0f;
+  --ok-borde: #0ca30c;
+
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
+  --serie-6: #008300;
+  --serie-7: #6250d6;
+  --serie-8: #e34948;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --pagina: #0d0d0d;
+    --superficie: #1a1a19;
+    --superficie-2: #262624;
+    --superficie-3: #313130;
+    --tinta: #f0efec;
+    --tinta-2: #c3c2b7;
+    --tinta-3: #a3a199;
+    --rejilla: #2c2c2a;
+    --eje: #383835;
+    --borde: rgba(255, 255, 255, 0.14);
+    --sube: #0ca30c;
+    --baja: #f07a7a;
+    --acento: #256abf;
+    --acento-hover: #2a78d6;
+    --acento-tinta: #ffffff;
+    --foco: #86b6ef;
+    --peligro: #b42727;
+    --peligro-hover: #c93434;
+
+    --aviso-fondo: #2e2410;
+    --aviso-tinta: #f5c35c;
+    --aviso-borde: #fab219;
+    --critico-fondo: #331616;
+    --critico-tinta: #f19a9a;
+    --critico-borde: #d03b3b;
+    --info-fondo: #14233a;
+    --info-tinta: #9ec5f4;
+    --info-borde: #3987e5;
+    --ok-fondo: #132a13;
+    --ok-tinta: #7fd67f;
+    --ok-borde: #0ca30c;
+
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+    --serie-3: #199e70;
+    --serie-4: #c98500;
+    --serie-5: #d55181;
+    --serie-6: #008300;
+    --serie-7: #9085e9;
+    --serie-8: #e66767;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --pagina: #0d0d0d;
+  --superficie: #1a1a19;
+  --superficie-2: #262624;
+  --superficie-3: #313130;
+  --tinta: #f0efec;
+  --tinta-2: #c3c2b7;
+  --tinta-3: #a3a199;
+  --rejilla: #2c2c2a;
+  --eje: #383835;
+  --borde: rgba(255, 255, 255, 0.14);
+  --sube: #0ca30c;
+  --baja: #f07a7a;
+  --acento: #256abf;
+  --acento-hover: #2a78d6;
+  --acento-tinta: #ffffff;
+  --foco: #86b6ef;
+  --peligro: #b42727;
+  --peligro-hover: #c93434;
+
+  --aviso-fondo: #2e2410;
+  --aviso-tinta: #f5c35c;
+  --aviso-borde: #fab219;
+  --critico-fondo: #331616;
+  --critico-tinta: #f19a9a;
+  --critico-borde: #d03b3b;
+  --info-fondo: #14233a;
+  --info-tinta: #9ec5f4;
+  --info-borde: #3987e5;
+  --ok-fondo: #132a13;
+  --ok-tinta: #7fd67f;
+  --ok-borde: #0ca30c;
+
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+  --serie-4: #c98500;
+  --serie-5: #d55181;
+  --serie-6: #008300;
+  --serie-7: #9085e9;
+  --serie-8: #e66767;
+}
+
+@theme inline {
+  --color-pagina: var(--pagina);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-superficie-3: var(--superficie-3);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-3: var(--tinta-3);
+  --color-rejilla: var(--rejilla);
+  --color-eje: var(--eje);
+  --color-borde: var(--borde);
+  --color-sube: var(--sube);
+  --color-baja: var(--baja);
+  --color-acento: var(--acento);
+  --color-acento-hover: var(--acento-hover);
+  --color-acento-tinta: var(--acento-tinta);
+  --color-foco: var(--foco);
+  --color-peligro: var(--peligro);
+  --color-peligro-hover: var(--peligro-hover);
+  --color-aviso-fondo: var(--aviso-fondo);
+  --color-aviso-tinta: var(--aviso-tinta);
+  --color-aviso-borde: var(--aviso-borde);
+  --color-critico-fondo: var(--critico-fondo);
+  --color-critico-tinta: var(--critico-tinta);
+  --color-critico-borde: var(--critico-borde);
+  --color-info-fondo: var(--info-fondo);
+  --color-info-tinta: var(--info-tinta);
+  --color-info-borde: var(--info-borde);
+  --color-ok-fondo: var(--ok-fondo);
+  --color-ok-tinta: var(--ok-tinta);
+  --color-ok-borde: var(--ok-borde);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+}
+
+html {
+  background: var(--pagina);
+}
+
+body {
+  background: var(--pagina);
+  color: var(--tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco siempre visible con teclado: anillo de 2px en el color de foco, separado de la marca. */
+:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tablas densas: cabeceras fijas al hacer scroll dentro de su caja. */
+.tabla-densa th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--superficie-2);
+}
+
+/* Las graficas de Recharts heredan la tipografia y no dibujan el contorno de foco del SVG. */
+.recharts-surface:focus {
+  outline: none;
+}
+.recharts-wrapper:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

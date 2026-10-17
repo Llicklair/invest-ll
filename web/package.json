@@ -1,0 +1,37 @@
+{
+  "name": "invest-ll-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "El panel de INVEST LL: frontend Next.js exportado como estatico y servido por la API en /",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "dev:mock": "node scripts/dev-mock.mjs",
+    "build": "next build",
+    "postbuild": "node scripts/aplanar-segmentos.mjs",
+    "lint": "eslint .",
+    "comprobar": "tsc --noEmit",
+    "tipos": "openapi-typescript openapi.json --output src/api/esquema.d.ts"
+  },
+  "dependencies": {
+    "next": "16.3.8",
+    "openapi-fetch": "0.17.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-is": "19.3.0",
+    "recharts": "3.10.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.8",
+    "openapi-typescript": "7.13.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
