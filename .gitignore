@@ -54,6 +54,7 @@ Thumbs.db
 /config/
 /bots/
 /practica/
+/medida/
 # paper/ is tracked on purpose: a forward-test record committed before the outcome is
 # known is the only proof that it was not fitted afterwards.
 
