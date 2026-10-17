@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, CirclePause, CirclePlay, Clock, Info, OctagonAlert, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, CircleAlert, CirclePause, CirclePlay, Clock, Info, OctagonAlert, Play, ShieldAlert, SlidersHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,10 +18,12 @@ import { Aviso, Boton, CargandoLento, ErrorApiVista, Esqueleto, Seccion, Tarjeta
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { formatoCantidad, formatoImporte } from "@/lib/decimal";
 import { fecha, fraccion, fraccionCoherente, momento, signoImporteVisible } from "@/lib/formato";
+import { nombreExchange } from "@/lib/nombres";
 import { nombreIntervalo } from "@/lib/vivo";
 
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, NotaBots, PctColor, diasTexto, usdc } from "./comun";
 import { CurvaBot } from "./CurvaBot";
+import { ChipModo, HojaActivarReal, HojaLimites, LimitesConsumo, PanelReal, pausadoSolo } from "./real";
 
 const CANALES: readonly CanalVivo[] = ["bots", "estado"];
 const SONDEO_FICHA_MS = 5000;
@@ -57,6 +59,15 @@ function Ficha({ id }: { id: string }) {
   const lista = useVivo("bots");
   // Lo que devolvio una accion (parar, reanudar) vale hasta la siguiente vuelta del sondeo.
   const [propio, setPropio] = useState<{ datos: DetalleBot; vuelta: number } | null>(null);
+  const [hojaReal, setHojaReal] = useState(false);
+  const [hojaLimites, setHojaLimites] = useState(false);
+  const almacen = useAlmacenVivo();
+  /** Lo que devuelve una accion vale hasta el siguiente sondeo, y el stream se entera al momento. */
+  const alCambiar = (d: DetalleBot) => {
+    setPropio({ datos: d, vuelta });
+    const l = almacen.leer("bots");
+    if (l) almacen.fijarYa("bots", { ...l, bots: l.bots.map((b) => (b.id === d.id ? { ...b, estado: d.estado, motivo_error: d.motivo_error, aviso: d.aviso, modo: d.modo, limites: d.limites, consumo: d.consumo } : b)) });
+  };
 
   if (!id) {
     return (
@@ -94,7 +105,8 @@ function Ficha({ id }: { id: string }) {
     <div className="space-y-10">
       <div className="space-y-5">
         <Volver />
-        <Cabecera bot={bot} onCambio={(d) => setPropio({ datos: d, vuelta })} />
+        {lista && bot.modo !== "ficticio" ? <PanelReal datos={lista} /> : null}
+        <Cabecera bot={bot} onCambio={alCambiar} onActivarReal={() => setHojaReal(true)} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <NotaBots texto={lista?.nota} />
           <EstadoEnVivo />
@@ -104,9 +116,18 @@ function Ficha({ id }: { id: string }) {
             Desplegado. Empieza a operar en su próxima decisión; mientras, aquí verás lo que vale minuto a minuto.
           </Aviso>
         ) : null}
+        {bot.modo === "real" ? (
+          <Aviso tipo="critico" titulo={`Opera con dinero real en ${nombreExchange(bot.exchange)}`}>
+            Compra y vende solo, con tu dinero, sin pedirte confirmación en cada orden y nunca fuera de sus límites. Para pararlo: «Parar» aquí, o «Parar todo lo real» arriba.
+          </Aviso>
+        ) : null}
         {bot.estado === "error" && bot.motivo_error ? (
           <Aviso tipo="critico" titulo="El bot se ha parado por un error">
             {bot.motivo_error}
+          </Aviso>
+        ) : pausadoSolo(bot) ? (
+          <Aviso tipo="critico" titulo="Necesita que lo mires antes de reanudarlo">
+            {bot.aviso}
           </Aviso>
         ) : bot.aviso ? (
           <Aviso tipo="aviso">{bot.aviso}</Aviso>
@@ -128,6 +149,25 @@ function Ficha({ id }: { id: string }) {
         <CurvaBot curva={bot.curva} mantener={base?.curva_mantener ?? []} capital={Number(bot.capital)} nombre={bot.nombre} atenuada={detalle.cargando && !detalle.datos} />
         <QueEsEsto clave="mantener" className="text-sm" />
       </section>
+
+      {bot.modo !== "ficticio" || bot.limites ? (
+        <Seccion
+          titulo="Sus límites"
+          bajada={bot.limites ? "Antes de cada orden se comprueba que cabe; si no, no sale y lo apunta." : "Sin límites no puede usarse con dinero real."}
+          accion={
+            <Boton tamano="compacto" onClick={() => setHojaLimites(true)}>
+              <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+              {bot.limites ? "Cambiar los límites" : "Ponerle límites"}
+            </Boton>
+          }
+        >
+          {bot.limites ? (
+            <Tarjeta className="p-5">
+              <LimitesConsumo bot={bot} className="max-w-xl" />
+            </Tarjeta>
+          ) : null}
+        </Seccion>
+      ) : null}
 
       <Seccion titulo="Lo que tiene" bajada={`Valorado a precios de ahora. Además tiene ${usdc(base?.efectivo)} sin invertir.`}>
         {base?.posiciones.length ? (
@@ -180,8 +220,22 @@ function Ficha({ id }: { id: string }) {
       <Seccion titulo="Cómo está ajustado" bajada={plantilla ? `${plantilla.nombre}: ${plantilla.frase}` : undefined}>
         <Tarjeta className="space-y-5 p-5">
           <dl className="grid gap-x-6 gap-y-3 text-[0.9375rem] sm:grid-cols-[minmax(10rem,auto)_1fr]">
+            <dt className="text-tinta-suave">Dónde</dt>
+            <dd className="text-tinta">
+              <ChipModo modo={bot.modo} exchange={bot.exchange} />
+            </dd>
             <dt className="text-tinta-suave">Monedas</dt>
             <dd className="text-tinta">{bot.monedas.join(", ")}</dd>
+            {bot.estrategia ? (
+              <>
+                <dt className="text-tinta-suave">Estrategia a medida</dt>
+                <dd className="text-tinta">
+                  <Link href={`/estrategias/medida/ficha/?id=${encodeURIComponent(bot.estrategia)}`} className="font-semibold text-marca underline underline-offset-4">
+                    {bot.nombre_plantilla.replace(/^A medida: /, "")}
+                  </Link>
+                </dd>
+              </>
+            ) : null}
             <dt className="text-tinta-suave">En marcha desde</dt>
             <dd className="text-tinta">
               {fecha(bot.desde)} <span className="text-tinta-suave">({diasTexto(bot.dias)})</span>
@@ -215,6 +269,23 @@ function Ficha({ id }: { id: string }) {
           ) : null}
         </Tarjeta>
       </Seccion>
+
+      {base ? (
+        <>
+          <HojaActivarReal
+            bot={{ ...base, ...bot }}
+            real={lista?.real ?? null}
+            abierta={hojaReal}
+            onCerrar={() => setHojaReal(false)}
+            onActivado={alCambiar}
+            onPonerLimites={() => {
+              setHojaReal(false);
+              setHojaLimites(true);
+            }}
+          />
+          <HojaLimites bot={{ ...base, ...bot }} abierta={hojaLimites} onCerrar={() => setHojaLimites(false)} onCambio={alCambiar} />
+        </>
+      ) : null}
     </div>
   );
 }
@@ -227,19 +298,16 @@ function Volver() {
   );
 }
 
-function Cabecera({ bot, onCambio }: { bot: DetalleBot; onCambio: (d: DetalleBot) => void }) {
+function Cabecera({ bot, onCambio, onActivarReal }: { bot: DetalleBot; onCambio: (d: DetalleBot) => void; onActivarReal: () => void }) {
   const router = useRouter();
-  const almacen = useAlmacenVivo();
   const [borrar, setBorrar] = useState(false);
   const accion = useAccion(async (que: "parar" | "reanudar") => {
     const d =
       que === "parar"
         ? await pedir(api.POST("/api/bots/{bot_id}/parar", { params: { path: { bot_id: bot.id } } }))
         : await pedir(api.POST("/api/bots/{bot_id}/reanudar", { params: { path: { bot_id: bot.id } } }));
+    // La lista del stream tarda ~2 s: onCambio actualiza este bot al momento.
     onCambio(d);
-    // La lista del stream tarda ~2 s: se actualiza este bot al momento.
-    const lista = almacen.leer("bots");
-    if (lista) almacen.fijarYa("bots", { ...lista, bots: lista.bots.map((b) => (b.id === d.id ? { ...b, estado: d.estado, motivo_error: d.motivo_error } : b)) });
     return d;
   });
   const borrado = useAccion(async () => {
@@ -251,9 +319,12 @@ function Cabecera({ bot, onCambio }: { bot: DetalleBot; onCambio: (d: DetalleBot
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-tinta-suave">
-          {bot.nombre_plantilla} · {bot.monedas.join(" y ")}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <ChipModo modo={bot.modo} exchange={bot.exchange} />
+          <p className="text-sm font-medium text-tinta-suave">
+            {bot.nombre_plantilla} · {bot.monedas.join(" y ")}
+          </p>
+        </div>
         <h1 className="titular mt-1 text-[2rem] leading-tight font-semibold text-tinta lg:text-[2.5rem]">{bot.nombre}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <EstadoChip estado={bot.estado} />
@@ -274,6 +345,12 @@ function Cabecera({ bot, onCambio }: { bot: DetalleBot; onCambio: (d: DetalleBot
             {accion.enCurso ? "Reanudando…" : "Reanudar"}
           </Boton>
         )}
+        {bot.modo !== "real" ? (
+          <Boton variante="peligro" onClick={onActivarReal}>
+            <ShieldAlert aria-hidden="true" className="h-5 w-5" />
+            Activar dinero real
+          </Boton>
+        ) : null}
         <Boton variante="peligro" onClick={() => setBorrar(true)}>
           <Trash2 aria-hidden="true" className="h-5 w-5" />
           Borrar
@@ -288,7 +365,11 @@ function Cabecera({ bot, onCambio }: { bot: DetalleBot; onCambio: (d: DetalleBot
         }}
         cerrable={!borrado.enCurso}
         titulo={`¿Borrar «${bot.nombre}»?`}
-        bajada="Se borran el bot, su registro de operaciones y sus eventos. Es dinero ficticio, pero no se puede deshacer."
+        bajada={
+          bot.modo === "ficticio"
+            ? "Se borran el bot, su registro de operaciones y sus eventos. Es dinero ficticio, pero no se puede deshacer."
+            : `Se borran el bot, su registro de operaciones y sus eventos. No se puede deshacer. Lo que tenga comprado en ${nombreExchange(bot.exchange)} no se vende al borrarlo: compruébalo allí.`
+        }
         pie={
           <div className="flex flex-wrap gap-3">
             <Boton variante="real" disabled={borrado.enCurso} onClick={() => void borrado.ejecutar()}>
