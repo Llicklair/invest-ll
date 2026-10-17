@@ -162,10 +162,12 @@ def test_el_panel_no_importa_red_ni_esta_en_el_motor() -> None:
                 elif isinstance(nodo, ast.ImportFrom) and nodo.module:
                     nombres = [nodo.module]
                 for nombre in nombres:
-                    assert not nombre.startswith("invest_ll.dashboard"), (
+                    assert not nombre.startswith(("invest_ll.dashboard", "invest_ll.api")), (
                         f"{fichero.name} importa el panel: la dependencia va al reves"
                     )
-                    assert nombre != "streamlit", f"{fichero.name} importa streamlit"
+                    assert nombre.split(".")[0] not in ("streamlit", "fastapi", "starlette"), (
+                        f"{fichero.name} importa {nombre}: el motor no conoce al panel"
+                    )
 
 
 class TestPreseleccion:

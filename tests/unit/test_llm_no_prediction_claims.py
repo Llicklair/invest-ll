@@ -31,7 +31,7 @@ PROHIBIDAS = (
 )
 
 # Modulos cuyo texto llega al operador.
-DE_CARA_AL_OPERADOR = ("cli", "report", "dashboard", "decision", "strategy")
+DE_CARA_AL_OPERADOR = ("api", "cli", "report", "dashboard", "decision", "strategy")
 
 
 def textos_visibles() -> list[tuple[Path, str]]:

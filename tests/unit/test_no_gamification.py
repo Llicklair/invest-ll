@@ -30,7 +30,7 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[2] / "src" / "invest_ll"
 
 # Módulos que producen la interfaz que ve el operador.
-DE_CARA_AL_OPERADOR = ("dashboard", "cli", "report", "proposal")
+DE_CARA_AL_OPERADOR = ("api", "dashboard", "cli", "report", "proposal")
 
 # Llamadas de Streamlit que son literalmente celebración. `st.balloons()` y `st.snow()` existen
 # y lanzan globos y nieve por la pantalla: es el confeti que la FCA señala por su nombre.
