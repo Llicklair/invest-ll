@@ -93,6 +93,7 @@ const DEFS: DefMoneda[] = [
   { coin: "AAVE", nombre: "Aave", precio: 146.31, volumen: 1.2e7, dec: 2, vol: 0.06, var24: 2.81 },
   { coin: "ARB", nombre: "Arbitrum", precio: 0.54312, volumen: 1.1e7, dec: 1, vol: 0.065, var24: -1.9 },
   { coin: "OP", nombre: "Optimism", precio: 1.6122, volumen: 9.1e6, dec: 1, vol: 0.065, var24: -2.6 },
+  { coin: "PURR", nombre: "Purr", precio: 0.18321, volumen: 2.1e6, dec: 0, vol: 0.08, var24: 1.2 },
   { coin: "NEAR", nombre: "NEAR Protocol", precio: 4.8712, volumen: 8.2e6, dec: 1, vol: 0.06, var24: 1.6 },
 ];
 

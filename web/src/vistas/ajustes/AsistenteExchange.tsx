@@ -8,7 +8,7 @@ import type { CampoClave, EstadoExchange, EstadoRedExchange, ExchangeDisponible,
 import { ConfirmacionTecleada } from "@/componentes/ConfirmacionTecleada";
 import { Hoja } from "@/componentes/Hoja";
 import { Pestanas } from "@/componentes/Pestanas";
-import { Aviso, Boton, BotonEnlace, CampoTexto, Cargando, Chip, ErrorApiVista, clases } from "@/componentes/ui";
+import { Aviso, Boton, BotonEnlace, CampoTexto, Cargando, Chip, ESTILO_ENTRADA, ErrorApiVista, clases } from "@/componentes/ui";
 import { useAccion } from "@/lib/consulta";
 import { formatoCantidad } from "@/lib/decimal";
 import { momento } from "@/lib/formato";
@@ -129,6 +129,43 @@ function Retirada({ estado, nombre }: { estado: EstadoRedExchange; nombre: strin
 }
 
 /**
+ * Una clave que ocupa varias lineas (la privada EC de Coinbase, en PEM). Un input de contrasena se
+ * come los saltos de linea al pegar y la clave deja de valer, asi que va en un textarea con los
+ * caracteres tapados (-webkit-text-security: Chromium y Safari; en Firefox se veria). El contrato
+ * no dice que campo es de varias lineas (`CampoClave` no lo lleva): se reconoce por su ayuda.
+ */
+function esMultilinea(c: CampoClave): boolean {
+  return c.secreto && /BEGIN|PEM|varias l[ií]neas/i.test(`${c.nombre} ${c.ayuda}`);
+}
+
+function CampoSecretoLargo({ campo, valor, onCambio }: { campo: CampoClave; valor: string; onCambio: (v: string) => void }) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[0.9375rem] font-medium text-tinta">
+        {campo.nombre}
+      </label>
+      <textarea
+        id={id}
+        rows={5}
+        value={valor}
+        onChange={(e) => onCambio(e.target.value)}
+        spellCheck={false}
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        required
+        aria-describedby={`${id}-ayuda`}
+        className={clases(ESTILO_ENTRADA, "py-3 font-mono text-sm [-webkit-text-security:disc]")}
+      />
+      <p id={`${id}-ayuda`} className="text-sm text-tinta-suave">
+        {campo.ayuda} Ocupa varias líneas: pégala entera, con la primera y la última. Se escribe tapada.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Guardar, probar y borrar las claves de una red de un exchange, con los campos que pide ESE
  * exchange (`CampoClave`). Los secretos se escriben ocultos; una vez guardadas, ninguna clave se
  * vuelve a ensenar en ninguna pantalla.
@@ -218,7 +255,10 @@ function ClavesRed({
 
   return (
     <form onSubmit={enviar} className="space-y-4" autoComplete="off" aria-label={`Claves de ${NOMBRE_RED[red]} de ${exchange.nombre}`}>
-      {exchange.campos.map((c: CampoClave) => (
+      {exchange.campos.map((c: CampoClave) =>
+        esMultilinea(c) ? (
+          <CampoSecretoLargo key={`${base}-${c.clave}`} campo={c} valor={valores[c.clave] ?? ""} onCambio={(v) => setValores((x) => ({ ...x, [c.clave]: v }))} />
+        ) : (
         <CampoTexto
           key={`${base}-${c.clave}`}
           etiqueta={c.nombre}
@@ -232,7 +272,8 @@ function ClavesRed({
           autoCorrect="off"
           required
         />
-      ))}
+        ),
+      )}
       <p className="text-sm text-tinta-suave">
         Se guardan en el almacén de credenciales de Windows, nunca en un fichero ni en el repositorio, y no se vuelven a mostrar.
         {red === "real" ? " Tienen que ser distintas de las de pruebas." : ""}
@@ -441,7 +482,7 @@ function CaminoBots({ exchange, estado, onCambio }: { exchange: ExchangeDisponib
           {estado.activo === "sin_conectar" && pruebas?.claves_guardadas ? (
             <div className="space-y-2 border-t border-linea pt-5">
               <p className="text-[0.9375rem] text-tinta">
-                Cuando la prueba diga que la conexión funciona, úsalo en pruebas: así podrás desplegar bots en su red de pruebas.
+                Úsalo en pruebas para poder desplegar bots en su red de pruebas. Al activarlo, el panel prueba antes la conexión: si no funciona, te dice por qué y no cambia nada.
               </p>
               <Boton variante="primario" onClick={() => void usarPruebas.ejecutar()} disabled={usarPruebas.enCurso}>
                 {usarPruebas.enCurso ? "Activando…" : `Usar ${exchange.nombre} en pruebas`}

@@ -2,7 +2,7 @@
 
 import { Banknote, CircleDashed, CirclePlay, FlaskConical, OctagonX, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { api, pedir } from "@/api/cliente";
 import type { Bots, DetalleBot, EstadoReal, LimitesBot, LimitesBotEntrada, ModoBot, ParadaGeneral, ResumenBot } from "@/api/tipos";
@@ -585,7 +585,8 @@ export function hayNoFicticio(datos: Bots | null | undefined): boolean {
  * Lo real, siempre a la vista (docs/panel-v4-real.md §3): cuantos bots operan con dinero real, la
  * perdida de hoy frente a la maxima diaria, y el interruptor "Parar todo lo real" -- rojo, grande y
  * SIN confirmacion: parar tiene que ser facil. Al pulsarlo dice que paro, que ordenes cancelo y que
- * no pudo, y como se reanuda. Va pegado arriba al hacer scroll.
+ * no pudo, y como se reanuda. Cuando el panel sale de la vista al hacer scroll, una barra fina con
+ * el mismo interruptor queda fija arriba: siempre a la vista, sin tapar media pantalla del movil.
  */
 export function PanelReal({ datos, className }: { datos: Bots; className?: string }) {
   const almacen = useAlmacenVivo();
@@ -593,6 +594,16 @@ export function PanelReal({ datos, className }: { datos: Bots; className?: strin
   const [hojaLimite, setHojaLimite] = useState(false);
   const idDescripcion = useId();
   const idTitulo = useId();
+  const panel = useRef<HTMLElement>(null);
+  const [fuera, setFuera] = useState(false);
+  useEffect(() => {
+    const el = panel.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    // Fuera de la vista por ARRIBA (se ha hecho scroll): entonces, la barra fija.
+    const obs = new IntersectionObserver(([e]) => setFuera(Boolean(e && !e.isIntersecting && e.boundingClientRect.top < 0)), { threshold: 0 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   const parar = useAccion(async () => {
     const r: ParadaGeneral = await pedir(api.POST("/api/bots-real/parar-todo"));
     // El stream tarda ~2 s: lo parado se ve parado al momento.
@@ -625,10 +636,45 @@ export function PanelReal({ datos, className }: { datos: Bots; className?: strin
 
   return (
     <>
+      {fuera ? (
+        <div
+          role="region"
+          aria-label="Dinero real, siempre a la vista"
+          className="fixed inset-x-0 top-16 z-20 border-b-2 border-real/60 bg-superficie/95 px-4 py-2 shadow-alta backdrop-blur-md lg:top-0 lg:left-64"
+        >
+          <div className="mx-auto flex max-w-[1120px] items-center gap-3 lg:px-8">
+            <p className="flex min-w-0 flex-1 items-center gap-2 text-sm text-tinta">
+              <Banknote aria-hidden="true" className="h-4 w-4 shrink-0 text-real-tinta" />
+              <span className="truncate">
+                <span className="font-semibold text-real-tinta">Dinero real</span>
+                {real.parado_todo ? " · todo parado" : ` · ${real.en_marcha} en marcha`}
+                {real.parado_todo ? null : (
+                  <span className="hidden sm:inline">
+                    {` · hoy ${usdc(real.perdida_hoy)}${real.limite_diario ? ` de ${usdc(real.limite_diario, { decimales: 0 })}` : ""}`}
+                  </span>
+                )}
+              </span>
+            </p>
+            {real.parado_todo ? null : (
+              <button
+                type="button"
+                onClick={() => void parar.ejecutar()}
+                disabled={parar.enCurso || sinReales}
+                aria-describedby={idDescripcion}
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-real px-4 text-[0.9375rem] font-bold text-real-boton-tinta hover:bg-real-hover disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <OctagonX aria-hidden="true" className="h-5 w-5" />
+                {parar.enCurso ? "Parando…" : "Parar todo lo real"}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
       <section
+        ref={panel}
         aria-labelledby={idTitulo}
         className={clases(
-          "sticky top-[72px] z-10 rounded-tarjeta border-2 bg-superficie p-4 shadow-alta sm:p-5 lg:top-4",
+          "rounded-tarjeta border-2 bg-superficie p-4 shadow-alta sm:p-5",
           real.parado_todo ? "border-linea-control/60" : sinReales ? "border-linea" : "border-real/60",
           className,
         )}

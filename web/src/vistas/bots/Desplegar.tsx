@@ -3,17 +3,17 @@
 import { ArrowLeft, Banknote, CircleDashed, FlaskConical, Lock, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 
 import { api, pedir } from "@/api/cliente";
-import type { EstadoExchange, MonedaVivo, NuevoBot, ParametroBot, PlantillaBot, ResumenEstrategia } from "@/api/tipos";
+import type { EstadoExchange, MercadoExchange, MonedaVivo, NuevoBot, ParametroBot, PlantillaBot, ResumenEstrategia } from "@/api/tipos";
 import { Asistente } from "@/componentes/Asistente";
 import { CambioPct } from "@/componentes/CifraGrande";
 import { CampoImporte } from "@/componentes/CampoImporte";
 import { MedidorRiesgo } from "@/componentes/MedidorRiesgo";
 import { Aviso, Boton, CargandoLento, Encabezado, ErrorApiVista, Segmentado, Selector, Tarjeta, clases } from "@/componentes/ui";
 import { useAccion, useConsulta } from "@/lib/consulta";
-import { formatoImporte } from "@/lib/decimal";
+import { formatoCantidad, formatoImporte } from "@/lib/decimal";
 import { leerImporte } from "@/lib/importe";
 import { nombreExchange } from "@/lib/nombres";
 import { decimalesPrecio, nombreIntervalo, normalizar, precioFijo } from "@/lib/vivo";
@@ -89,7 +89,8 @@ export function Desplegar() {
   );
   const permitidas = modo === "pruebas" && mercados.datos ? new Set(mercados.datos.mercados.map((m) => m.base)) : null;
 
-  const monedasBot = estrategia ? estrategia.monedas : elegidas;
+  // En pruebas, las elegidas que no tenga ese exchange no cuentan (las sugeridas son de Hyperliquid).
+  const monedasBot = estrategia ? estrategia.monedas : permitidas ? elegidas.filter((c) => permitidas.has(c)) : elegidas;
   const capitalLimpio = leerImporte(capital);
   const errorCapital =
     capital.trim() === ""
@@ -240,10 +241,10 @@ export function Desplegar() {
               <PasoMonedas
                 plantilla={plantilla}
                 monedas={monedas.datos?.monedas ?? []}
-                cargando={!monedas.datos}
-                elegidas={elegidas}
+                cargando={modo === "pruebas" ? mercados.cargando && !mercados.datos : !monedas.datos}
+                elegidas={monedasBot}
                 onCambio={setElegidas}
-                permitidas={permitidas}
+                mercados={modo === "pruebas" ? (mercados.datos?.mercados ?? null) : null}
                 donde={modo === "pruebas" && exchange ? `la red de pruebas de ${nombreExchange(exchange)}` : null}
               />
             ) : null
@@ -571,7 +572,7 @@ function PasoMonedas({
   cargando,
   elegidas,
   onCambio,
-  permitidas,
+  mercados,
   donde,
 }: {
   plantilla: PlantillaBot;
@@ -579,8 +580,8 @@ function PasoMonedas({
   cargando: boolean;
   elegidas: string[];
   onCambio: (c: string[]) => void;
-  /** En pruebas, solo las que tiene ese exchange (sus pares de contado). */
-  permitidas: ReadonlySet<string> | null;
+  /** En pruebas, los pares de contado de ese exchange en su red de pruebas (no los de Hyperliquid). */
+  mercados: readonly MercadoExchange[] | null;
   donde: string | null;
 }) {
   const [busqueda, setBusqueda] = useState("");
@@ -589,10 +590,24 @@ function PasoMonedas({
   const sugeridas = useMemo(() => new Set(plantilla.monedas_sugeridas), [plantilla]);
   const q = normalizar(busqueda);
   const lista = useMemo(() => {
-    const base = permitidas ? monedas.filter((m) => permitidas.has(m.coin)) : monedas;
+    const base: { coin: string; nombre: string; detalle: ReactNode }[] = mercados
+      ? mercados.map((mk) => ({
+          coin: mk.base,
+          nombre: mk.nombre,
+          detalle: `${mk.par}${mk.minimo_importe ? ` · mínimo ${formatoCantidad(mk.minimo_importe)} ${mk.cotizada} por orden` : ""}`,
+        }))
+      : monedas.map((m) => ({
+          coin: m.coin,
+          nombre: m.nombre,
+          detalle: (
+            <>
+              {precioFijo(m.precio, decimalesPrecio(m.precio, m.decimales_cantidad))} USDC · <span className="whitespace-nowrap"><CambioPct pct={m.var_24h} className="text-xs" /> en 24 h</span>
+            </>
+          ),
+        }));
     const filtro = q ? base.filter((m) => normalizar(m.nombre).includes(q) || normalizar(m.coin).includes(q)) : base;
     return [...filtro].sort((a, b) => Number(sugeridas.has(b.coin)) - Number(sugeridas.has(a.coin)));
-  }, [monedas, q, sugeridas, permitidas]);
+  }, [monedas, q, sugeridas, mercados]);
 
   return (
     <fieldset className="min-w-0">
@@ -613,6 +628,7 @@ function PasoMonedas({
         />
       </label>
       {cargando ? <p className="mt-4 text-sm text-tinta-suave">Cargando las monedas…</p> : null}
+      {!cargando && mercados && !mercados.length ? <p className="mt-4 text-sm text-tinta-suave">Su red de pruebas no tiene ningún par de contado ahora.</p> : null}
       <div className="mt-3 grid gap-2 sm:max-h-[26rem] sm:grid-cols-2 sm:overflow-y-auto sm:pr-1">
         {lista.map((m) => {
           const elegida = elegidas.includes(m.coin);
@@ -635,9 +651,7 @@ function PasoMonedas({
                 <span className="block font-semibold text-tinta">
                   {m.nombre} <span className="font-normal text-tinta-suave">{m.coin}</span>
                 </span>
-                <span className="cifras block text-sm text-tinta-suave">
-                  {precioFijo(m.precio, decimalesPrecio(m.precio, m.decimales_cantidad))} USDC · <span className="whitespace-nowrap"><CambioPct pct={m.var_24h} className="text-xs" /> en 24 h</span>
-                </span>
+                <span className="cifras block text-sm text-tinta-suave">{m.detalle}</span>
               </span>
               {sugeridas.has(m.coin) ? <span className="shrink-0 rounded-full bg-destaque-suave px-2 py-0.5 text-xs font-medium text-destaque-tinta">Sugerida</span> : null}
             </label>

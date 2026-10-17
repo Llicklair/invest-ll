@@ -256,7 +256,6 @@ function queFaltaReal(x: ExchangeMock): string[] {
   const falta: string[] = [];
   const r = x.redes.real;
   if (r.huella === null) falta.push(`Guarda las claves de dinero real de ${nombre}.`);
-  else if (r.comprobado === null) falta.push("Prueba la conexión de dinero real (solo lee tu saldo).");
   if (r.puede_retirar === true) falta.push("La clave de dinero real PUEDE retirar fondos: bórrala y crea otra sin ese permiso.");
   if (d?.tiene_pruebas && !x.redes.pruebas.verificada) falta.push("Haz al menos una orden en la red de pruebas: es la evidencia de que todo funciona.");
   return falta;
@@ -308,6 +307,7 @@ const MONEDAS: Record<string, DefMoneda> = {
   LINK: { nombre: "Chainlink", precio: 17.42, vol: 0.045, dec: 2 },
   AVAX: { nombre: "Avalanche", precio: 21.84, vol: 0.05, dec: 2 },
   HYPE: { nombre: "Hyperliquid", precio: 38.6, vol: 0.06, dec: 2 },
+  PURR: { nombre: "Purr", precio: 0.1832, vol: 0.08, dec: 0 },
 };
 
 /** Como decide la estrategia en el mock (en la API la decide el interprete con su definicion). */
@@ -965,11 +965,14 @@ function activar(m: MundoV4, id: string, o: Objeto): Response {
   if (r === "pruebas") {
     if (!d.tiene_pruebas) return fallo(422, `${d.nombre} no tiene red de pruebas.`);
     if (x.redes.pruebas.huella === null) return fallo(422, `Guarda antes las claves de pruebas de ${d.nombre}.`);
-    if (x.redes.pruebas.comprobado === null) return fallo(422, "Prueba antes la conexión: si las claves no funcionan, no tiene sentido usarlas.");
+    // Como la API: activar prueba la conexion por si mismo (no hace falta "Probar" antes).
+    if (x.redes.pruebas.huella.startsWith("mal-")) return fallo(422, `No se activó: ${d.nombre} dice que la clave de pruebas no es válida. Revisa que la copiaste entera y que es de su red de pruebas.`);
+    x.redes.pruebas.comprobado = Date.now();
     x.activo = "pruebas";
     return json(estadoExchange(x) satisfies S["EstadoExchange"]);
   }
   if ((texto(o, "confirmacion") ?? "") !== "DINERO REAL") return fallo(422, "Para usar dinero real, escribe exactamente DINERO REAL, en mayúsculas.");
+  if (x.redes.real.huella?.startsWith("mal-")) return fallo(422, `No se activó: ${d.nombre} dice que la clave de dinero real no es válida.`);
   const falta = queFaltaReal(x);
   if (falta.length) return fallo(422, `Todavía no se puede usar dinero real en ${d.nombre}: ${falta.map((f) => f.replace(/\.$/, "")).join("; ")}.`);
   x.activo = "real";
@@ -983,7 +986,11 @@ function mercados(id: string, r: Red): Response {
   if (!d) return fallo(404, `No conozco ningún exchange «${id}».`);
   if (r === "pruebas" && !d.tiene_pruebas) return fallo(422, `${d.nombre} no tiene red de pruebas.`);
   const cotizada = id === "hyperliquid" || id === "coinbase" ? "USDC" : id === "kraken" ? "USD" : "USDT";
-  const bases = BASES.filter((b) => (b === "HYPE" ? id === "hyperliquid" || id === "bybit" || id === "okx" : true)).filter((b) => !(r === "pruebas" && (b === "LINK" || b === "AVAX")));
+  // La testnet de Hyperliquid solo tiene libro en PURR/USDC (BTC/USDC esta, pero vacio).
+  const bases: readonly string[] =
+    id === "hyperliquid" && r === "pruebas"
+      ? ["PURR"]
+      : BASES.filter((b) => (b === "HYPE" ? id === "hyperliquid" || id === "bybit" || id === "okx" : true)).filter((b) => !(r === "pruebas" && (b === "LINK" || b === "AVAX")));
   const lista: S["MercadoExchange"][] = bases.map((b) => ({
     par: `${b}/${cotizada}`,
     base: b,
