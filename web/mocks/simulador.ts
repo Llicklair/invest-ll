@@ -4,34 +4,45 @@
  * existe, 422 con `detail`) y cuerpos tipados con el contrato: si `web/openapi.json` cambia y
  * estos ejemplos dejan de cumplirlo, `tsc` falla.
  *
- * Escenarios, con `?escenario=` en la URL (se recuerda en la pestana del navegador):
- *   simulacion (por defecto) · pruebas · real · vacio (cartera, seguimiento y estudio vacios)
- *   · pausa (pausa de entradas activa) · modo-roto (INVEST_LL_MODE mal puesto: /estado da 422)
+ * Escenarios, con `?escenario=` en la URL (se recuerda en la pestana del navegador); la lista y
+ * lo que es cada uno esta en mocks/panel.ts (ESCENARIOS). Por defecto, "con-plan".
+ * Las rutas del panel v2 (inicio, estrategias, plan, conexion, saldo, movimientos) viven en
+ * mocks/panel.ts; aqui se enrutan y se mantienen las de antes.
  */
 import type { components } from "@/api/esquema";
 import { compararDecimal, leerDecimal } from "@/lib/decimal";
 
+import { escribir } from "@/lib/almacen";
+
 import { correlacion, dinero, informe, media, rendimientos, simular } from "./calculo";
+import * as panel from "./panel";
+import { ESCENARIOS, type Escenario } from "./panel";
 import { DEFINICIONES, serie, type SerieGenerada } from "./series";
 
 type S = components["schemas"];
-
-const ESCENARIOS = ["simulacion", "pruebas", "real", "vacio", "pausa", "modo-roto"] as const;
-type Escenario = (typeof ESCENARIOS)[number];
 
 function esEscenario(v: string): v is Escenario {
   return (ESCENARIOS as readonly string[]).includes(v);
 }
 
+const POR_DEFECTO: Escenario = "con-plan";
+
 function escenario(): Escenario {
   try {
-    const pedido = new URLSearchParams(window.location.search).get("escenario");
-    if (pedido && esEscenario(pedido)) window.sessionStorage.setItem("invest-ll.mock.escenario", pedido);
-    const guardado = window.sessionStorage.getItem("invest-ll.mock.escenario") ?? "simulacion";
-    return esEscenario(guardado) ? guardado : "simulacion";
+    let pedido = new URLSearchParams(window.location.search).get("escenario");
+    if (pedido === "simulacion") pedido = POR_DEFECTO;
+    const guardado = window.sessionStorage.getItem("invest-ll.mock.escenario");
+    if (pedido && esEscenario(pedido) && pedido !== guardado) escribir("sesion", "invest-ll.mock.escenario", pedido);
+    const vigente = window.sessionStorage.getItem("invest-ll.mock.escenario") ?? POR_DEFECTO;
+    return esEscenario(vigente) ? vigente : POR_DEFECTO;
   } catch {
-    return "simulacion";
+    return POR_DEFECTO;
   }
+}
+
+/** Los escenarios sin nada guardado: tambien vacian el Laboratorio. */
+function esVacio(m: Mundo): boolean {
+  return m.escenario === "vacio" || m.escenario === "primera-vez";
 }
 
 const RESERVA_DESDE = "2025-01-01";
@@ -51,7 +62,7 @@ interface Mundo {
   pausa: string | null;
   triggers: S["TriggerArmado"][];
   siguienteTrigger: number;
-  abiertasExtra: S["PosicionAbierta"][];
+  panel: panel.EstadoPanel;
   ordenes: S["FilaOrden"][];
   descargados: Set<string>;
   chats: Map<string, S["MensajeChat"][]>;
@@ -63,10 +74,10 @@ let mundo: Mundo | null = null;
 function elMundo(): Mundo {
   const e = escenario();
   if (mundo && mundo.escenario === e) return mundo;
-  const conDatos = e !== "vacio";
+  const conDatos = e !== "vacio" && e !== "primera-vez";
   mundo = {
     escenario: e,
-    pausa: e === "pausa" ? "caida brusca de BTC: revisar el plan antes de seguir (2026-10-16 08:12 UTC)" : null,
+    pausa: e === "pausa" ? "caída brusca de BTC: revisar el plan antes de seguir (16 oct 2026, 08:12 UTC)" : null,
     triggers: conDatos
       ? [
           trigger("t1", "GLD", "drop-from-peak", "0.15", "2026-09-02T10:00:00Z"),
@@ -75,7 +86,7 @@ function elMundo(): Mundo {
         ]
       : [],
     siguienteTrigger: 4,
-    abiertasExtra: [],
+    panel: panel.nuevoEstado(e),
     ordenes: conDatos ? ordenesIniciales(e) : [],
     descargados: new Set(DEFINICIONES.map((d) => d.simbolo)),
     chats: new Map(),
@@ -94,6 +105,7 @@ function trigger(id: string, symbol: string, regla: string, umbral: string, arma
 }
 
 function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
+  if (!["pruebas", "fallo-red", "listo-para-real", "real", "entorno"].includes(e)) return [];
   const filas: S["FilaOrden"][] = [
     {
       cuando: "2026-10-15T16:40:10Z",
@@ -132,6 +144,8 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
       referencia: "testnet-5512399",
     },
   ];
+  // En pruebas todavia no hay ninguna ejecutada: es la etapa 2 que falta.
+  if (e === "pruebas" || e === "fallo-red") return filas.slice(0, 1);
   if (e === "real") {
     filas.unshift({
       cuando: "2026-10-16T11:02:47Z",
@@ -149,9 +163,9 @@ function ordenesIniciales(e: Escenario): S["FilaOrden"][] {
   return filas;
 }
 
-function modo(e: Escenario): S["Modo"] {
-  if (e === "real") return { nombre: "REAL", envia_ordenes: true, es_real: true };
-  if (e === "pruebas") return { nombre: "pruebas", envia_ordenes: true, es_real: false };
+function modo(m: Mundo): S["Modo"] {
+  if (m.panel.modo === "real") return { nombre: "REAL", envia_ordenes: true, es_real: true };
+  if (m.panel.modo === "pruebas") return { nombre: "pruebas", envia_ordenes: true, es_real: false };
   return { nombre: "simulacion", envia_ordenes: false, es_real: false };
 }
 
@@ -240,8 +254,8 @@ function variacion(c: readonly number[], k: number): number | null {
 
 function estado(m: Mundo): S["Estado"] {
   return {
-    modo: modo(m.escenario),
-    reserva: m.escenario === "vacio" ? null : RESERVA,
+    modo: modo(m),
+    reserva: esVacio(m) ? null : RESERVA,
     pausa: m.pausa,
     activos: DEFINICIONES.map((d) => ({
       id: d.id,
@@ -407,100 +421,11 @@ function cotizaciones(m: Mundo): S["Cotizaciones"] {
 }
 
 function cartera(m: Mundo): S["Cartera"] {
-  if (m.escenario === "vacio" && m.abiertasExtra.length === 0) {
-    return {
-      vacia: true,
-      error: null,
-      avisos: [],
-      abiertas: [],
-      retiradas: [],
-      invertido_abiertas: "0",
-      valor_total: "0",
-      efectivo: "0",
-      realizado_total: "0",
-    };
-  }
-  const base: S["PosicionAbierta"][] =
-    m.escenario === "vacio"
-      ? []
-      : [
-          {
-            activo: "GLD",
-            cantidad: "10",
-            coste_medio: "240.70",
-            invertido: "2407.00",
-            abierta: "2025-03-14T00:00:00Z",
-            precio: "382.71",
-            precio_fecha: "2026-10-15",
-            valor: "3827.10",
-            pnl_no_realizado: "1420.10",
-          },
-          {
-            activo: "BTC/USDT",
-            cantidad: "0.025",
-            coste_medio: "61261.20",
-            invertido: "1531.53",
-            abierta: "2026-02-03T00:00:00Z",
-            precio: "82245.93",
-            precio_fecha: "2026-10-15",
-            valor: "2056.14825",
-            pnl_no_realizado: "524.61825",
-          },
-          {
-            activo: "IBE.MC",
-            cantidad: "120",
-            coste_medio: "14.3367",
-            invertido: "1720.40",
-            abierta: "2026-06-22T00:00:00Z",
-            precio: null,
-            precio_fecha: null,
-            valor: null,
-            pnl_no_realizado: null,
-          },
-        ];
-  const abiertas = [...base, ...m.abiertasExtra];
-  return {
-    vacia: false,
-    error: null,
-    avisos:
-      m.escenario === "vacio"
-        ? []
-        : [
-            "IBE.MC no tiene historico descargado: su valor no se puede calcular y el total queda incompleto. Descargalo con invest-ll-fetch IBE.MC --market equity.",
-          ],
-    abiertas,
-    retiradas:
-      m.escenario === "vacio"
-        ? []
-        : [
-            {
-              activo: "TLT",
-              abierta: "2024-05-02",
-              retirada: "2025-09-30",
-              dias: 516,
-              invertido: "1803.20",
-              recuperado: "1612.40",
-              pnl_realizado: "-190.80",
-            },
-            {
-              activo: "XLF",
-              abierta: "2025-01-10",
-              retirada: "2025-08-01",
-              dias: 203,
-              invertido: "1500.00",
-              recuperado: "1641.25",
-              pnl_realizado: "141.25",
-            },
-          ],
-    invertido_abiertas: m.escenario === "vacio" ? "0" : "5658.93",
-    valor_total: abiertas.some((a) => a.valor === null) ? null : "5883.24825",
-    efectivo: m.escenario === "vacio" ? "0" : "1832.47",
-    realizado_total: m.escenario === "vacio" ? "0" : "-49.55",
-  };
+  return panel.carteraV1(m.panel, []);
 }
 
 function motivoNoEnviar(m: Mundo, cantidad: string, escrito: string): string | null {
-  if (!modo(m.escenario).envia_ordenes) {
+  if (!modo(m).envia_ordenes) {
     return "Modo simulacion: no se envia nada al exterior. Para operar de verdad, arranca el panel con INVEST_LL_MODE=testnet (o =real) y sus credenciales.";
   }
   if (leerDecimal(cantidad) === null || compararDecimal(cantidad, "0") <= 0) return "La cantidad tiene que ser positiva.";
@@ -732,7 +657,7 @@ function rotacion(o: Objeto): Response {
 function llm(m: Mundo, o: Objeto): Response {
   const coste = costeDe(o);
   if (coste instanceof Response) return coste;
-  if (m.escenario === "vacio") {
+  if (esVacio(m)) {
     const r: S["ComparacionLLM"] = {
       disponible: false,
       motivo: "No hay decisiones grabadas en decisions/llm-trimestral. Generalas con invest-ll-generate (gasta cuota; se hace una sola vez).",
@@ -839,7 +764,7 @@ function comprobarTriggers(m: Mundo): S["ComprobacionTriggers"] {
 }
 
 function seguimiento(m: Mundo): S["Seguimiento"] {
-  if (m.escenario === "vacio") return { evaluadas: 0, pendientes: 0, sobreestimaciones: 0, tendencia: null, filas: [] };
+  if (esVacio(m)) return { evaluadas: 0, pendientes: 0, sobreestimaciones: 0, tendencia: null, filas: [] };
   return {
     evaluadas: 6,
     pendientes: 2,
@@ -858,7 +783,7 @@ function seguimiento(m: Mundo): S["Seguimiento"] {
 
 function investigacion(m: Mundo, url: URL): S["Investigacion"] {
   const capital = Number(url.searchParams.get("capital") ?? "1000");
-  if (m.escenario === "vacio") {
+  if (esVacio(m)) {
     return {
       disponible: false,
       motivo: "Sin datos todavía. Descárgalos con `uv run invest-ll-quant download` (unos 6 minutos).",
@@ -925,9 +850,9 @@ function chat(m: Mundo, o: Objeto): Response {
   const sesion = pedida ?? `ejemplo-${Math.floor(Math.random() * 1e6)}`;
   const historial = m.chats.get(sesion) ?? [];
   const respuesta =
-    "Con lo que veo (datos hasta el 2026-10-15): tu cartera tiene GLD, BTC/USDT e IBE.MC abiertas; IBE.MC no tiene histórico, así que su valor no se puede calcular.\n\n" +
-    "GLD está un 26,7% por debajo de su máximo y tu trigger t1 (caída del 15% desde el pico) ha saltado. Eso es texto para que lo leas: yo no puedo ejecutar nada. Si decides vender, el comando sería:\n\n" +
-    "    uv run invest-ll-execute --symbol GLD --side sell --quantity 10\n\n" +
+    "Con lo que veo (precios del cierre del 15 oct 2026): tu plan pone el 90 % en Equilibrada y el 10 % en Bitcoin con freno.\n\n" +
+    "La cripto va limitada porque, incluso con freno, ha llegado a caer un 65 % en su peor momento: con 600 € dentro, eso serían unos 390 € menos en el peor día. Más cripto haría esa cifra más grande, no más fácil de evitar.\n\n" +
+    "Yo no puedo comprar ni vender nada; si quieres cambiar el reparto, se hace en Estrategias · Tu plan.\n\n" +
     "(Respuesta de ejemplo: el modo NEXT_PUBLIC_MOCK=1 no consulta a Claude.)";
   const nuevo: S["MensajeChat"][] = [...historial, { autor: "operador", texto: pregunta }, { autor: "claude", texto: respuesta }];
   m.chats.set(sesion, nuevo);
@@ -946,6 +871,45 @@ export async function responder(peticion: Request): Promise<Response> {
 
   const clave = `${metodo} ${ruta}`;
   switch (clave) {
+    case "GET /api/inicio":
+      return json(panel.inicio(m.panel, m.pausa));
+    case "GET /api/estrategias":
+      return await panel.rutaCatalogo(m.panel);
+    case "POST /api/estrategias/simular":
+      return panel.rutaSimular(m.panel, await cuerpo(peticion));
+    case "POST /api/estrategias/recomendar":
+      return panel.rutaRecomendar(await cuerpo(peticion));
+    case "GET /api/plan":
+      return json({ plan: m.panel.plan } satisfies S["PlanGuardado"]);
+    case "PUT /api/plan":
+      return panel.guardarPlan(m.panel, await cuerpo(peticion));
+    case "DELETE /api/plan":
+      if (!m.panel.plan) return fallo(404, "No había ningún plan guardado.");
+      m.panel.plan = null;
+      return sinCuerpo();
+    case "GET /api/plan/hoy": {
+      const h = panel.hoy(m.panel);
+      if (m.pausa && h.acciones.length) {
+        return json({
+          ...h,
+          acciones: [],
+          resumen: "No toca comprar nada: la pausa de compras está activa.",
+          avisos: [`Pausa de compras activa: ${m.pausa}. Quítala en Cartera · Protección cuando quieras seguir.`, ...h.avisos],
+        } satisfies S["Hoy"]);
+      }
+      return json(h);
+    }
+    case "GET /api/cartera/movimientos":
+      return json(panel.movimientos(m.panel));
+    case "GET /api/conexion":
+      if (m.escenario === "modo-roto") {
+        return fallo(422, "INVEST_LL_MODE='reall' no es un modo conocido: usa simulation, testnet o real");
+      }
+      return json(panel.conexion(m.panel));
+    case "PUT /api/conexion/modo":
+      return panel.cambiarModo(m.panel, await cuerpo(peticion));
+    case "GET /api/saldo":
+      return panel.saldo(m.panel);
     case "GET /api/estado":
       if (m.escenario === "modo-roto") {
         return fallo(422, "INVEST_LL_MODE='reall' no es un modo conocido: usa simulation, testnet o real");
@@ -995,25 +959,17 @@ export async function responder(peticion: Request): Promise<Response> {
         return fallo(422, `una ${tipo} necesita activo y precio unitario`);
       }
       m.movimientos += 1;
-      if (tipo === "compra") {
-        const simbolo = (texto(o, "simbolo") ?? "").toUpperCase();
-        const precio = texto(o, "precio") ?? "0";
-        const s = serie(simbolo);
-        const cierre = s ? ultimo(s.cierres) : undefined;
-        const invertido = (Number(cantidad) * Number(precio)).toFixed(2);
-        m.abiertasExtra.push({
-          activo: simbolo,
-          cantidad,
-          coste_medio: precio,
-          invertido,
-          abierta: `${texto(o, "fecha") ?? "2026-10-17"}T00:00:00Z`,
-          precio: cierre !== undefined ? cierre.toFixed(2) : null,
-          precio_fecha: s ? (ultimo(s.fechas) ?? null) : null,
-          valor: cierre !== undefined ? (Number(cantidad) * cierre).toFixed(2) : null,
-          pnl_no_realizado: cierre !== undefined ? (Number(cantidad) * cierre - Number(invertido)).toFixed(2) : null,
-        });
-      }
-      const r: S["MovimientoRegistrado"] = { activity_id: `act-${String(1000 + m.movimientos)}` };
+      const precioMov = texto(o, "precio");
+      const id = panel.registrarMovimientoV1(
+        m.panel,
+        tipo,
+        texto(o, "simbolo")?.toUpperCase() ?? null,
+        Number(cantidad),
+        precioMov === null ? null : Number(precioMov),
+        texto(o, "fecha") ?? "2026-10-17",
+        Number(texto(o, "comision") ?? "0"),
+      );
+      const r: S["MovimientoRegistrado"] = { activity_id: id };
       return json(r, 201);
     }
     case "GET /api/ordenes": {
@@ -1044,7 +1000,7 @@ export async function responder(peticion: Request): Promise<Response> {
     }
     case "POST /api/ordenes": {
       const o = await cuerpo(peticion);
-      if (!modo(m.escenario).envia_ordenes) {
+      if (!modo(m).envia_ordenes) {
         return fallo(403, "Modo simulacion: no se envia nada al exterior. Para operar de verdad, arranca el panel con INVEST_LL_MODE=testnet (o =real) y sus credenciales.");
       }
       const cantidad = texto(o, "cantidad") ?? "";
@@ -1054,9 +1010,32 @@ export async function responder(peticion: Request): Promise<Response> {
       const lado = texto(o, "lado") ?? "buy";
       await esperar(800);
       const precio = ultimo(serie(par)?.cierres ?? []) ?? 100;
+      if (m.panel.falloRed) {
+        await esperar(1500);
+        m.ordenes.unshift({
+          cuando: new Date().toISOString(),
+          modo: modo(m).nombre,
+          activo: par,
+          lado,
+          pedida: cantidad,
+          ejecutada: "0",
+          precio: null,
+          comision: null,
+          estado: "unknown",
+          referencia: "",
+        });
+        const desconocida: S["ResultadoOrden"] = {
+          estado: "unknown",
+          descripcion: `${par}: ESTADO DESCONOCIDO. Se envió la orden y se perdió la conexión antes de la respuesta. NO se asume que se ejecutó ni que falló.`,
+          necesita_atencion: true,
+          modo: modo(m).nombre,
+        };
+        return json(desconocida);
+      }
+      panel.ordenEjecutada(m.panel, par, lado, Number(cantidad), precio);
       m.ordenes.unshift({
         cuando: new Date().toISOString(),
-        modo: modo(m.escenario).nombre,
+        modo: modo(m).nombre,
         activo: par,
         lado,
         pedida: cantidad,
@@ -1070,7 +1049,7 @@ export async function responder(peticion: Request): Promise<Response> {
         estado: "filled",
         descripcion: `${par}: ejecutada ${cantidad} a ${precio.toFixed(2)}.`,
         necesita_atencion: false,
-        modo: modo(m.escenario).nombre,
+        modo: modo(m).nombre,
       };
       return json(r);
     }
@@ -1112,7 +1091,7 @@ export async function responder(peticion: Request): Promise<Response> {
       return llm(m, await cuerpo(peticion));
     case "GET /api/vigilar/alertas":
       // En el escenario vacio no salta nada: se ve el texto de "nada que contar" tal cual.
-      if (m.escenario === "vacio") return json({ alertas: [], nada_que_contar: NADA_QUE_CONTAR } satisfies S["Alertas"]);
+      if (esVacio(m)) return json({ alertas: [], nada_que_contar: NADA_QUE_CONTAR } satisfies S["Alertas"]);
       return json(alertas(url));
     case "GET /api/triggers": {
       const r: S["Triggers"] = { triggers: m.triggers, reglas: ["loss-from-entry", "drop-from-peak"], pausa: m.pausa };
@@ -1149,13 +1128,27 @@ export async function responder(peticion: Request): Promise<Response> {
     case "GET /api/investigacion":
       return json(investigacion(m, url));
     case "GET /api/investigacion/estudio":
-      if (m.escenario === "vacio") return fallo(404, "No hay ningun estudio en research/runs");
+      if (esVacio(m)) return fallo(404, "No hay ningun estudio en research/runs");
       return new Response(ESTUDIO_HTML, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
     case "POST /api/chat":
       await esperar(1200);
       return chat(m, await cuerpo(peticion));
     default:
       break;
+  }
+
+  const hecho = /^\/api\/plan\/hoy\/([^/]+)\/hecho$/.exec(ruta);
+  if (metodo === "POST" && hecho) return panel.anotarHecha(m.panel, decodeURIComponent(hecho[1] ?? ""), await cuerpo(peticion));
+  const claves = /^\/api\/conexion\/claves\/([^/]+)$/.exec(ruta);
+  if (claves && metodo === "PUT") {
+    await esperar(300);
+    return panel.guardarClaves(m.panel, decodeURIComponent(claves[1] ?? ""), await cuerpo(peticion));
+  }
+  if (claves && metodo === "DELETE") return panel.borrarClaves(m.panel, decodeURIComponent(claves[1] ?? ""));
+  const probar = /^\/api\/conexion\/probar\/([^/]+)$/.exec(ruta);
+  if (probar && metodo === "POST") {
+    await esperar(900);
+    return panel.probar(m.panel, decodeURIComponent(probar[1] ?? ""));
   }
 
   const desarmar = /^\/api\/triggers\/([^/]+)$/.exec(ruta);

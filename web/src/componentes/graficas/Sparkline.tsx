@@ -13,7 +13,7 @@ export function Sparkline({
   ancho?: number;
   alto?: number;
 }) {
-  if (valores.length < 2) return <span className="text-tinta-3">—</span>;
+  if (valores.length < 2) return <span className="text-tinta-suave">—</span>;
   const min = Math.min(...valores);
   const max = Math.max(...valores);
   const margen = 3;
@@ -24,7 +24,7 @@ export function Sparkline({
   const ultimo = valores[valores.length - 1] ?? 0;
   return (
     <svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} aria-hidden="true" className="block">
-      <path d={camino} fill="none" stroke="var(--tinta-2)" strokeWidth="1.25" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={camino} fill="none" stroke="var(--tinta-suave)" strokeWidth="1.25" strokeLinejoin="round" strokeLinecap="round" />
       <circle
         cx={x(valores.length - 1)}
         cy={y(ultimo)}

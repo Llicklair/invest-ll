@@ -1,46 +1,66 @@
 @import "tailwindcss";
 
 /*
- * Tokens del panel. Los colores de serie son la paleta de referencia de la skill de dataviz,
- * validada con su script en los dos modos (huecos adyacentes: CVD >= 8,4; vision normal >= 19,3).
- * En claro, tres huecos quedan por debajo de 3:1 sobre la superficie: por eso toda grafica lleva
- * leyenda, etiquetas directas y su vista en tabla.
- * Los textos de subida/bajada y los avisos se comprobaron contra WCAG (>= 4,5:1).
+ * Sistema visual del panel v2 (docs/panel-v2.md, seccion 8): calido, sereno y legible.
+ *
+ * Los tokens con nombre de la spec van tal cual, con sus valores. Los derivados (*-texto,
+ * *-suave, *-tinta, linea-control, foco) existen porque la spec fija el color de la marca pero
+ * no siempre llega a AA como TEXTO sobre todos los fondos; se comprobaron con WCAG:
+ *   - sube/baja sobre --fondo y --superficie-2 quedan en 4,2-4,5:1 -> *-texto, un paso mas
+ *     oscuro en claro (>= 5:1). En oscuro ya pasan y valen lo mismo.
+ *   - --pruebas (3,6:1) y --destaque (2,9:1) no sirven como texto: van de relleno o borde, y su
+ *     texto es *-tinta sobre *-suave (~6:1).
+ *   - --linea (1,35:1) es para separar tarjetas; los bordes de controles usan --linea-control
+ *     (>= 3:1, WCAG 1.4.11).
+ *   - El anillo de foco es azafran (la spec), en un paso que llega a 4,5:1 sobre el fondo claro.
+ * Las series de las graficas son la paleta de referencia de la skill dataviz, validada con su
+ * script contra ESTAS superficies (#FFFFFF y #1B1C19): huecos adyacentes CVD >= 8,4, vision
+ * normal >= 19,3. En claro, aqua, amarillo y magenta quedan por debajo de 3:1: por eso toda
+ * grafica lleva leyenda, etiquetas directas y su tabla.
  */
 :root {
   color-scheme: light;
-  --pagina: #f9f9f7;
-  --superficie: #fcfcfb;
-  --superficie-2: #f0efec;
-  --superficie-3: #e6e5df;
-  --tinta: #0b0b0b;
-  --tinta-2: #52514e;
-  --tinta-3: #6b6a65;
-  --rejilla: #e1e0d9;
-  --eje: #c3c2b7;
-  --borde: rgba(11, 11, 11, 0.14);
-  --sube: #006300;
-  --baja: #c22f2f;
-  --acento: #1c5cab;
-  --acento-hover: #184f95;
-  --acento-tinta: #ffffff;
-  --foco: #2a78d6;
-  --peligro: #b42727;
-  --peligro-hover: #9a1f1f;
+  --fondo: #f6f3ee;
+  --superficie: #ffffff;
+  --superficie-2: #efebe4;
+  --tinta: #1d1c1a;
+  --tinta-suave: #625e56;
+  --linea: #e2ddd3;
+  --linea-control: #8c8679;
+  --marca: #23395b;
+  --marca-hover: #1a2c47;
+  --marca-tinta: #ffffff;
+  --marca-suave: #e3e9f2;
+  --destaque: #c98a2b;
+  --destaque-suave: #f7eedc;
+  --destaque-tinta: #7a5212;
+  --sube: #2f7d5b;
+  --sube-texto: #2a7052;
+  --sube-suave: #e3f0e8;
+  --baja: #b5543a;
+  --baja-texto: #a3492f;
+  --baja-suave: #f8e8e2;
+  --real: #b23a3a;
+  --real-hover: #992f2f;
+  --real-boton-tinta: #ffffff;
+  --real-suave: #f8e6e3;
+  --real-tinta: #9a3030;
+  --pruebas: #b7791f;
+  --pruebas-suave: #f6ead5;
+  --pruebas-tinta: #7a4f10;
+  --foco: #9a6410;
+  --sombra: 0 1px 2px rgba(29, 28, 26, 0.04), 0 4px 16px rgba(29, 28, 26, 0.05);
+  --sombra-alta: 0 2px 6px rgba(29, 28, 26, 0.06), 0 16px 40px rgba(29, 28, 26, 0.12);
+  --velo: rgba(29, 28, 26, 0.32);
 
-  --aviso-fondo: #fdf3dc;
-  --aviso-tinta: #7a4b00;
-  --aviso-borde: #fab219;
-  --critico-fondo: #fbe7e6;
-  --critico-tinta: #8f1f1f;
-  --critico-borde: #d03b3b;
-  --info-fondo: #e8f0fb;
-  --info-tinta: #184f95;
-  --info-borde: #3987e5;
-  --ok-fondo: #e4f3e4;
-  --ok-tinta: #0f5c0f;
-  --ok-borde: #0ca30c;
+  --riesgo-1: #5e8fb8;
+  --riesgo-2: #6fa39a;
+  --riesgo-3: #c9a13b;
+  --riesgo-4: #d27d3e;
+  --riesgo-5: #b5543a;
 
+  --rejilla: #ece8e0;
+  --eje: #d3cdc1;
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
   --serie-3: #1baf7a;
@@ -54,38 +74,41 @@
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
-    --pagina: #0d0d0d;
-    --superficie: #1a1a19;
-    --superficie-2: #262624;
-    --superficie-3: #313130;
-    --tinta: #f0efec;
-    --tinta-2: #c3c2b7;
-    --tinta-3: #a3a199;
-    --rejilla: #2c2c2a;
-    --eje: #383835;
-    --borde: rgba(255, 255, 255, 0.14);
-    --sube: #0ca30c;
-    --baja: #f07a7a;
-    --acento: #256abf;
-    --acento-hover: #2a78d6;
-    --acento-tinta: #ffffff;
-    --foco: #86b6ef;
-    --peligro: #b42727;
-    --peligro-hover: #c93434;
+    --fondo: #121311;
+    --superficie: #1b1c19;
+    --superficie-2: #24251f;
+    --tinta: #eeebe4;
+    --tinta-suave: #a9a59c;
+    --linea: #33342e;
+    --linea-control: #6e6c64;
+    --marca: #9db7dd;
+    --marca-hover: #b4c8e6;
+    --marca-tinta: #121311;
+    --marca-suave: #22303f;
+    --destaque: #e0b060;
+    --destaque-suave: #33281a;
+    --destaque-tinta: #e0b060;
+    --sube: #6fc39c;
+    --sube-texto: #6fc39c;
+    --sube-suave: #1a2c23;
+    --baja: #e58b70;
+    --baja-texto: #e58b70;
+    --baja-suave: #33201b;
+    --real: #e07070;
+    --real-hover: #e88a8a;
+    --real-boton-tinta: #121311;
+    --real-suave: #3a1e1e;
+    --real-tinta: #e07070;
+    --pruebas: #e0a85a;
+    --pruebas-suave: #33281a;
+    --pruebas-tinta: #e0a85a;
+    --foco: #e0b060;
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+    --sombra-alta: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
+    --velo: rgba(0, 0, 0, 0.6);
 
-    --aviso-fondo: #2e2410;
-    --aviso-tinta: #f5c35c;
-    --aviso-borde: #fab219;
-    --critico-fondo: #331616;
-    --critico-tinta: #f19a9a;
-    --critico-borde: #d03b3b;
-    --info-fondo: #14233a;
-    --info-tinta: #9ec5f4;
-    --info-borde: #3987e5;
-    --ok-fondo: #132a13;
-    --ok-tinta: #7fd67f;
-    --ok-borde: #0ca30c;
-
+    --rejilla: #2a2b26;
+    --eje: #3d3e37;
     --serie-1: #3987e5;
     --serie-2: #d95926;
     --serie-3: #199e70;
@@ -99,38 +122,41 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --pagina: #0d0d0d;
-  --superficie: #1a1a19;
-  --superficie-2: #262624;
-  --superficie-3: #313130;
-  --tinta: #f0efec;
-  --tinta-2: #c3c2b7;
-  --tinta-3: #a3a199;
-  --rejilla: #2c2c2a;
-  --eje: #383835;
-  --borde: rgba(255, 255, 255, 0.14);
-  --sube: #0ca30c;
-  --baja: #f07a7a;
-  --acento: #256abf;
-  --acento-hover: #2a78d6;
-  --acento-tinta: #ffffff;
-  --foco: #86b6ef;
-  --peligro: #b42727;
-  --peligro-hover: #c93434;
+  --fondo: #121311;
+  --superficie: #1b1c19;
+  --superficie-2: #24251f;
+  --tinta: #eeebe4;
+  --tinta-suave: #a9a59c;
+  --linea: #33342e;
+  --linea-control: #6e6c64;
+  --marca: #9db7dd;
+  --marca-hover: #b4c8e6;
+  --marca-tinta: #121311;
+  --marca-suave: #22303f;
+  --destaque: #e0b060;
+  --destaque-suave: #33281a;
+  --destaque-tinta: #e0b060;
+  --sube: #6fc39c;
+  --sube-texto: #6fc39c;
+  --sube-suave: #1a2c23;
+  --baja: #e58b70;
+  --baja-texto: #e58b70;
+  --baja-suave: #33201b;
+  --real: #e07070;
+  --real-hover: #e88a8a;
+  --real-boton-tinta: #121311;
+  --real-suave: #3a1e1e;
+  --real-tinta: #e07070;
+  --pruebas: #e0a85a;
+  --pruebas-suave: #33281a;
+  --pruebas-tinta: #e0a85a;
+  --foco: #e0b060;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --sombra-alta: 0 2px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --velo: rgba(0, 0, 0, 0.6);
 
-  --aviso-fondo: #2e2410;
-  --aviso-tinta: #f5c35c;
-  --aviso-borde: #fab219;
-  --critico-fondo: #331616;
-  --critico-tinta: #f19a9a;
-  --critico-borde: #d03b3b;
-  --info-fondo: #14233a;
-  --info-tinta: #9ec5f4;
-  --info-borde: #3987e5;
-  --ok-fondo: #132a13;
-  --ok-tinta: #7fd67f;
-  --ok-borde: #0ca30c;
-
+  --rejilla: #2a2b26;
+  --eje: #3d3e37;
   --serie-1: #3987e5;
   --serie-2: #d95926;
   --serie-3: #199e70;
@@ -142,62 +168,97 @@
 }
 
 @theme inline {
-  --color-pagina: var(--pagina);
+  --color-fondo: var(--fondo);
   --color-superficie: var(--superficie);
   --color-superficie-2: var(--superficie-2);
-  --color-superficie-3: var(--superficie-3);
   --color-tinta: var(--tinta);
-  --color-tinta-2: var(--tinta-2);
-  --color-tinta-3: var(--tinta-3);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-linea: var(--linea);
+  --color-linea-control: var(--linea-control);
+  --color-marca: var(--marca);
+  --color-marca-hover: var(--marca-hover);
+  --color-marca-tinta: var(--marca-tinta);
+  --color-marca-suave: var(--marca-suave);
+  --color-destaque: var(--destaque);
+  --color-destaque-suave: var(--destaque-suave);
+  --color-destaque-tinta: var(--destaque-tinta);
+  --color-sube: var(--sube);
+  --color-sube-texto: var(--sube-texto);
+  --color-sube-suave: var(--sube-suave);
+  --color-baja: var(--baja);
+  --color-baja-texto: var(--baja-texto);
+  --color-baja-suave: var(--baja-suave);
+  --color-real: var(--real);
+  --color-real-hover: var(--real-hover);
+  --color-real-boton-tinta: var(--real-boton-tinta);
+  --color-real-suave: var(--real-suave);
+  --color-real-tinta: var(--real-tinta);
+  --color-pruebas: var(--pruebas);
+  --color-pruebas-suave: var(--pruebas-suave);
+  --color-pruebas-tinta: var(--pruebas-tinta);
+  --color-foco: var(--foco);
   --color-rejilla: var(--rejilla);
   --color-eje: var(--eje);
-  --color-borde: var(--borde);
-  --color-sube: var(--sube);
-  --color-baja: var(--baja);
-  --color-acento: var(--acento);
-  --color-acento-hover: var(--acento-hover);
-  --color-acento-tinta: var(--acento-tinta);
-  --color-foco: var(--foco);
-  --color-peligro: var(--peligro);
-  --color-peligro-hover: var(--peligro-hover);
-  --color-aviso-fondo: var(--aviso-fondo);
-  --color-aviso-tinta: var(--aviso-tinta);
-  --color-aviso-borde: var(--aviso-borde);
-  --color-critico-fondo: var(--critico-fondo);
-  --color-critico-tinta: var(--critico-tinta);
-  --color-critico-borde: var(--critico-borde);
-  --color-info-fondo: var(--info-fondo);
-  --color-info-tinta: var(--info-tinta);
-  --color-info-borde: var(--info-borde);
-  --color-ok-fondo: var(--ok-fondo);
-  --color-ok-tinta: var(--ok-tinta);
-  --color-ok-borde: var(--ok-borde);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-riesgo-1: var(--riesgo-1);
+  --color-riesgo-2: var(--riesgo-2);
+  --color-riesgo-3: var(--riesgo-3);
+  --color-riesgo-4: var(--riesgo-4);
+  --color-riesgo-5: var(--riesgo-5);
+  --font-sans: var(--fuente-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-titular: var(--fuente-fraunces), Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  --shadow-suave: var(--sombra);
+  --shadow-alta: var(--sombra-alta);
+  --radius-tarjeta: 16px;
 }
 
 html {
-  background: var(--pagina);
+  background: var(--fondo);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--pagina);
+  background: var(--fondo);
   color: var(--tinta);
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Foco siempre visible con teclado: anillo de 2px en el color de foco, separado de la marca. */
+/* Titulares y cifras grandes: Fraunces con su eje "SOFT" alto, que es lo que la hace suave. */
+.titular {
+  font-family: var(--font-titular);
+  font-variation-settings: "SOFT" 80, "WONK" 0;
+  letter-spacing: -0.01em;
+}
+
+/* Cifras tabulares en todo lo que se alinea o cambia (listas, tablas, importes en linea). */
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Foco siempre visible con teclado: anillo azafran de 2px separado del elemento. */
 :focus-visible {
   outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
 
-.cifras {
-  font-variant-numeric: tabular-nums;
+/* Titulos que reciben el foco por programa (al abrir una hoja, al cambiar de paso): el lector de
+   pantalla los anuncia, pero no son controles y no llevan anillo. */
+[data-titulo-hoja]:focus,
+h2[tabindex="-1"]:focus {
+  outline: none;
 }
 
-/* Tablas densas: cabeceras fijas al hacer scroll dentro de su caja. */
+::selection {
+  background: var(--marca-suave);
+  color: var(--tinta);
+}
+
+/* Tablas densas (Laboratorio): cabeceras fijas al hacer scroll dentro de su caja. */
 .tabla-densa th {
   position: sticky;
   top: 0;
@@ -205,13 +266,72 @@ body {
   background: var(--superficie-2);
 }
 
-/* Las graficas de Recharts heredan la tipografia y no dibujan el contorno de foco del SVG. */
 .recharts-surface:focus {
   outline: none;
 }
 .recharts-wrapper:focus-visible {
   outline: 2px solid var(--foco);
   outline-offset: 2px;
+}
+
+/* Hojas (dialog nativo): lateral en escritorio, inferior en movil. */
+dialog.hoja {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  color: var(--tinta);
+}
+dialog.hoja::backdrop {
+  background: var(--velo);
+}
+dialog.hoja[open] .hoja-panel {
+  animation: hoja-sube 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (min-width: 1024px) {
+  dialog.hoja[open] .hoja-panel {
+    animation: hoja-entra 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+@keyframes hoja-sube {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes hoja-entra {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+/* Campos de confirmacion tecleada: monoespaciada y amplia, para leer cifra a cifra. */
+.tecleo {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* El boton de Pregunta sube cuando hay una barra de accion fija abajo (BarraAccion). */
+body[data-barra-accion] .boton-pregunta {
+  bottom: calc(144px + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  body[data-barra-accion] .boton-pregunta {
+    bottom: 96px;
+  }
+}
+
+/* Espacio para la barra inferior en movil (mas la zona segura del iPhone). */
+.relleno-barra-inferior {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .relleno-barra-inferior {
+    padding-bottom: 120px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

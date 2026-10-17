@@ -46,7 +46,7 @@ export function SelectorActivos({
       {grupos.map(([nombre, lista]) =>
         lista.length ? (
           <div key={nombre} className="flex flex-wrap items-center gap-1.5">
-            <span className="w-12 text-xs text-tinta-2">{nombre}</span>
+            <span className="w-12 text-xs text-tinta-suave">{nombre}</span>
             {lista.map((a) => {
               const marcado = seleccion.includes(a.id);
               const bloqueado = !marcado && lleno;
@@ -55,8 +55,8 @@ export function SelectorActivos({
                   key={a.id}
                   title={`${a.label} · ${a.provider} · ${a.desde} a ${a.hasta}`}
                   className={clases(
-                    "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-foco",
-                    marcado ? "border-acento bg-info-fondo font-semibold text-tinta" : "border-borde bg-superficie text-tinta-2",
+                    "inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-foco",
+                    marcado ? "border-marca bg-marca-suave font-semibold text-tinta" : "border-linea bg-superficie text-tinta-suave",
                     bloqueado && "cursor-not-allowed opacity-50",
                   )}
                 >
@@ -75,7 +75,7 @@ export function SelectorActivos({
           </div>
         ) : null,
       )}
-      <p id={`${id}-estado`} className="text-xs text-tinta-2">
+      <p id={`${id}-estado`} className="text-xs text-tinta-suave">
         {seleccion.length} elegido(s){maximo !== undefined ? ` de un máximo de ${maximo}` : ""}.
         {lleno && motivoMaximo ? ` ${motivoMaximo}` : ""}
       </p>

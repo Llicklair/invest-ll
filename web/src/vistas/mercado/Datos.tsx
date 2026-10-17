@@ -20,7 +20,7 @@ function useSegundos(inicio: number | null): number {
   return inicio === null ? 0 : Math.max(0, Math.round((ahora - inicio) / 1000));
 }
 
-export function DatosDescargados() {
+export function DatosDescargados({ conTitulo = true }: { conTitulo?: boolean }) {
   const { versionDatos, refrescarDatos } = useEstado();
   const consulta = useConsulta(`datos:${versionDatos}`, () => pedir(api.GET("/api/mercado/datos")));
   const [inicio, setInicio] = useState<number | null>(null);
@@ -41,7 +41,7 @@ export function DatosDescargados() {
   const fallos = resultado ? resultado.resultados.filter((r) => !r.ok) : [];
 
   return (
-    <Seccion titulo="Datos descargados" id="datos">
+    <Seccion titulo={conTitulo ? "Datos descargados" : <span className="sr-only">Datos descargados</span>}>
       <Nota>
         Último cierre de cada histórico descargado. Para actualizarlo hay que volver a descargar con invest-ll-fetch: el
         motor no toca la red por diseño.
@@ -72,7 +72,7 @@ export function DatosDescargados() {
                   {datos.desfasados.includes(f.activo) ? <span className="ml-1.5 text-xs font-semibold text-tinta">(desfasado)</span> : null}
                 </Td>
                 <Td numerica>{f.velas.toLocaleString("es-ES")}</Td>
-                <Td className="text-tinta-2">{f.descargado ? fecha(f.descargado) : "sin procedencia"}</Td>
+                <Td className="text-tinta-suave">{f.descargado ? fecha(f.descargado) : "sin procedencia"}</Td>
               </tr>
             ))}
           </tbody>
@@ -96,10 +96,10 @@ export function DatosDescargados() {
           Actualizar todos los históricos (descarga de internet, tarda un rato)
         </Boton>
         {actualizar.enCurso ? (
-          <div className="space-y-1.5 rounded-md border border-borde bg-superficie p-3" role="status" aria-live="polite">
+          <div className="space-y-1.5 rounded-tarjeta border border-linea bg-superficie p-4" role="status" aria-live="polite">
             <p className="text-sm font-medium">Descargando… lleva {segundos} s.</p>
-            <progress className="h-1.5 w-full max-w-md accent-[var(--acento)]" aria-label="Descarga en curso" />
-            <p className="text-xs text-tinta-2">
+            <progress className="h-1.5 w-full max-w-md accent-[var(--marca)]" aria-label="Descarga en curso" />
+            <p className="text-xs text-tinta-suave">
               La API re-descarga cada histórico con los parámetros de su procedencia y devuelve el resultado de cada
               activo al terminar. No cierres la pestaña.
             </p>
@@ -126,15 +126,15 @@ export function DatosDescargados() {
                 {resultado.resultados.map((r) => (
                   <tr key={r.symbol}>
                     <Td className="font-medium">{r.symbol}</Td>
-                    <Td className={r.ok ? "text-tinta" : "font-semibold text-critico-tinta"}>{r.ok ? "bien" : "fallo"}</Td>
-                    <Td className="whitespace-normal text-tinta-2">{r.detalle}</Td>
+                    <Td className={r.ok ? "text-tinta" : "font-semibold text-real-tinta"}>{r.ok ? "bien" : "fallo"}</Td>
+                    <Td className="whitespace-normal text-tinta-suave">{r.detalle}</Td>
                   </tr>
                 ))}
                 {resultado.saltados.map((s) => (
                   <tr key={`saltado-${s}`}>
                     <Td className="font-medium">{s}</Td>
                     <Td>saltado</Td>
-                    <Td className="whitespace-normal text-tinta-2">
+                    <Td className="whitespace-normal text-tinta-suave">
                       sin metadatos de procedencia: no se adivinan los parámetros de descarga
                     </Td>
                   </tr>

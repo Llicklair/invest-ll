@@ -20,6 +20,7 @@ export type Cotizacion = S["Cotizacion"];
 export type Cotizaciones = S["Cotizaciones"];
 export type DatosDescargados = S["DatosDescargados"];
 export type Disparo = S["Disparo"];
+export type FilaOrden = S["FilaOrden"];
 export type Estado = S["Estado"];
 export type EstadoEnvio = S["EstadoEnvio"];
 export type FilaRendimiento = S["FilaRendimiento"];
@@ -54,5 +55,48 @@ export type PesoObjetivo = S["PesoObjetivo"];
 
 /** Ventana de una grafica: el `Tramo` del contrato. */
 export type Tramo = Serie["tramo"];
-export type Estrategia = PeticionUnActivo["estrategia"];
+/** Las reglas de "Una estrategia sobre un activo" (Laboratorio), no las del catalogo v2. */
+export type EstrategiaUnActivo = PeticionUnActivo["estrategia"];
 export type Celda = Tabla["filas"][number][number];
+
+// -- Panel v2 (schemas_v2.py) -------------------------------------------------------------------
+
+export type Accion = S["Accion"];
+export type AccionHecha = S["AccionHecha"];
+export type CambioModo = S["CambioModo"];
+export type Catalogo = S["Catalogo"];
+export type Cerrojo = S["Cerrojo"];
+export type Conexion = S["Conexion"];
+export type EstadoRed = S["EstadoRed"];
+export type Estrategia = S["Estrategia"];
+export type Evidencia = S["Evidencia"];
+export type Historico = S["Historico"];
+export type Hoy = S["Hoy"];
+export type Inicio = S["Inicio"];
+export type MiniMercado = S["MiniMercado"];
+export type ModoDisponible = S["ModoDisponible"];
+export type Movimiento = S["Movimiento"];
+export type Movimientos = S["Movimientos"];
+export type NuevasClaves = S["NuevasClaves"];
+export type NuevoPlan = S["NuevoPlan"];
+export type Parte = S["Parte"];
+export type ParteDelPlan = S["ParteDelPlan-Input"];
+export type ParteResumen = S["ParteResumen"];
+export type Patrimonio = S["Patrimonio"];
+export type Perfil = S["Perfil"];
+export type PeticionSimulacion = S["PeticionSimulacion"];
+export type Plan = S["Plan"];
+export type PlanGuardado = S["PlanGuardado"];
+export type PruebaConexion = S["PruebaConexion"];
+export type PuntoSimulado = S["PuntoSimulado"];
+export type Recomendacion = S["Recomendacion"];
+export type ResultadoSimulado = S["ResultadoSimulado"];
+export type Saldo = S["Saldo"];
+export type SaldoMoneda = S["SaldoMoneda"];
+export type Simulacion = S["Simulacion"];
+
+export type ModoPanel = Conexion["modo"];
+export type Red = EstadoRed["red"];
+export type Horizonte = Perfil["horizonte"];
+export type AnteCaida = Perfil["ante_caida"];
+export type QuiereCripto = Perfil["cripto"];
