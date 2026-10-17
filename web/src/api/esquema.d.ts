@@ -34,8 +34,6 @@ export interface paths {
         /**
          * Movimientos
          * @description El registro de la cartera del modo activo, legible y el más reciente primero.
-         *
-         *     ESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.
          */
         get: operations["movimientos_api_cartera_movimientos_get"];
         put?: never;
@@ -790,7 +788,7 @@ export interface paths {
         };
         /**
          * Comprobar Triggers
-         * @description Evalúa los triggers contra la cartera real; los disparos son texto, nada se envía.
+         * @description Evalúa los triggers contra la cartera del modo activo; los disparos son texto, nada se envía.
          */
         get: operations["comprobar_triggers_api_triggers_comprobar_get"];
         put?: never;
