@@ -163,7 +163,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         abrir_navegador(destino)
 
     servir(
-        crear_app(frontend=FRONTEND),
+        crear_app(frontend=FRONTEND, en_vivo=True),
         host=HOST,
         puerto=args.puerto,
         al_arrancar=None if args.no_browser else abrir,

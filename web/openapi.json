@@ -417,6 +417,78 @@
         "title": "AnalisisCartera",
         "type": "object"
       },
+      "Bots": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bots": {
+            "items": {
+              "$ref": "#/components/schemas/ResumenBot"
+            },
+            "title": "Bots",
+            "type": "array"
+          },
+          "capital": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital",
+            "type": "string"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia Pct"
+          },
+          "nota": {
+            "description": "'Dinero ficticio. Los bots solo funcionan con el panel abierto.'",
+            "title": "Nota",
+            "type": "string"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "bots",
+          "capital",
+          "valor",
+          "ganancia",
+          "ganancia_pct",
+          "at",
+          "nota"
+        ],
+        "title": "Bots",
+        "type": "object"
+      },
       "CambioModo": {
         "properties": {
           "confirmacion": {
@@ -1082,6 +1154,106 @@
         "title": "Cotizaciones",
         "type": "object"
       },
+      "CuentaPractica": {
+        "description": "Dinero ficticio en USDC. Nada sale al exterior.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia Pct"
+          },
+          "historial": {
+            "description": "La más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/EjecucionPractica"
+            },
+            "title": "Historial",
+            "type": "array"
+          },
+          "inicial": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Inicial",
+            "type": "string"
+          },
+          "ordenes": {
+            "description": "Órdenes con límite pendientes",
+            "items": {
+              "$ref": "#/components/schemas/OrdenPractica"
+            },
+            "title": "Ordenes",
+            "type": "array"
+          },
+          "posiciones": {
+            "items": {
+              "$ref": "#/components/schemas/PosicionPractica"
+            },
+            "title": "Posiciones",
+            "type": "array"
+          },
+          "reservado": {
+            "description": "USDC apartados por órdenes de compra con límite",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reservado",
+            "type": "string"
+          },
+          "saldo": {
+            "description": "USDC sin invertir (lo reservado por órdenes con límite no)",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Saldo",
+            "type": "string"
+          },
+          "valor_total": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saldo + reservado + posiciones a precio de ahora",
+            "title": "Valor Total"
+          }
+        },
+        "required": [
+          "inicial",
+          "saldo",
+          "reservado",
+          "valor_total",
+          "ganancia",
+          "ganancia_pct",
+          "posiciones",
+          "ordenes",
+          "historial",
+          "at"
+        ],
+        "title": "CuentaPractica",
+        "type": "object"
+      },
       "DatosDescargados": {
         "properties": {
           "desfasados": {
@@ -1105,6 +1277,259 @@
           "desfasados"
         ],
         "title": "DatosDescargados",
+        "type": "object"
+      },
+      "DetalleBot": {
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'Panel cerrado de 14:02 a 18:30: no operó'",
+            "title": "Aviso"
+          },
+          "capital": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital",
+            "type": "string"
+          },
+          "curva": {
+            "description": "Unos 100 puntos desde que arrancó",
+            "items": {
+              "$ref": "#/components/schemas/PuntoBot"
+            },
+            "title": "Curva",
+            "type": "array"
+          },
+          "curva_mantener": {
+            "description": "Mismo capital, solo manteniendo",
+            "items": {
+              "$ref": "#/components/schemas/PuntoBot"
+            },
+            "title": "Curva Mantener",
+            "type": "array"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "dias": {
+            "title": "Dias",
+            "type": "number"
+          },
+          "efectivo": {
+            "description": "USDC sin invertir",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Efectivo",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "en_marcha",
+              "parado",
+              "error"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "eventos": {
+            "description": "El más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/EventoBot"
+            },
+            "title": "Eventos",
+            "type": "array"
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/EvidenciaBot"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia"
+          },
+          "ganancia_24h_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción",
+            "title": "Ganancia 24H Pct"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción",
+            "title": "Ganancia Pct"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lista_operaciones": {
+            "description": "La más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/OperacionBot"
+            },
+            "title": "Lista Operaciones",
+            "type": "array"
+          },
+          "mantener_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)",
+            "title": "Mantener Pct"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas",
+            "type": "array"
+          },
+          "motivo_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Error"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "nombre_plantilla": {
+            "title": "Nombre Plantilla",
+            "type": "string"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "parametros": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Parametros",
+            "type": "object"
+          },
+          "peor_caida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción negativa desde su máximo",
+            "title": "Peor Caida"
+          },
+          "plantilla": {
+            "title": "Plantilla",
+            "type": "string"
+          },
+          "posiciones": {
+            "items": {
+              "$ref": "#/components/schemas/PosicionPractica"
+            },
+            "title": "Posiciones",
+            "type": "array"
+          },
+          "riesgo": {
+            "title": "Riesgo",
+            "type": "integer"
+          },
+          "ultima_actividad": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima Actividad"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que vale ahora (USDC + posiciones)",
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "plantilla",
+          "nombre_plantilla",
+          "monedas",
+          "estado",
+          "motivo_error",
+          "desde",
+          "dias",
+          "capital",
+          "valor",
+          "ganancia",
+          "ganancia_pct",
+          "ganancia_24h_pct",
+          "mantener_pct",
+          "peor_caida",
+          "operaciones",
+          "evidencia",
+          "riesgo",
+          "curva",
+          "ultima_actividad",
+          "aviso",
+          "parametros",
+          "efectivo",
+          "posiciones",
+          "lista_operaciones",
+          "eventos",
+          "curva_mantener"
+        ],
+        "title": "DetalleBot",
         "type": "object"
       },
       "Disparo": {
@@ -1165,6 +1590,78 @@
           "comando"
         ],
         "title": "Disparo",
+        "type": "object"
+      },
+      "EjecucionPractica": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "comision": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comision",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "importe": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio": {
+            "description": "Precio medio de la ejecución",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "mercado",
+              "limite"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "coin",
+          "nombre",
+          "lado",
+          "tipo",
+          "cantidad",
+          "precio",
+          "importe",
+          "comision",
+          "at"
+        ],
+        "title": "EjecucionPractica",
         "type": "object"
       },
       "Error": {
@@ -1338,6 +1835,52 @@
         "title": "EstadoRed",
         "type": "object"
       },
+      "EstadoVivo": {
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En llano, si está desconectado o reconectando",
+            "title": "Aviso"
+          },
+          "conectado": {
+            "title": "Conectado",
+            "type": "boolean"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Desde cuándo llegan datos sin cortes",
+            "title": "Desde"
+          },
+          "fuente": {
+            "description": "'Hyperliquid'",
+            "title": "Fuente",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conectado",
+          "fuente",
+          "desde",
+          "aviso"
+        ],
+        "title": "EstadoVivo",
+        "type": "object"
+      },
       "Estrategia": {
         "properties": {
           "activos": {
@@ -1489,6 +2032,37 @@
         "title": "Estudio",
         "type": "object"
       },
+      "EventoBot": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "arranque",
+              "parada",
+              "error",
+              "hueco",
+              "info"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "tipo",
+          "texto"
+        ],
+        "title": "EventoBot",
+        "type": "object"
+      },
       "Evidencia": {
         "properties": {
           "desde": {
@@ -1524,6 +2098,30 @@
           "texto"
         ],
         "title": "Evidencia",
+        "type": "object"
+      },
+      "EvidenciaBot": {
+        "properties": {
+          "texto": {
+            "description": "En llano, para la tarjeta del bot",
+            "title": "Texto",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "pasado",
+              "prueba_real",
+              "ninguna"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "texto"
+        ],
+        "title": "EvidenciaBot",
         "type": "object"
       },
       "FilaDatos": {
@@ -2415,6 +3013,56 @@
         "title": "Investigacion",
         "type": "object"
       },
+      "LibroVivo": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "compras": {
+            "description": "De mayor a menor precio",
+            "items": {
+              "$ref": "#/components/schemas/NivelLibro"
+            },
+            "title": "Compras",
+            "type": "array"
+          },
+          "diferencial": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Venta más barata menos compra más cara",
+            "title": "Diferencial"
+          },
+          "ventas": {
+            "description": "De menor a mayor precio",
+            "items": {
+              "$ref": "#/components/schemas/NivelLibro"
+            },
+            "title": "Ventas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "coin",
+          "at",
+          "compras",
+          "ventas",
+          "diferencial"
+        ],
+        "title": "LibroVivo",
+        "type": "object"
+      },
       "MensajeChat": {
         "properties": {
           "autor": {
@@ -2535,6 +3183,90 @@
           "que_falta"
         ],
         "title": "ModoDisponible",
+        "type": "object"
+      },
+      "MonedaVivo": {
+        "properties": {
+          "coin": {
+            "description": "Nombre en Hyperliquid: 'BTC', 'ETH', 'kPEPE'",
+            "title": "Coin",
+            "type": "string"
+          },
+          "decimales_cantidad": {
+            "description": "Cuántos decimales admite la cantidad",
+            "title": "Decimales Cantidad",
+            "type": "integer"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio": {
+            "title": "Precio",
+            "type": "number"
+          },
+          "var_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En %",
+            "title": "Var 24H"
+          },
+          "volumen_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En USDC",
+            "title": "Volumen 24H"
+          }
+        },
+        "required": [
+          "coin",
+          "nombre",
+          "precio",
+          "var_24h",
+          "volumen_24h",
+          "decimales_cantidad"
+        ],
+        "title": "MonedaVivo",
+        "type": "object"
+      },
+      "Monedas": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVivo"
+          },
+          "monedas": {
+            "description": "Las más negociadas primero",
+            "items": {
+              "$ref": "#/components/schemas/MonedaVivo"
+            },
+            "title": "Monedas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "estado",
+          "at",
+          "monedas"
+        ],
+        "title": "Monedas",
         "type": "object"
       },
       "Movimiento": {
@@ -2694,6 +3426,111 @@
         "title": "Movimientos",
         "type": "object"
       },
+      "NivelLibro": {
+        "properties": {
+          "cantidad": {
+            "title": "Cantidad",
+            "type": "number"
+          },
+          "ordenes": {
+            "title": "Ordenes",
+            "type": "integer"
+          },
+          "precio": {
+            "title": "Precio",
+            "type": "number"
+          }
+        },
+        "required": [
+          "precio",
+          "cantidad",
+          "ordenes"
+        ],
+        "title": "NivelLibro",
+        "type": "object"
+      },
+      "NuevaOrdenPractica": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En la moneda",
+            "title": "Cantidad"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En USDC (solo a mercado)",
+            "title": "Importe"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "precio_limite": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo con límite",
+            "title": "Precio Limite"
+          },
+          "tipo": {
+            "enum": [
+              "mercado",
+              "limite"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coin",
+          "lado",
+          "tipo"
+        ],
+        "title": "NuevaOrdenPractica",
+        "type": "object"
+      },
       "NuevasClaves": {
         "properties": {
           "clave": {
@@ -2712,6 +3549,58 @@
           "secreto"
         ],
         "title": "NuevasClaves",
+        "type": "object"
+      },
+      "NuevoBot": {
+        "properties": {
+          "capital": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "USDC ficticios",
+            "title": "Capital"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Monedas",
+            "type": "array"
+          },
+          "nombre": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "parametros": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Por clave; lo que falte, su valor por defecto",
+            "title": "Parametros",
+            "type": "object"
+          },
+          "plantilla": {
+            "title": "Plantilla",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plantilla",
+          "nombre",
+          "monedas",
+          "capital"
+        ],
+        "title": "NuevoBot",
         "type": "object"
       },
       "NuevoMovimiento": {
@@ -2891,6 +3780,180 @@
         "title": "OpcionesSimular",
         "type": "object"
       },
+      "OperacionBot": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "comision": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Comision",
+            "type": "string"
+          },
+          "importe": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "motivo": {
+            "description": "El porqué, en llano",
+            "title": "Motivo",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "coin",
+          "nombre",
+          "lado",
+          "cantidad",
+          "precio",
+          "importe",
+          "comision",
+          "motivo"
+        ],
+        "title": "OperacionBot",
+        "type": "object"
+      },
+      "OperacionMercado": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "cantidad": {
+            "title": "Cantidad",
+            "type": "number"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "lado": {
+            "description": "'compra' si la inició quien compraba",
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "precio": {
+            "title": "Precio",
+            "type": "number"
+          }
+        },
+        "required": [
+          "coin",
+          "at",
+          "precio",
+          "cantidad",
+          "lado"
+        ],
+        "title": "OperacionMercado",
+        "type": "object"
+      },
+      "Operaciones": {
+        "properties": {
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "operaciones": {
+            "description": "La más reciente primero",
+            "items": {
+              "$ref": "#/components/schemas/OperacionMercado"
+            },
+            "title": "Operaciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "coin",
+          "operaciones"
+        ],
+        "title": "Operaciones",
+        "type": "object"
+      },
+      "OrdenPractica": {
+        "properties": {
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "creada": {
+            "format": "date-time",
+            "title": "Creada",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio_limite": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Limite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "coin",
+          "nombre",
+          "lado",
+          "cantidad",
+          "precio_limite",
+          "creada"
+        ],
+        "title": "OrdenPractica",
+        "type": "object"
+      },
       "OrdenesEnviadas": {
         "properties": {
           "atencion": {
@@ -2953,6 +4016,85 @@
           "correlacion"
         ],
         "title": "Par",
+        "type": "object"
+      },
+      "ParametroBot": {
+        "properties": {
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "defecto": {
+            "title": "Defecto",
+            "type": "string"
+          },
+          "explicacion": {
+            "description": "Qué cambia, en llano",
+            "title": "Explicacion",
+            "type": "string"
+          },
+          "maximo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximo"
+          },
+          "minimo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimo"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "opciones": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opciones"
+          },
+          "tipo": {
+            "enum": [
+              "entero",
+              "decimal",
+              "opcion",
+              "intervalo"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "explicacion",
+          "tipo",
+          "defecto",
+          "minimo",
+          "maximo",
+          "opciones"
+        ],
+        "title": "ParametroBot",
         "type": "object"
       },
       "Parte": {
@@ -3946,6 +5088,108 @@
         "title": "PlanGuardado",
         "type": "object"
       },
+      "PlantillaBot": {
+        "properties": {
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "como_funciona": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Como Funciona",
+            "type": "array"
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/EvidenciaBot"
+          },
+          "frase": {
+            "title": "Frase",
+            "type": "string"
+          },
+          "monedas": {
+            "enum": [
+              "una",
+              "varias"
+            ],
+            "title": "Monedas",
+            "type": "string"
+          },
+          "monedas_sugeridas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas Sugeridas",
+            "type": "array"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "operaciones_esperadas": {
+            "description": "'Una al mes', 'Decenas al día'…",
+            "title": "Operaciones Esperadas",
+            "type": "string"
+          },
+          "parametros": {
+            "items": {
+              "$ref": "#/components/schemas/ParametroBot"
+            },
+            "title": "Parametros",
+            "type": "array"
+          },
+          "riesgo": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Riesgo",
+            "type": "integer"
+          },
+          "riesgo_texto": {
+            "title": "Riesgo Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "frase",
+          "como_funciona",
+          "avisos",
+          "evidencia",
+          "riesgo",
+          "riesgo_texto",
+          "operaciones_esperadas",
+          "monedas",
+          "monedas_sugeridas",
+          "parametros"
+        ],
+        "title": "PlantillaBot",
+        "type": "object"
+      },
+      "Plantillas": {
+        "properties": {
+          "plantillas": {
+            "items": {
+              "$ref": "#/components/schemas/PlantillaBot"
+            },
+            "title": "Plantillas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plantillas"
+        ],
+        "title": "Plantillas",
+        "type": "object"
+      },
       "PorcentajeEstrategia": {
         "properties": {
           "estrategia": {
@@ -4072,6 +5316,91 @@
           "pnl_no_realizado"
         ],
         "title": "PosicionAbierta",
+        "type": "object"
+      },
+      "PosicionPractica": {
+        "properties": {
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que ganas o pierdes si vendieras ahora",
+            "title": "Ganancia"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción",
+            "title": "Ganancia Pct"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Precio de ahora",
+            "title": "Precio"
+          },
+          "precio_medio": {
+            "description": "Comisiones incluidas",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Medio",
+            "type": "string"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "coin",
+          "nombre",
+          "cantidad",
+          "precio_medio",
+          "precio",
+          "valor",
+          "ganancia",
+          "ganancia_pct"
+        ],
+        "title": "PosicionPractica",
         "type": "object"
       },
       "PosicionRetirada": {
@@ -4299,6 +5628,25 @@
         "title": "Punto",
         "type": "object"
       },
+      "PuntoBot": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "at",
+          "valor"
+        ],
+        "title": "PuntoBot",
+        "type": "object"
+      },
       "PuntoComparado": {
         "properties": {
           "activo": {
@@ -4415,6 +5763,27 @@
           "problemas"
         ],
         "title": "RegistroPropuesta",
+        "type": "object"
+      },
+      "ReinicioPractica": {
+        "properties": {
+          "inicial": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "10000",
+            "description": "USDC ficticios",
+            "title": "Inicial"
+          }
+        },
+        "title": "ReinicioPractica",
         "type": "object"
       },
       "Rendimiento": {
@@ -4601,6 +5970,48 @@
         "title": "ResultadoOrden",
         "type": "object"
       },
+      "ResultadoPractica": {
+        "properties": {
+          "cuenta": {
+            "$ref": "#/components/schemas/CuentaPractica"
+          },
+          "ejecucion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EjecucionPractica"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si se ejecutó ya"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrdenPractica"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si queda pendiente (con límite)"
+          },
+          "resumen": {
+            "description": "En llano: 'Compraste 0,0148 Bitcoin a 67.420,10 USDC…'",
+            "title": "Resumen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resumen",
+          "ejecucion",
+          "orden",
+          "cuenta"
+        ],
+        "title": "ResultadoPractica",
+        "type": "object"
+      },
       "ResultadoSimulado": {
         "properties": {
           "aportado": {
@@ -4697,6 +6108,210 @@
           "aviso"
         ],
         "title": "ResultadoSimulado",
+        "type": "object"
+      },
+      "ResumenBot": {
+        "description": "Lo que enseña la tarjeta del bot (como un vault).",
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'Panel cerrado de 14:02 a 18:30: no operó'",
+            "title": "Aviso"
+          },
+          "capital": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital",
+            "type": "string"
+          },
+          "curva": {
+            "description": "Unos 100 puntos desde que arrancó",
+            "items": {
+              "$ref": "#/components/schemas/PuntoBot"
+            },
+            "title": "Curva",
+            "type": "array"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "dias": {
+            "title": "Dias",
+            "type": "number"
+          },
+          "estado": {
+            "enum": [
+              "en_marcha",
+              "parado",
+              "error"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/EvidenciaBot"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia"
+          },
+          "ganancia_24h_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción",
+            "title": "Ganancia 24H Pct"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción",
+            "title": "Ganancia Pct"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mantener_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que habría ganado solo mantener sus monedas desde que arrancó (fracción)",
+            "title": "Mantener Pct"
+          },
+          "monedas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Monedas",
+            "type": "array"
+          },
+          "motivo_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Error"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "nombre_plantilla": {
+            "title": "Nombre Plantilla",
+            "type": "string"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "peor_caida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fracción negativa desde su máximo",
+            "title": "Peor Caida"
+          },
+          "plantilla": {
+            "title": "Plantilla",
+            "type": "string"
+          },
+          "riesgo": {
+            "title": "Riesgo",
+            "type": "integer"
+          },
+          "ultima_actividad": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima Actividad"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que vale ahora (USDC + posiciones)",
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "plantilla",
+          "nombre_plantilla",
+          "monedas",
+          "estado",
+          "motivo_error",
+          "desde",
+          "dias",
+          "capital",
+          "valor",
+          "ganancia",
+          "ganancia_pct",
+          "ganancia_24h_pct",
+          "mantener_pct",
+          "peor_caida",
+          "operaciones",
+          "evidencia",
+          "riesgo",
+          "curva",
+          "ultima_actividad",
+          "aviso"
+        ],
+        "title": "ResumenBot",
         "type": "object"
       },
       "Saldo": {
@@ -5034,6 +6649,88 @@
         ],
         "title": "Triggers",
         "type": "object"
+      },
+      "VelaVivo": {
+        "properties": {
+          "apertura": {
+            "title": "Apertura",
+            "type": "number"
+          },
+          "cerrada": {
+            "description": "False en la vela en curso, que aún se mueve",
+            "title": "Cerrada",
+            "type": "boolean"
+          },
+          "cierre": {
+            "title": "Cierre",
+            "type": "number"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "title": "Inicio",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "maximo": {
+            "title": "Maximo",
+            "type": "number"
+          },
+          "minimo": {
+            "title": "Minimo",
+            "type": "number"
+          },
+          "volumen": {
+            "title": "Volumen",
+            "type": "number"
+          }
+        },
+        "required": [
+          "coin",
+          "intervalo",
+          "inicio",
+          "apertura",
+          "maximo",
+          "minimo",
+          "cierre",
+          "volumen",
+          "cerrada"
+        ],
+        "title": "VelaVivo",
+        "type": "object"
+      },
+      "Velas": {
+        "properties": {
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "velas": {
+            "description": "De la más antigua a la más reciente",
+            "items": {
+              "$ref": "#/components/schemas/VelaVivo"
+            },
+            "title": "Velas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "coin",
+          "intervalo",
+          "velas"
+        ],
+        "title": "Velas",
+        "type": "object"
       }
     }
   },
@@ -5044,6 +6741,481 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/bots": {
+      "get": {
+        "description": "Todos los bots con lo que llevan generado, valorados a precios de ahora.",
+        "operationId": "lista_api_bots_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bots"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Lista",
+        "tags": [
+          "bots"
+        ]
+      },
+      "post": {
+        "description": "Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los\nparámetros no valen.",
+        "operationId": "desplegar_api_bots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevoBot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Desplegar",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/plantillas": {
+      "get": {
+        "operationId": "plantillas_api_bots_plantillas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plantillas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Plantillas",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}": {
+      "delete": {
+        "description": "Borra el bot y su registro. 404 si no existe.",
+        "operationId": "borrar_api_bots__bot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Borrar",
+        "tags": [
+          "bots"
+        ]
+      },
+      "get": {
+        "description": "404 si no existe.",
+        "operationId": "detalle_api_bots__bot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Detalle",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}/parar": {
+      "post": {
+        "description": "Deja de operar; conserva sus posiciones (siguen valorándose).",
+        "operationId": "parar_api_bots__bot_id__parar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Parar",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}/reanudar": {
+      "post": {
+        "operationId": "reanudar_api_bots__bot_id__reanudar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Reanudar",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
     "/api/cartera": {
       "get": {
         "description": "La cartera derivada del ledger, valorada con el último cierre y SU fecha.",
@@ -7415,6 +9587,285 @@
         ]
       }
     },
+    "/api/practica": {
+      "get": {
+        "description": "La cuenta de práctica valorada a precios de ahora.",
+        "operationId": "cuenta_api_practica_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaPractica"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Cuenta",
+        "tags": [
+          "practica"
+        ]
+      }
+    },
+    "/api/practica/ordenes": {
+      "post": {
+        "description": "A mercado se ejecuta ya contra el libro; con límite queda pendiente. 422 en llano si no hay\nsaldo, si no tienes esa moneda o si el libro no da para tanto.",
+        "operationId": "nueva_orden_api_practica_ordenes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevaOrdenPractica"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoPractica"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Nueva Orden",
+        "tags": [
+          "practica"
+        ]
+      }
+    },
+    "/api/practica/ordenes/{orden_id}": {
+      "delete": {
+        "description": "Cancela una orden con límite pendiente. 404 si no existe.",
+        "operationId": "cancelar_api_practica_ordenes__orden_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orden_id",
+            "required": true,
+            "schema": {
+              "title": "Orden Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaPractica"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Cancelar",
+        "tags": [
+          "practica"
+        ]
+      }
+    },
+    "/api/practica/reiniciar": {
+      "post": {
+        "description": "Empieza de cero con ese saldo ficticio (el historial anterior se guarda aparte).",
+        "operationId": "reiniciar_api_practica_reiniciar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReinicioPractica"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaPractica"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Reiniciar",
+        "tags": [
+          "practica"
+        ]
+      }
+    },
     "/api/saldo": {
       "get": {
         "description": "Saldo del exchange en el modo activo. 409 en simulación.",
@@ -8447,6 +10898,464 @@
         "summary": "Alertas",
         "tags": [
           "vigilar"
+        ]
+      }
+    },
+    "/api/vivo/estado": {
+      "get": {
+        "description": "Si llegan datos de Hyperliquid y desde cuándo.",
+        "operationId": "estado_vivo_api_vivo_estado_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoVivo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Estado Vivo",
+        "tags": [
+          "vivo"
+        ]
+      }
+    },
+    "/api/vivo/libro": {
+      "get": {
+        "description": "El libro de órdenes de la moneda (empieza a seguirla si no se seguía). 404 si no existe.",
+        "operationId": "libro_api_vivo_libro_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "coin",
+            "required": true,
+            "schema": {
+              "title": "Coin",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibroVivo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Libro",
+        "tags": [
+          "vivo"
+        ]
+      }
+    },
+    "/api/vivo/monedas": {
+      "get": {
+        "description": "Todas las monedas con su precio, variación y volumen de 24 h; las más negociadas primero.",
+        "operationId": "monedas_api_vivo_monedas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Monedas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Monedas",
+        "tags": [
+          "vivo"
+        ]
+      }
+    },
+    "/api/vivo/operaciones": {
+      "get": {
+        "description": "Las últimas operaciones de la moneda.",
+        "operationId": "operaciones_api_vivo_operaciones_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "coin",
+            "required": true,
+            "schema": {
+              "title": "Coin",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operaciones"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Operaciones",
+        "tags": [
+          "vivo"
+        ]
+      }
+    },
+    "/api/vivo/stream": {
+      "get": {
+        "description": "Server-Sent Events: cada evento lleva el JSON de su ruta REST (docs/panel-v3-vivo.md §5).",
+        "operationId": "stream_api_vivo_stream_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "coin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Coin"
+            }
+          },
+          {
+            "in": "query",
+            "name": "intervalo",
+            "required": false,
+            "schema": {
+              "default": "1h",
+              "title": "Intervalo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "canales",
+            "required": false,
+            "schema": {
+              "default": "monedas,libro,operaciones,vela,cuenta,bots,estado",
+              "title": "Canales",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Stream",
+        "tags": [
+          "vivo"
+        ]
+      }
+    },
+    "/api/vivo/velas": {
+      "get": {
+        "description": "Velas de la moneda; la última puede estar en curso. 422 si el intervalo no existe.",
+        "operationId": "velas_api_vivo_velas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "coin",
+            "required": true,
+            "schema": {
+              "title": "Coin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "intervalo",
+            "required": false,
+            "schema": {
+              "default": "1h",
+              "title": "Intervalo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 300,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Velas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Velas",
+        "tags": [
+          "vivo"
         ]
       }
     }

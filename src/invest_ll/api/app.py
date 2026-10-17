@@ -8,6 +8,7 @@ eso se permite ese origen y ninguno más.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -24,7 +25,7 @@ from invest_ll.api.rutas import router
 from invest_ll.errors import InvestLLError
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, Sequence
 
     from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -70,8 +71,26 @@ class SoloEsteEquipo:
         await self._app(scope, receive, send)
 
 
-def crear_app(frontend: Path | None = FRONTEND) -> FastAPI:
+@asynccontextmanager
+async def _en_vivo(_: FastAPI) -> AsyncGenerator[None]:
+    """La conexión con Hyperliquid y el motor de bots viven lo que vive el panel."""
+    from invest_ll.bots import motor
+    from invest_ll.vivo import servicio
+
+    await servicio.arrancar()
+    await motor.arrancar()
+    try:
+        yield
+    finally:
+        await motor.parar()
+        await servicio.parar()
+
+
+def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> FastAPI:
+    """La aplicación. `en_vivo=True` (solo el lanzador del panel) abre la conexión con Hyperliquid
+    y arranca los bots; los tests y la generación del contrato no tocan la red."""
     app = FastAPI(
+        lifespan=_en_vivo if en_vivo else None,
         title="INVEST LL",
         description=(
             "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo "

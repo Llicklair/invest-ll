@@ -22,6 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from invest_ll.api import (
+    bots,
     cartera,
     chat,
     conexion,
@@ -32,9 +33,11 @@ from invest_ll.api import (
     investigacion,
     mercado,
     plan,
+    practica,
     seguimiento,
     simular,
     vigilar,
+    vivo,
 )
 from invest_ll.api.errores import RESPUESTAS_DE_ERROR
 
@@ -52,6 +55,9 @@ PESTANAS = (
     seguimiento,
     investigacion,
     chat,
+    vivo,
+    practica,
+    bots,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""
