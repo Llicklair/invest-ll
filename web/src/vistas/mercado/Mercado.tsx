@@ -6,17 +6,18 @@ import { useMemo, useState } from "react";
 import { api, pedir } from "@/api/cliente";
 import type { FilaRendimiento, Tramo } from "@/api/tipos";
 import { CambioPct } from "@/componentes/CifraGrande";
+import { SeccionDatos } from "@/componentes/DatosAlDia";
 import { GraficaLinea } from "@/componentes/graficas/Lineas";
 import { Sparkline } from "@/componentes/graficas/Sparkline";
 import { Hoja } from "@/componentes/Hoja";
 import { Aviso, Cargando, Desplegable, ESTILO_ENTRADA, Encabezado, ErrorApiVista, Esqueleto, Segmentado, Tarjeta, clases } from "@/componentes/ui";
 import { useEstado } from "@/contexto/estado";
 import { useConsulta } from "@/lib/consulta";
-import { fechaCorta, numero, precio } from "@/lib/formato";
-import { nombreLlano } from "@/lib/nombres";
+import { fechaCorta, numero, precio, simboloMoneda } from "@/lib/formato";
+import { enLaMoneda } from "@/lib/nombres";
 
 import { Cotizaciones } from "./Cotizaciones";
-import { DatosDescargados } from "./Datos";
+import { PreciosPorActivo } from "./Datos";
 
 const TRAMOS: readonly { valor: Tramo; texto: string }[] = [
   { valor: "3m", texto: "3 meses" },
@@ -27,7 +28,12 @@ const TRAMOS: readonly { valor: Tramo; texto: string }[] = [
 
 function HojaActivo({ fila, onCerrar }: { fila: FilaRendimiento | null; onCerrar: () => void }) {
   return (
-    <Hoja abierta={fila !== null} onCerrar={onCerrar} titulo={fila ? nombreLlano(fila.activo, fila.que_es) : ""} bajada={fila?.activo}>
+    <Hoja
+      abierta={fila !== null}
+      onCerrar={onCerrar}
+      titulo={fila?.nombre ?? ""}
+      bajada={fila ? `${fila.que_es && fila.que_es !== fila.nombre ? `${fila.que_es} · ` : ""}precios ${enLaMoneda(fila.moneda)}` : undefined}
+    >
       {fila ? <Grafica fila={fila} /> : null}
     </Hoja>
   );
@@ -45,7 +51,7 @@ function Grafica({ fila }: { fila: FilaRendimiento }) {
     <div className="space-y-6">
       <dl className="grid grid-cols-2 gap-3">
         {[
-          ["Último precio", `${precio(fila.ultimo)} · ${fechaCorta(fila.datos_hasta)}`],
+          ["Último precio", `${precio(fila.ultimo)} ${simboloMoneda(fila.moneda)} · ${fechaCorta(fila.datos_hasta)}`],
           ["En un mes", fila.var_1m],
           ["En un año", fila.var_1a],
           ["Desde su máximo", fila.desde_maximo],
@@ -67,7 +73,7 @@ function Grafica({ fila }: { fila: FilaRendimiento }) {
       {serie && !consulta.desfasados ? (
         <GraficaLinea
           puntos={puntos}
-          nombreSerie={`${nombreLlano(fila.activo, fila.que_es)} (precio de cierre)`}
+          nombreSerie={`${fila.nombre} (precio de cierre, ${simboloMoneda(fila.moneda)})`}
           cabeceraValor="cierre"
           alto={260}
           atenuada={consulta.cargando}
@@ -81,7 +87,7 @@ function Grafica({ fila }: { fila: FilaRendimiento }) {
 }
 
 function Fila({ f, onElegir }: { f: FilaRendimiento; onElegir: () => void }) {
-  const nombre = nombreLlano(f.activo, f.que_es);
+  const nombre = f.nombre;
   return (
     <li>
       <button
@@ -90,9 +96,10 @@ function Fila({ f, onElegir }: { f: FilaRendimiento; onElegir: () => void }) {
         className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-5 py-4 text-left hover:bg-superficie-2 sm:grid-cols-[minmax(0,1.6fr)_7rem_6rem_6rem_7rem_1.25rem] sm:px-6"
       >
         <span className="min-w-0">
-          <span className="block truncate font-semibold text-tinta">{nombre}</span>
+          {/* El nombre llano entero (en el movil, en dos lineas): cortado no se sabia que bonos eran. */}
+          <span className="block font-semibold text-tinta">{nombre}</span>
           <span className="cifras block truncate text-sm text-tinta-suave">
-            {precio(f.ultimo)} · {fechaCorta(f.datos_hasta)}
+            {precio(f.ultimo)} {simboloMoneda(f.moneda)} · {fechaCorta(f.datos_hasta)}
           </span>
         </span>
         <span className="hidden sm:block" aria-hidden="true">
@@ -153,7 +160,7 @@ export function Mercado() {
   const d = consulta.datos;
   const q = busca.trim().toLowerCase();
   const filtrar = (xs: FilaRendimiento[]) =>
-    q ? xs.filter((x) => `${nombreLlano(x.activo, x.que_es)} ${x.activo} ${x.que_es}`.toLowerCase().includes(q)) : xs;
+    q ? xs.filter((x) => `${x.nombre} ${x.activo} ${x.que_es}`.toLowerCase().includes(q)) : xs;
 
   const verGrafica = (simbolo: string) => {
     const f = d ? [...d.bolsa, ...d.cripto].find((x) => x.activo === simbolo) : undefined;
@@ -208,8 +215,9 @@ export function Mercado() {
         <Desplegable resumen="Cotizaciones al momento (una foto con su hora)">
           <Cotizaciones onVerGrafica={verGrafica} />
         </Desplegable>
-        <Desplegable resumen="Datos descargados y actualizar">
-          <DatosDescargados conTitulo={false} />
+        <Desplegable resumen="De cuándo son los precios, y actualizarlos">
+          <SeccionDatos />
+          <PreciosPorActivo />
         </Desplegable>
       </div>
 
