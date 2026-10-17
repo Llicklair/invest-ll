@@ -48,9 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
 _SOCKET_REAL = socket.socket
 
 
-@pytest.fixture
-def cliente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Api]:
-    """La API completa, sin frontend, en un directorio vacío y en modo simulación."""
+def _arrancar(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, relanzar: bool) -> Iterator[Api]:
     monkeypatch.chdir(tmp_path)
     for variable in (
         VAR_MODO,
@@ -67,6 +65,7 @@ def cliente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Api]:
     try:
         api = TestClient(
             crear_app(frontend=None),
+            raise_server_exceptions=relanzar,
             backend_options={"loop_factory": asyncio.SelectorEventLoop},
         )
         api.__enter__()
@@ -76,3 +75,16 @@ def cliente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Api]:
         yield Api(api)
     finally:
         api.__exit__(None, None, None)
+
+
+@pytest.fixture
+def cliente(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Api]:
+    """La API completa, sin frontend, en un directorio vacío y en modo simulación."""
+    yield from _arrancar(tmp_path, monkeypatch, relanzar=True)
+
+
+@pytest.fixture
+def cliente_como_el_navegador(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Api]:
+    """Como `cliente`, pero un fallo del programa llega como lo vería el navegador (un 500) en
+    vez de relanzarse dentro del test."""
+    yield from _arrancar(tmp_path, monkeypatch, relanzar=False)

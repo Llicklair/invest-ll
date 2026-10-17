@@ -52,6 +52,13 @@ class Api:
         respuesta = self._cliente.post(ruta, json=json, headers=headers)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast("httpx.Response", respuesta)
 
+    def post_crudo(self, ruta: str, contenido: str) -> httpx.Response:
+        """Un cuerpo tal cual (p. ej. un JSON roto), como lo mandaría un cliente con un fallo."""
+        respuesta = self._cliente.post(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            ruta, content=contenido, headers={"content-type": "application/json"}
+        )
+        return cast("httpx.Response", respuesta)
+
     def put(self, ruta: str, json: object = None) -> httpx.Response:
         respuesta = self._cliente.put(ruta, json=json)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast("httpx.Response", respuesta)

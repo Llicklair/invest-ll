@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
-from invest_ll.api.errores import no_encontrado
+from invest_ll.api.errores import RESPUESTAS_DE_ERROR_EN_JSON, no_encontrado
 from invest_ll.api.schemas import Estudio, Investigacion, PesoObjetivo, PruebaAdelante
 from invest_ll.quant.panel import Panel, load_binance_universe
 
@@ -164,7 +164,12 @@ def investigacion(capital: float = Query(default=1000.0, ge=0)) -> Investigacion
     )
 
 
-@router.get("/investigacion/estudio", tags=["investigacion"], response_class=HTMLResponse)
+@router.get(
+    "/investigacion/estudio",
+    tags=["investigacion"],
+    response_class=HTMLResponse,
+    responses=RESPUESTAS_DE_ERROR_EN_JSON,
+)
 def estudio() -> str:
     """El HTML del último estudio, para incrustarlo. 404 si no hay ninguno."""
     informe = latest_report()
