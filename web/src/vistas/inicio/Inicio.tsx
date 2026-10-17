@@ -1,19 +1,20 @@
 "use client";
 
-import { ArrowRight, Coffee, Compass, MessagesSquare, ShieldCheck, TrendingDown } from "lucide-react";
+import { ArrowRight, Compass, MessagesSquare, ShieldCheck, TrendingDown } from "lucide-react";
 import Link from "next/link";
 
 import { api, pedir, type ErrorApi } from "@/api/cliente";
 import type { Hoy, Inicio as DatosInicio } from "@/api/tipos";
 import { CambioPct, CifraGrande, Variacion } from "@/componentes/CifraGrande";
-import { EstadoVacio } from "@/componentes/EstadoVacio";
+import { AvisoDatos } from "@/componentes/DatosAlDia";
+import { NadaQueHacer } from "@/componentes/EstadoVacio";
 import { FilaAccion } from "@/componentes/TarjetaAccion";
 import { Aviso, BotonEnlace, Chip, EnlaceFlecha, ErrorApiVista, Esqueleto, Tarjeta, TextoApi } from "@/componentes/ui";
 import { useEstado } from "@/contexto/estado";
 import { useModo } from "@/contexto/modo";
 import { useConsulta } from "@/lib/consulta";
 import { signoDecimal } from "@/lib/decimal";
-import { diaYMes, euros, fechaCorta } from "@/lib/formato";
+import { diaYMes, enMoneda, euros, fechaCorta } from "@/lib/formato";
 
 const PASOS_BIENVENIDA = [
   { icono: MessagesSquare, titulo: "Cinco preguntas", texto: "Cuánto tienes, cuándo lo necesitarás y qué harías si bajara. Sin jerga." },
@@ -72,7 +73,7 @@ function Bienvenida({ datos }: { datos: DatosInicio }) {
         <Tarjeta className="mt-8 flex flex-wrap items-center justify-between gap-4 p-5">
           <div>
             <p className="text-sm text-tinta-suave">Ya tienes movimientos anotados</p>
-            <p className="titular mt-1 text-2xl font-medium text-tinta">{euros(datos.patrimonio.valor)}</p>
+            <p className="titular mt-1 text-2xl font-medium text-tinta">{enMoneda(datos.patrimonio.valor, datos.patrimonio.moneda)}</p>
           </div>
           <EnlaceFlecha href="/cartera/">Ver tu cartera</EnlaceFlecha>
         </Tarjeta>
@@ -96,16 +97,26 @@ function TuDinero({ datos }: { datos: DatosInicio }) {
       </Tarjeta>
     );
   }
+  const conEfectivo = signoDecimal(p.efectivo) === 1;
   return (
     <Tarjeta className="p-6 sm:p-8">
       <CifraGrande
         etiqueta="Tu dinero hoy"
         valor={p.valor}
+        moneda={p.moneda}
         marca={ficticio ? <Chip tono="pruebas">Dinero ficticio · modo pruebas</Chip> : null}
         variacion={
           <div className="space-y-2">
-            <p className="cifras text-[0.9375rem] text-tinta">Has puesto {euros(p.puesto)}</p>
-            <Variacion importe={p.ganancia} pct={p.ganancia_pct} coletilla="si vendieras hoy" />
+            <p className="cifras text-[0.9375rem] text-tinta">
+              Has puesto {enMoneda(p.puesto, p.moneda)}
+              {conEfectivo ? (
+                <span className="text-tinta-suave">
+                  {" "}
+                  · {enMoneda(p.efectivo, p.moneda)} de ello, sin invertir todavía
+                </span>
+              ) : null}
+            </p>
+            <Variacion importe={p.ganancia} pct={p.ganancia_pct} moneda={p.moneda} coletilla="si vendieras hoy" />
           </div>
         }
         pie={
@@ -115,10 +126,11 @@ function TuDinero({ datos }: { datos: DatosInicio }) {
               : p.fecha_precios
                 ? `Con los precios del cierre del ${fechaCorta(p.fecha_precios)}. `
                 : ""}
+            {p.nota_moneda ? `${p.nota_moneda.replace(/\.?\s*$/, ".")} ` : ""}
             {signoDecimal(p.realizado) ? (
               <>
                 Con lo que ya vendiste, {signoDecimal(p.realizado) === 1 ? "ganaste" : "perdiste"}{" "}
-                <span className="cifras">{euros(p.realizado.replace(/^-/, ""))}</span>.
+                <span className="cifras">{enMoneda(p.realizado.replace(/^-/, ""), p.moneda)}</span>.
               </>
             ) : null}
           </>
@@ -149,13 +161,10 @@ function QueTocaHacer({
       </div>
       {error ? <ErrorApiVista error={error} reintentar={recargar} /> : null}
       {!hoy && cargando ? <Esqueleto className="h-40" /> : null}
+      {/* Los avisos de "hoy" (la pausa, datos que faltan) ya van arriba, en los de Inicio: aqui
+          se repetian. Lo que si se dice aqui es que no toca nada, y por que (`resumen`). */}
       {hoy ? (
         <>
-          {hoy.avisos.map((a) => (
-            <Aviso key={a} tipo="aviso">
-              <TextoApi texto={a} />
-            </Aviso>
-          ))}
           {hoy.acciones.length ? (
             <Tarjeta className="p-2 sm:p-3">
               <p className="px-3 pt-2 pb-1 text-[0.9375rem] text-tinta-suave">{hoy.resumen}</p>
@@ -169,9 +178,7 @@ function QueTocaHacer({
               ) : null}
             </Tarjeta>
           ) : (
-            <EstadoVacio icono={Coffee} titulo="No toca hacer nada">
-              {hoy.resumen.replace(/^No toca hacer nada\.\s*/, "") || "Todo está como tiene que estar."}
-            </EstadoVacio>
+            <NadaQueHacer resumen={hoy.resumen} />
           )}
         </>
       ) : null}
@@ -275,15 +282,14 @@ export function Inicio() {
   return (
     <div className={inicio.cargando ? "opacity-70 transition-opacity" : undefined}>
       <h1 className="titular mb-8 text-[2rem] leading-tight font-semibold text-tinta lg:text-[2.5rem]">Inicio</h1>
-      {d.avisos.length ? (
-        <div className="mb-6 space-y-3">
-          {d.avisos.map((a) => (
-            <Aviso key={a} tipo="aviso">
-              <TextoApi texto={a} />
-            </Aviso>
-          ))}
-        </div>
-      ) : null}
+      <div className="mb-6 space-y-3 empty:hidden">
+        {d.avisos.map((a) => (
+          <Aviso key={a} tipo="aviso">
+            <TextoApi texto={a} />
+          </Aviso>
+        ))}
+        <AvisoDatos />
+      </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-8">
         <div className="min-w-0 space-y-8">
           <TuDinero datos={d} />
