@@ -25,6 +25,7 @@ tipados y probados.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -122,19 +123,34 @@ def crypto_tickers(exchange_id: str = "binance", *, quote: str = "USDT") -> list
             and mercado.get("quote") == quote
             and ":" not in simbolo
         }
-        tickers = exchange.fetch_tickers(list(elegibles))
+        # Todos y se filtra aqui. Pedir los ~500 pares por nombre hacia que Binance rechazara la
+        # peticion entera (hay pares con nombre no ASCII, como "币安人生/USDT").
+        tickers = exchange.fetch_tickers()
     except Exception as error:
-        raise LiveDataError(f"{exchange_id} no respondio: {error}") from error
+        raise LiveDataError(f"{exchange_id} no respondio: {_resumen(error)}") from error
 
     cotizaciones = [
         q
         for simbolo, ticker in tickers.items()
-        if (q := quote_from_ticker(simbolo, ticker, source=exchange_id, fetched_at=ahora))
+        if simbolo in elegibles
+        and (q := quote_from_ticker(simbolo, ticker, source=exchange_id, fetched_at=ahora))
         is not None
     ]
     # Por volumen: lo negociado arriba. Es un orden informativo, no un ranking de "ganadores".
     cotizaciones.sort(key=lambda q: q.volume_24h or 0, reverse=True)
     return cotizaciones
+
+
+MAXIMO_ERROR = 200
+"""Caracteres del error de la librería que llegan a la pantalla: ccxt mete la URL entera."""
+
+
+def _resumen(error: Exception) -> str:
+    """El error de ccxt sin la URL con sus parámetros (que pueden ser miles de caracteres)."""
+    texto = re.sub(r"https?://\S+", "(…)", str(error))
+    if len(texto) > MAXIMO_ERROR:
+        texto = texto[:MAXIMO_ERROR].rstrip() + "…"
+    return f"{type(error).__name__}: {texto}"
 
 
 def equity_quotes(tickers: Sequence[str]) -> list[LiveQuote]:
@@ -152,7 +168,7 @@ def equity_quotes(tickers: Sequence[str]) -> list[LiveQuote]:
             threads=True,
         )
     except Exception as error:
-        raise LiveDataError(f"yfinance no respondio: {error}") from error
+        raise LiveDataError(f"yfinance no respondio: {_resumen(error)}") from error
     if datos is None or datos.empty:
         raise LiveDataError("yfinance devolvio un lote vacio")
 

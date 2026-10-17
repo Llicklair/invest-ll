@@ -2,12 +2,81 @@
 
 from __future__ import annotations
 
+import sys
+import types
 from datetime import UTC, datetime
 
+import pytest
+
 from invest_ll.fetch.catalog import EQUITY_CATALOG
-from invest_ll.fetch.live import LiveQuote, quote_from_closes, quote_from_ticker
+from invest_ll.fetch.live import (
+    LiveDataError,
+    LiveQuote,
+    crypto_tickers,
+    quote_from_closes,
+    quote_from_ticker,
+)
 
 AHORA = datetime(2026, 7, 26, tzinfo=UTC)
+
+MERCADOS: dict[str, dict[str, object]] = {
+    "BTC/USDT": {"spot": True, "active": True, "quote": "USDT"},
+    "币安人生/USDT": {"spot": True, "active": True, "quote": "USDT"},
+    "ETH/BTC": {"spot": True, "active": True, "quote": "BTC"},
+    "BTC/USDT:USDT": {"spot": False, "active": True, "quote": "USDT"},
+}
+
+
+class BinanceFalso:
+    """Como Binance de verdad: una lista de 500 pares (con símbolos no ASCII) la rechaza."""
+
+    falla_sin_lista = False
+
+    def __init__(self, _config: object) -> None: ...
+
+    def load_markets(self) -> dict[str, dict[str, object]]:
+        return MERCADOS
+
+    def fetch_tickers(self, symbols: list[str] | None = None) -> dict[str, dict[str, object]]:
+        if symbols is not None or self.falla_sin_lista:
+            raise RuntimeError(
+                "binance GET https://api.binance.com/api/v3/ticker/24hr?symbols=" + "%22X%22" * 2000
+            )
+        return {
+            "BTC/USDT": {"last": 90000.0, "percentage": 1.0, "quoteVolume": 5e9},
+            "币安人生/USDT": {"last": 0.01, "percentage": 3.0, "quoteVolume": 1e6},
+            "ETH/BTC": {"last": 0.03, "percentage": 0.0, "quoteVolume": 1.0},
+            "BTC/USDT:USDT": {"last": 90010.0, "percentage": 1.0, "quoteVolume": 9e9},
+        }
+
+
+@pytest.fixture
+def ccxt_falso(monkeypatch: pytest.MonkeyPatch) -> type[BinanceFalso]:
+    modulo = types.ModuleType("ccxt")
+    modulo.binance = BinanceFalso  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "ccxt", modulo)
+    BinanceFalso.falla_sin_lista = False
+    return BinanceFalso
+
+
+class TestCotizacionesDeBinance:
+    """Caso real del panel: pedir los 511 pares por nombre hacía que Binance rechazara la
+    petición entera, y el error (la URL con los 511 símbolos) salía tal cual en Mercado."""
+
+    def test_pide_todos_y_se_queda_con_los_pares_al_contado_contra_usdt(
+        self, ccxt_falso: type[BinanceFalso]
+    ) -> None:
+        cotizaciones = crypto_tickers()
+        assert [q.symbol for q in cotizaciones] == ["BTC/USDT", "币安人生/USDT"]
+
+    def test_un_fallo_se_dice_corto_y_sin_la_url(self, ccxt_falso: type[BinanceFalso]) -> None:
+        ccxt_falso.falla_sin_lista = True
+        with pytest.raises(LiveDataError) as fallo:
+            crypto_tickers()
+        texto = str(fallo.value)
+        assert len(texto) < 300
+        assert "symbols=" not in texto
+        assert "binance" in texto
 
 
 class TestTickerDeCcxt:
