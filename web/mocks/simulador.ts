@@ -12,32 +12,19 @@
 import type { components } from "@/api/esquema";
 import { compararDecimal, leerDecimal } from "@/lib/decimal";
 
-import { escribir } from "@/lib/almacen";
-
 import { correlacion, dinero, informe, media, rendimientos, simular } from "./calculo";
+import { escenarioActual } from "./escenarios";
 import * as panel from "./panel";
-import { ESCENARIOS, type Escenario } from "./panel";
+import { type Escenario } from "./panel";
 import { DEFINICIONES, monedaDe, nombreDe, serie, type SerieGenerada } from "./series";
+import { esRutaVivo, responderVivo } from "./vivo";
 
 type S = components["schemas"];
-
-function esEscenario(v: string): v is Escenario {
-  return (ESCENARIOS as readonly string[]).includes(v);
-}
 
 const POR_DEFECTO: Escenario = "con-plan";
 
 function escenario(): Escenario {
-  try {
-    let pedido = new URLSearchParams(window.location.search).get("escenario");
-    if (pedido === "simulacion") pedido = POR_DEFECTO;
-    const guardado = window.sessionStorage.getItem("invest-ll.mock.escenario");
-    if (pedido && esEscenario(pedido) && pedido !== guardado) escribir("sesion", "invest-ll.mock.escenario", pedido);
-    const vigente = window.sessionStorage.getItem("invest-ll.mock.escenario") ?? POR_DEFECTO;
-    return esEscenario(vigente) ? vigente : POR_DEFECTO;
-  } catch {
-    return POR_DEFECTO;
-  }
+  return escenarioActual(POR_DEFECTO);
 }
 
 /** Los escenarios sin nada guardado: tambien vacian el Laboratorio. */
@@ -870,6 +857,8 @@ function chat(m: Mundo, o: Objeto): Response {
 export async function responder(peticion: Request): Promise<Response> {
   const url = new URL(peticion.url, "http://ejemplo.local");
   const ruta = url.pathname;
+  // Panel v3 (Operar y Bots): su propio mundo en vivo, en mocks/vivo.ts.
+  if (esRutaVivo(ruta)) return responderVivo(peticion, url);
   const metodo = peticion.method.toUpperCase();
   const m = elMundo();
   await esperar(150 + Math.random() * 250);
