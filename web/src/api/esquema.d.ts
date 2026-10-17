@@ -1006,6 +1006,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operar/{exchange}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado
+         * @description Si se puede operar de verdad con esa moneda, en qué red, con qué saldo y qué órdenes hay
+         *     abiertas. Sin conectar no es un error: `conectado` false y `que_falta` en llano.
+         */
+        get: operations["estado_api_operar__exchange__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operar/{exchange}/ordenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enviar
+         * @description Envía UNA orden de contado de verdad, con la cantidad tecleada. 409 si el exchange no está
+         *     conectado o no está en la red que se veía; 422 si lo tecleado no coincide o el exchange la
+         *     rechaza. Si se corta a medias: `estado` 'desconocido' (no se sabe si se ejecutó).
+         */
+        post: operations["enviar_api_operar__exchange__ordenes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operar/{exchange}/ordenes/{id_cliente}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancelar
+         * @description Cancela una orden abierta (lo ya ejecutado de ella, se queda). 404 si no está.
+         */
+        delete: operations["cancelar_api_operar__exchange__ordenes__id_cliente__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ordenes": {
         parameters: {
             query?: never;
@@ -2638,6 +2701,39 @@ export interface components {
             /** Redes */
             redes: components["schemas"]["EstadoRedExchange"][];
         };
+        /** EstadoOperarReal */
+        EstadoOperarReal: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Aviso */
+            aviso: string | null;
+            /** Coin */
+            coin: string;
+            /** Conectado */
+            conectado: boolean;
+            /** Exchange */
+            exchange: string;
+            mercado: components["schemas"]["MercadoReal"] | null;
+            /** Nombre */
+            nombre: string;
+            /** Ordenes Abiertas */
+            ordenes_abiertas: components["schemas"]["OrdenAbiertaReal"][];
+            /**
+             * Que Falta
+             * @description Por qué no se puede operar, en llano
+             */
+            que_falta: string[];
+            /**
+             * Red
+             * @description Donde van las órdenes; None si no está conectado
+             */
+            red: ("pruebas" | "real") | null;
+            /** Saldo */
+            saldo: components["schemas"]["SaldoReal"][];
+        };
         /**
          * EstadoReal
          * @description Lo de dinero real, siempre a la vista: el interruptor general y el límite diario.
@@ -3367,6 +3463,28 @@ export interface components {
             /** Paso Cantidad */
             paso_cantidad: string | null;
         };
+        /**
+         * MercadoReal
+         * @description El par de contado del exchange para la moneda de la gráfica.
+         */
+        MercadoReal: {
+            /** Base */
+            base: string;
+            /** Comision Tomador */
+            comision_tomador: string | null;
+            /** Cotizada */
+            cotizada: string;
+            /** Minimo Cantidad */
+            minimo_cantidad: string | null;
+            /** Minimo Importe */
+            minimo_importe: string | null;
+            /** Par */
+            par: string;
+            /** Paso Cantidad */
+            paso_cantidad: string | null;
+            /** Paso Precio */
+            paso_precio: string | null;
+        };
         /** MercadosExchange */
         MercadosExchange: {
             /** Exchange */
@@ -3727,6 +3845,43 @@ export interface components {
              */
             tipo: "mercado" | "limite";
         };
+        /** NuevaOrdenReal */
+        NuevaOrdenReal: {
+            /**
+             * Cantidad
+             * @description De la moneda base, ya al paso del mercado
+             */
+            cantidad: number | string;
+            /** Coin */
+            coin: string;
+            /**
+             * Escrito
+             * @description La cantidad tecleada como confirmación
+             */
+            escrito: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /**
+             * Precio
+             * @description Obligatorio en las límite
+             */
+            precio?: number | string | null;
+            /**
+             * Red
+             * @description La red que se estaba viendo al confirmar: si no es la activa, no se envía
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
+            /**
+             * Tipo
+             * @default mercado
+             * @enum {string}
+             */
+            tipo: "mercado" | "limite";
+        };
         /** NuevasClaves */
         NuevasClaves: {
             /** Clave */
@@ -3905,6 +4060,34 @@ export interface components {
              * @description La más reciente primero
              */
             operaciones: components["schemas"]["OperacionMercado"][];
+        };
+        /** OrdenAbiertaReal */
+        OrdenAbiertaReal: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Cantidad */
+            cantidad: string;
+            /** Ejecutada */
+            ejecutada: string;
+            /** Id Cliente */
+            id_cliente: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /** Par */
+            par: string;
+            /** Precio */
+            precio: string | null;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "mercado" | "limite";
         };
         /** OrdenPractica */
         OrdenPractica: {
@@ -4831,6 +5014,48 @@ export interface components {
              */
             resumen: string;
         };
+        /** ResultadoOrdenReal */
+        ResultadoOrdenReal: {
+            /**
+             * Anotada
+             * @description Si quedó en el registro de órdenes (ledger/)
+             */
+            anotada: boolean;
+            /** Cantidad */
+            cantidad: string;
+            /** Comision */
+            comision: string | null;
+            /** Comision Moneda */
+            comision_moneda: string | null;
+            /** Ejecutada */
+            ejecutada: string;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "ejecutada" | "parcial" | "abierta" | "cancelada" | "rechazada" | "desconocido";
+            /** Id Cliente */
+            id_cliente: string;
+            /**
+             * Lado
+             * @enum {string}
+             */
+            lado: "compra" | "venta";
+            /** Par */
+            par: string;
+            /** Precio Medio */
+            precio_medio: string | null;
+            /**
+             * Red
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
+            /**
+             * Texto
+             * @description Lo que ha pasado, en llano y con sus cifras
+             */
+            texto: string;
+        };
         /** ResultadoPractica */
         ResultadoPractica: {
             cuenta: components["schemas"]["CuentaPractica"];
@@ -5121,6 +5346,13 @@ export interface components {
         };
         /** SaldoMoneda */
         SaldoMoneda: {
+            /** Cantidad */
+            cantidad: string;
+            /** Moneda */
+            moneda: string;
+        };
+        /** SaldoReal */
+        SaldoReal: {
             /** Cantidad */
             cantidad: string;
             /** Moneda */
@@ -8487,6 +8719,189 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Serie"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    estado_api_operar__exchange__get: {
+        parameters: {
+            query: {
+                coin: string;
+            };
+            header?: never;
+            path: {
+                exchange: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoOperarReal"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    enviar_api_operar__exchange__ordenes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exchange: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevaOrdenReal"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultadoOrdenReal"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelar_api_operar__exchange__ordenes__id_cliente__delete: {
+        parameters: {
+            query: {
+                coin: string;
+            };
+            header?: never;
+            path: {
+                exchange: string;
+                id_cliente: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultadoOrdenReal"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */

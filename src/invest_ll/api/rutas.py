@@ -35,6 +35,7 @@ from invest_ll.api import (
     investigacion,
     medida,
     mercado,
+    operar_real,
     plan,
     practica,
     seguimiento,
@@ -64,6 +65,7 @@ PESTANAS = (
     conexiones,
     medida,
     claude,
+    operar_real,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""

@@ -206,7 +206,7 @@ function PantallaOperar({
             </>
           ) : (
             <div className={oculto(["operar", "cuenta"])}>
-              <PanelHyperliquid />
+              <PanelHyperliquid moneda={moneda} />
             </div>
           )}
         </div>

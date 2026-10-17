@@ -109,3 +109,83 @@ class EstadoClaude(BaseModel):
 class ConectarClaude(BaseModel):
     abierto: bool
     texto: str
+
+
+# -- Operar de verdad en un exchange (docs/panel-v5.md: Operar → Hyperliquid) ---------------------
+
+RedReal = Literal["pruebas", "real"]
+LadoReal = Literal["compra", "venta"]
+TipoOrdenReal = Literal["mercado", "limite"]
+EstadoOrdenReal = Literal[
+    "ejecutada", "parcial", "abierta", "cancelada", "rechazada", "desconocido"
+]
+
+
+class SaldoReal(BaseModel):
+    moneda: str
+    cantidad: Decimal
+
+
+class MercadoReal(BaseModel):
+    """El par de contado del exchange para la moneda de la gráfica."""
+
+    par: str
+    base: str
+    cotizada: str
+    minimo_importe: Decimal | None
+    minimo_cantidad: Decimal | None
+    paso_cantidad: Decimal | None
+    paso_precio: Decimal | None
+    comision_tomador: Decimal | None
+
+
+class OrdenAbiertaReal(BaseModel):
+    id_cliente: str
+    par: str
+    lado: LadoReal
+    tipo: TipoOrdenReal
+    cantidad: Decimal
+    ejecutada: Decimal
+    precio: Decimal | None
+    at: datetime
+
+
+class EstadoOperarReal(BaseModel):
+    exchange: str
+    nombre: str
+    red: RedReal | None = Field(description="Donde van las órdenes; None si no está conectado")
+    conectado: bool
+    que_falta: list[str] = Field(description="Por qué no se puede operar, en llano")
+    coin: str
+    mercado: MercadoReal | None
+    aviso: str | None
+    saldo: list[SaldoReal]
+    ordenes_abiertas: list[OrdenAbiertaReal]
+    at: datetime
+
+
+class NuevaOrdenReal(BaseModel):
+    coin: str = Field(min_length=1)
+    lado: LadoReal
+    tipo: TipoOrdenReal = "mercado"
+    cantidad: Decimal = Field(gt=0, description="De la moneda base, ya al paso del mercado")
+    precio: Decimal | None = Field(default=None, gt=0, description="Obligatorio en las límite")
+    red: RedReal = Field(
+        description="La red que se estaba viendo al confirmar: si no es la activa, no se envía"
+    )
+    escrito: str = Field(description="La cantidad tecleada como confirmación")
+
+
+class ResultadoOrdenReal(BaseModel):
+    estado: EstadoOrdenReal
+    texto: str = Field(description="Lo que ha pasado, en llano y con sus cifras")
+    id_cliente: str
+    par: str
+    lado: LadoReal
+    red: RedReal
+    cantidad: Decimal
+    ejecutada: Decimal
+    precio_medio: Decimal | None
+    comision: Decimal | None
+    comision_moneda: str | None
+    anotada: bool = Field(description="Si quedó en el registro de órdenes (ledger/)")

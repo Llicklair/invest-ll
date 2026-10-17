@@ -15,6 +15,8 @@ import type { LineaGrafico, MarcaGrafico } from "./GraficoVelas";
 const CADA_MS = 15_000;
 /** Por bot, las órdenes preparadas más cerca del precio que se pintan (la rejilla tiene muchas). */
 const LINEAS_POR_BOT = 3;
+/** Las operaciones que se pintan, las más recientes: más taparían las velas. */
+const MAX_MARCAS = 40;
 
 /** "Rejilla SOL" cabe; "Compra periódica BTC y ETH" se queda en "Compra". */
 function corto(nombre: string): string {
@@ -61,9 +63,12 @@ export function useBotsEnGrafica(coin: string, visibles: boolean) {
 
   const marcas = useMemo<MarcaGrafico[]>(() => {
     if (!visibles) return [];
-    const nombres = new Map(bots.map((b) => [b.id, corto(b.nombre)] as const));
+    // Con un solo bot en la moneda, flechas sin nombre: ya lo dice la franja de arriba y, con muchas
+    // operaciones, los nombres taparían las velas.
+    const nombres = new Map(bots.map((b) => [b.id, bots.length > 1 ? corto(b.nombre) : ""] as const));
     return (actividad ?? [])
       .filter((m) => m.coin === coin && (m.tipo === "compra" || m.tipo === "venta") && nombres.has(m.bot_id))
+      .slice(0, MAX_MARCAS)
       .map((m) => ({ at: m.at, lado: m.tipo === "compra" ? "compra" : "venta", texto: nombres.get(m.bot_id) ?? "" }));
   }, [visibles, actividad, bots, coin]);
 
@@ -121,7 +126,7 @@ export function FranjaBots({
           {b.nombre}
         </Link>
       ))}
-      {visibles ? <span className="text-tinta-suave">· {marcas === 1 ? "1 operación" : `${marcas} operaciones`} a la vista</span> : null}
+      {visibles ? <span className="text-tinta-suave">· {marcas === 1 ? "su última operación" : `sus ${marcas} últimas operaciones`}</span> : null}
       <button
         type="button"
         onClick={() => onVisibles(!visibles)}

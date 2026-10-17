@@ -872,7 +872,7 @@ function esRed(v: string): v is Red {
 }
 
 export function esRutaV4(ruta: string): boolean {
-  return /^\/api\/(conexiones|medida|claude)(\/|$)/.test(ruta);
+  return /^\/api\/(conexiones|medida|claude|operar)(\/|$)/.test(ruta);
 }
 
 function conexiones(m: MundoV4): S["Conexiones"] {
@@ -1250,6 +1250,75 @@ async function disenar(m: MundoV4, o: Objeto): Promise<Response> {
   return json({ sesion: s.id, respuesta, estrategia, herramientas, historial: s.historial } satisfies S["RespuestaDiseno"]);
 }
 
+// -- Operar → Hyperliquid (docs/panel-v5.md): la cuenta de verdad, de ejemplo ----------------------
+
+const PRECIOS_HL: Record<string, number> = { BTC: 81_600, ETH: 2_390, SOL: 102.8, PURR: 0.21, HYPE: 79.1 };
+const saldosHL: Record<string, number> = { USDC: 1_000, SOL: 0.5 };
+const abiertasHL: S["OrdenAbiertaReal"][] = [];
+
+function operarReal(m: MundoV4, coin: string): S["EstadoOperarReal"] {
+  const x = m.exchanges.get("hyperliquid");
+  const red = x && x.activo !== "sin_conectar" ? x.activo : null;
+  const base: S["EstadoOperarReal"] = {
+    exchange: "hyperliquid",
+    nombre: "Hyperliquid",
+    red,
+    conectado: red !== null,
+    que_falta: red === null ? ["Hyperliquid no está conectado: actívalo en Conexiones."] : [],
+    coin,
+    mercado: null,
+    aviso: null,
+    saldo: [],
+    ordenes_abiertas: [],
+    at: iso(Date.now()),
+  };
+  if (red === null) return base;
+  const tiene = coin in PRECIOS_HL;
+  return {
+    ...base,
+    mercado: tiene
+      ? { par: `${coin}/USDC`, base: coin, cotizada: "USDC", minimo_importe: "10", minimo_cantidad: null, paso_cantidad: coin === "BTC" ? "0.00001" : "0.01", paso_precio: "0.01", comision_tomador: "0.00045" }
+      : null,
+    aviso: tiene ? null : `Hyperliquid no tiene mercado de contado de ${coin} en su red de pruebas: aquí solo se opera al contado (sin apalancamiento). Elige otra moneda.`,
+    saldo: Object.entries(saldosHL)
+      .filter(([, v]) => v > 0)
+      .map(([moneda, v]) => ({ moneda, cantidad: String(Number(v.toFixed(6))) })),
+    ordenes_abiertas: abiertasHL.filter((o) => o.par.startsWith(`${coin}/`)),
+  };
+}
+
+function ordenReal(m: MundoV4, o: Objeto): Response {
+  const e = operarReal(m, texto(o, "coin") ?? "BTC");
+  if (!e.conectado || !e.red) return fallo(409, "Hyperliquid no está conectado: conéctalo en Conexiones antes de operar.");
+  if (texto(o, "red") !== e.red) return fallo(409, "La pantalla mostraba otra red: no se ha enviado nada. Recarga y vuelve a mirar.");
+  const cantidad = Number(texto(o, "cantidad"));
+  const escrito = (texto(o, "escrito") ?? "").replace(/\./g, "").replace(",", ".");
+  if (Number(escrito) !== cantidad) return fallo(422, `Lo escrito no coincide con la cantidad (${cantidad}): no se ha enviado nada.`);
+  if (!e.mercado) return fallo(422, e.aviso ?? "Sin mercado.");
+  const coin = e.mercado.base;
+  const lado = texto(o, "lado") === "venta" ? "venta" : "compra";
+  const precio = texto(o, "tipo") === "limite" ? Number(texto(o, "precio")) : (PRECIOS_HL[coin] ?? 1);
+  const id = `ill${Math.random().toString(16).slice(2, 14)}`;
+  const comun = { id_cliente: id, par: e.mercado.par, lado, red: e.red, cantidad: String(cantidad), comision_moneda: "USDC" } as const;
+  if (texto(o, "tipo") === "limite") {
+    abiertasHL.push({ id_cliente: id, par: e.mercado.par, lado, tipo: "limite", cantidad: String(cantidad), ejecutada: "0", precio: String(precio), at: iso(Date.now()) });
+    return json({ ...comun, estado: "abierta", texto: `Orden puesta en Hyperliquid (red de pruebas): ${lado === "compra" ? "comprar" : "vender"} ${cantidad} ${coin} a ${precio} USDC. Sigue abierta hasta que se ejecute o la canceles.`, ejecutada: "0", precio_medio: String(precio), comision: null, anotada: false } satisfies S["ResultadoOrdenReal"]);
+  }
+  const importe = cantidad * precio;
+  const comision = importe * 0.00045;
+  saldosHL.USDC = (saldosHL.USDC ?? 0) + (lado === "compra" ? -(importe + comision) : importe - comision);
+  saldosHL[coin] = (saldosHL[coin] ?? 0) + (lado === "compra" ? cantidad : -cantidad);
+  return json({
+    ...comun,
+    estado: "ejecutada",
+    texto: `${lado === "compra" ? "Compraste" : "Vendiste"} ${String(cantidad).replace(".", ",")} ${coin} a ${String(precio).replace(".", ",")} USDC (red de pruebas). Comisión: ${comision.toFixed(4).replace(".", ",")} USDC.`,
+    ejecutada: String(cantidad),
+    precio_medio: String(precio),
+    comision: comision.toFixed(6),
+    anotada: true,
+  } satisfies S["ResultadoOrdenReal"]);
+}
+
 const USOS_CLAUDE = ["Pregunta", "Mi plan", "Diseñar con Claude", "El conector de Claude (MCP)"];
 
 function estadoClaude(m: MundoV4): S["EstadoClaude"] {
@@ -1278,6 +1347,10 @@ export async function responderV4(peticion: Request, url: URL): Promise<Response
         texto: "Se ha abierto una ventana de Claude Code en este equipo: sigue sus pasos (abre tu navegador para elegir la cuenta) y vuelve aquí. Esta página se entera sola.",
       } satisfies S["ConectarClaude"]);
     }
+    case "GET /api/operar/hyperliquid":
+      return json(operarReal(m, url.searchParams.get("coin") ?? "BTC") satisfies S["EstadoOperarReal"]);
+    case "POST /api/operar/hyperliquid/ordenes":
+      return ordenReal(m, await cuerpo(peticion));
     case "GET /api/conexiones":
       return json(conexiones(m) satisfies S["Conexiones"]);
     case "GET /api/conexiones/disponibles":

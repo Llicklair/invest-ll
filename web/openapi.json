@@ -2393,6 +2393,105 @@
         "title": "EstadoExchange",
         "type": "object"
       },
+      "EstadoOperarReal": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "coin": {
+            "title": "Coin",
+            "type": "string"
+          },
+          "conectado": {
+            "title": "Conectado",
+            "type": "boolean"
+          },
+          "exchange": {
+            "title": "Exchange",
+            "type": "string"
+          },
+          "mercado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MercadoReal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "ordenes_abiertas": {
+            "items": {
+              "$ref": "#/components/schemas/OrdenAbiertaReal"
+            },
+            "title": "Ordenes Abiertas",
+            "type": "array"
+          },
+          "que_falta": {
+            "description": "Por qué no se puede operar, en llano",
+            "items": {
+              "type": "string"
+            },
+            "title": "Que Falta",
+            "type": "array"
+          },
+          "red": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pruebas",
+                  "real"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Donde van las órdenes; None si no está conectado",
+            "title": "Red"
+          },
+          "saldo": {
+            "items": {
+              "$ref": "#/components/schemas/SaldoReal"
+            },
+            "title": "Saldo",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exchange",
+          "nombre",
+          "red",
+          "conectado",
+          "que_falta",
+          "coin",
+          "mercado",
+          "aviso",
+          "saldo",
+          "ordenes_abiertas",
+          "at"
+        ],
+        "title": "EstadoOperarReal",
+        "type": "object"
+      },
       "EstadoReal": {
         "description": "Lo de dinero real, siempre a la vista: el interruptor general y el límite diario.",
         "properties": {
@@ -4104,6 +4203,95 @@
         "title": "MercadoExchange",
         "type": "object"
       },
+      "MercadoReal": {
+        "description": "El par de contado del exchange para la moneda de la gráfica.",
+        "properties": {
+          "base": {
+            "title": "Base",
+            "type": "string"
+          },
+          "comision_tomador": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision Tomador"
+          },
+          "cotizada": {
+            "title": "Cotizada",
+            "type": "string"
+          },
+          "minimo_cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimo Cantidad"
+          },
+          "minimo_importe": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimo Importe"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          },
+          "paso_cantidad": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paso Cantidad"
+          },
+          "paso_precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paso Precio"
+          }
+        },
+        "required": [
+          "par",
+          "base",
+          "cotizada",
+          "minimo_importe",
+          "minimo_cantidad",
+          "paso_cantidad",
+          "paso_precio",
+          "comision_tomador"
+        ],
+        "title": "MercadoReal",
+        "type": "object"
+      },
       "MercadosExchange": {
         "properties": {
           "exchange": {
@@ -4927,6 +5115,86 @@
         "title": "NuevaOrdenPractica",
         "type": "object"
       },
+      "NuevaOrdenReal": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "description": "De la moneda base, ya al paso del mercado",
+            "title": "Cantidad"
+          },
+          "coin": {
+            "minLength": 1,
+            "title": "Coin",
+            "type": "string"
+          },
+          "escrito": {
+            "description": "La cantidad tecleada como confirmación",
+            "title": "Escrito",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Obligatorio en las límite",
+            "title": "Precio"
+          },
+          "red": {
+            "description": "La red que se estaba viendo al confirmar: si no es la activa, no se envía",
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          },
+          "tipo": {
+            "default": "mercado",
+            "enum": [
+              "mercado",
+              "limite"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coin",
+          "lado",
+          "cantidad",
+          "red",
+          "escrito"
+        ],
+        "title": "NuevaOrdenReal",
+        "type": "object"
+      },
       "NuevasClaves": {
         "properties": {
           "clave": {
@@ -5345,6 +5613,73 @@
           "operaciones"
         ],
         "title": "Operaciones",
+        "type": "object"
+      },
+      "OrdenAbiertaReal": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "ejecutada": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ejecutada",
+            "type": "string"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio"
+          },
+          "tipo": {
+            "enum": [
+              "mercado",
+              "limite"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_cliente",
+          "par",
+          "lado",
+          "tipo",
+          "cantidad",
+          "ejecutada",
+          "precio",
+          "at"
+        ],
+        "title": "OrdenAbiertaReal",
         "type": "object"
       },
       "OrdenPractica": {
@@ -7707,6 +8042,117 @@
         "title": "ResultadoOrden",
         "type": "object"
       },
+      "ResultadoOrdenReal": {
+        "properties": {
+          "anotada": {
+            "description": "Si quedó en el registro de órdenes (ledger/)",
+            "title": "Anotada",
+            "type": "boolean"
+          },
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "comision": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision"
+          },
+          "comision_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comision Moneda"
+          },
+          "ejecutada": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ejecutada",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "ejecutada",
+              "parcial",
+              "abierta",
+              "cancelada",
+              "rechazada",
+              "desconocido"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "lado": {
+            "enum": [
+              "compra",
+              "venta"
+            ],
+            "title": "Lado",
+            "type": "string"
+          },
+          "par": {
+            "title": "Par",
+            "type": "string"
+          },
+          "precio_medio": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Medio"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          },
+          "texto": {
+            "description": "Lo que ha pasado, en llano y con sus cifras",
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "texto",
+          "id_cliente",
+          "par",
+          "lado",
+          "red",
+          "cantidad",
+          "ejecutada",
+          "precio_medio",
+          "comision",
+          "comision_moneda",
+          "anotada"
+        ],
+        "title": "ResultadoOrdenReal",
+        "type": "object"
+      },
       "ResultadoPractica": {
         "properties": {
           "cuenta": {
@@ -8399,6 +8845,25 @@
           "cantidad"
         ],
         "title": "SaldoMoneda",
+        "type": "object"
+      },
+      "SaldoReal": {
+        "properties": {
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          }
+        },
+        "required": [
+          "moneda",
+          "cantidad"
+        ],
+        "title": "SaldoReal",
         "type": "object"
       },
       "Seguimiento": {
@@ -12743,6 +13208,262 @@
         "summary": "Serie",
         "tags": [
           "mercado"
+        ]
+      }
+    },
+    "/api/operar/{exchange}": {
+      "get": {
+        "description": "Si se puede operar de verdad con esa moneda, en qué red, con qué saldo y qué órdenes hay\nabiertas. Sin conectar no es un error: `conectado` false y `que_falta` en llano.",
+        "operationId": "estado_api_operar__exchange__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "coin",
+            "required": true,
+            "schema": {
+              "title": "Coin",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoOperarReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Estado",
+        "tags": [
+          "operar"
+        ]
+      }
+    },
+    "/api/operar/{exchange}/ordenes": {
+      "post": {
+        "description": "Envía UNA orden de contado de verdad, con la cantidad tecleada. 409 si el exchange no está\nconectado o no está en la red que se veía; 422 si lo tecleado no coincide o el exchange la\nrechaza. Si se corta a medias: `estado` 'desconocido' (no se sabe si se ejecutó).",
+        "operationId": "enviar_api_operar__exchange__ordenes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevaOrdenReal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoOrdenReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Enviar",
+        "tags": [
+          "operar"
+        ]
+      }
+    },
+    "/api/operar/{exchange}/ordenes/{id_cliente}": {
+      "delete": {
+        "description": "Cancela una orden abierta (lo ya ejecutado de ella, se queda). 404 si no está.",
+        "operationId": "cancelar_api_operar__exchange__ordenes__id_cliente__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exchange",
+            "required": true,
+            "schema": {
+              "title": "Exchange",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id_cliente",
+            "required": true,
+            "schema": {
+              "title": "Id Cliente",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "coin",
+            "required": true,
+            "schema": {
+              "title": "Coin",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoOrdenReal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Cancelar",
+        "tags": [
+          "operar"
         ]
       }
     },
