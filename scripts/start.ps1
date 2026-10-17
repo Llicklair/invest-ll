@@ -58,10 +58,24 @@ if (-not $SoloCheck) {
     if ($viejos) {
         foreach ($proceso in $viejos) {
             # El arbol entero: matar solo el padre deja el Python hijo vivo y con el puerto.
-            taskkill /PID $proceso.ProcessId /T /F 2>$null | Out-Null
+            # La lista trae padre e hijo: al matar el arbol del padre, el hijo ya no existe y
+            # taskkill lo dice por stderr. Con $ErrorActionPreference = "Stop", PowerShell 5.1
+            # convierte esa linea en un error que paraba el arranque entero: aqui no lo es.
+            if (Get-Process -Id $proceso.ProcessId -ErrorAction SilentlyContinue) {
+                cmd /c "taskkill /PID $($proceso.ProcessId) /T /F >nul 2>&1"
+            }
+        }
+        # Esperar de verdad a que mueran y suelten el puerto y los .exe del .venv: con una pausa
+        # fija de 2 s, a veces el puerto seguia en escucha (o uv sync chocaba con un .exe aun
+        # abierto) y el arranque se paraba con un error que no lo era.
+        $pids = @($viejos | ForEach-Object { $_.ProcessId })
+        for ($i = 0; $i -lt 30; $i++) {
+            $vivos = @(Get-Process -Id $pids -ErrorAction SilentlyContinue)
+            $escucha = Get-NetTCPConnection -LocalPort $Puerto -State Listen -ErrorAction SilentlyContinue
+            if (-not $vivos -and -not $escucha) { break }
+            Start-Sleep -Milliseconds 500
         }
         Escribir-Bien "cerrados $(@($viejos).Count) proceso(s) de un arranque anterior"
-        Start-Sleep -Seconds 2
     } else {
         Escribir-Bien "ninguno abierto"
     }
