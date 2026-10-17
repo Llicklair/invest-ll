@@ -80,6 +80,42 @@ export const GLOSARIO = {
     texto:
       "Lo que te cobra la plataforma por cada compra o venta, más lo que se pierde entre el precio que ves y el que te dan. Todas las cifras de este panel ya los descuentan.",
   },
+  // -- Panel v3 (Operar y Bots) --
+  usdc: {
+    pregunta: "¿Qué es USDC?",
+    termino: "USDC (dólares digitales)",
+    texto: "Una criptomoneda que vale siempre lo mismo que un dólar. Aquí es la moneda con la que compras y vendes, y es ficticia: no es dinero tuyo.",
+  },
+  vela: {
+    pregunta: "¿Cómo se leen las velas?",
+    termino: "Velas",
+    texto:
+      "Cada vela es un trozo de tiempo (un minuto, una hora, un día). El cuerpo va del precio con que empezó al precio con que acabó; las líneas finas, hasta el más alto y el más bajo. Hueca: acabó más arriba de donde empezó. Rellena: acabó más abajo. La última se sigue moviendo hasta que su tiempo termina.",
+  },
+  libro: {
+    pregunta: "¿Qué es el libro de órdenes?",
+    termino: "Libro de órdenes",
+    texto:
+      "Las órdenes que esperan a que alguien las acepte. Arriba, quien quiere vender y a qué precio; abajo, quien quiere comprar. «Acumulado» suma la cantidad desde el centro hacia fuera: es lo que te comerías si compraras o vendieras tanto de golpe.",
+  },
+  diferencial: {
+    pregunta: "¿Qué es la diferencia entre compra y venta?",
+    termino: "Diferencia (diferencial)",
+    texto:
+      "Lo que separa la venta más barata de la compra más cara. Si compras y vendes al momento, pierdes más o menos eso, además de la comisión.",
+  },
+  "tipo-orden": {
+    pregunta: "¿A mercado o con límite?",
+    termino: "A mercado o con límite",
+    texto:
+      "A mercado compras (o vendes) ya, al mejor precio que haya en el libro; si pides mucho, pagas también los precios siguientes. Con límite dices el precio que estás dispuesto a pagar (o a cobrar) y la orden espera hasta que el mercado llegue a él; quizá no llegue nunca. Con límite la comisión es más baja.",
+  },
+  mantener: {
+    pregunta: "¿Qué es «si solo hubieras mantenido»?",
+    termino: "Si solo hubieras mantenido",
+    texto:
+      "Lo que habría pasado con el mismo dinero, desde el mismo momento, comprando sus monedas al arrancar y sin hacer nada más. Si el bot gana menos que eso, sus operaciones no han servido (todavía).",
+  },
 } as const satisfies Record<string, { pregunta: string; termino: string; texto: string }>;
 
 export type ClaveGlosario = keyof typeof GLOSARIO;
