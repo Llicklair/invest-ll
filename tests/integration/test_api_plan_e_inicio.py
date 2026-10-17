@@ -10,6 +10,8 @@ from pathlib import Path
 import pytest
 
 from invest_ll import llano
+from invest_ll.estrategias import objetivo
+from invest_ll.estrategias.catalogo import Ficha
 from invest_ll.plan import servicio
 from invest_ll.portfolio.store import ActivityStore
 
@@ -256,3 +258,149 @@ class TestInicio:
         ]
         assert all(m["var_1m"] is not None for m in cuerpo["mercado"])
         assert not any("USDT en tu cuenta" in a for a in cuerpo["avisos"])
+
+
+# -- Ventas en el bróker ------------------------------------------------------------------------
+
+PRUDENTE = {
+    "partes": [{"estrategia": "bolsa-prudente", "inicial": "10000", "mensual": "0"}],
+    "dia_del_mes": 1,
+}
+DE_HOY = objetivo.de_hoy
+
+
+def _quiere(monkeypatch: pytest.MonkeyPatch, pesos: dict[str, float]) -> None:
+    """Lo que la Prudente quiere hoy, fijado: así se ve qué pasa cuando deja fuera un fondo."""
+
+    def de_hoy(f: Ficha) -> objetivo.Objetivo | None:
+        if f.clave != "bolsa-prudente":
+            return DE_HOY(f)
+        return objetivo.Objetivo(fecha=date(2026, 10, 16), pesos=dict(pesos))
+
+    monkeypatch.setattr(objetivo, "de_hoy", de_hoy)
+
+
+class TestVentasDelBroker:
+    @pytest.fixture
+    def con_eem(self, cliente: Api, monkeypatch: pytest.MonkeyPatch) -> Api:
+        """Compró su inicial (40 % SPY, 20 % EEM, 40 % SHY) a 50 € la participación el día 16 (la
+        aportación de octubre vence el 1); hoy, 17, la estrategia deja fuera los mercados
+        emergentes."""
+        escribir_paneles()
+        monkeypatch.setattr(servicio, "hoy_local", lambda: HOY)
+        _quiere(monkeypatch, {"SPY": 0.4, "EEM": 0.2, "SHY": 0.4})
+        assert cliente.put("/api/plan", json=PRUDENTE).status_code == 200
+        for a in cliente.get("/api/plan/hoy").json()["acciones"]:
+            cantidad = D(a["importe"]) / 50
+            hecha = {
+                "cantidad": str(cantidad),
+                "precio": "50",
+                "comision": "0",
+                "fecha": "2026-10-16",
+            }
+            assert cliente.post(f"/api/plan/hoy/{a['id']}/hecho", json=hecha).status_code == 201
+        assert cliente.get("/api/plan/hoy").json()["acciones"] == []
+        _quiere(monkeypatch, {"SPY": 0.5, "SHY": 0.5})
+        return cliente
+
+    def test_toca_vender_lo_que_sale_y_comprar_con_ello(self, con_eem: Api) -> None:
+        hoy = con_eem.get("/api/plan/hoy").json()
+
+        assert [(a["simbolo"], a["lado"]) for a in hoy["acciones"]] == [
+            ("EEM", "sell"),
+            ("SHY", "buy"),
+            ("SPY", "buy"),
+        ]
+        venta, shy, spy = hoy["acciones"]
+        assert venta["donde"] == "broker"
+        assert venta["titulo"] == "Vende todo tu ETF de mercados emergentes (unos 2.000 €)"
+        assert venta["explicacion"].startswith("Lleva meses bajando: tu estrategia sale de él")
+        assert (venta["moneda"], venta["referencia"]) == ("EUR", "EEM")
+        assert D(shy["importe"]) == pytest.approx(D(1000), abs=D("0.1"))
+        assert D(spy["importe"]) == pytest.approx(D(1000), abs=D("0.1"))
+        assert hoy["resumen"] == "Hoy toca: 1 venta y 2 compras en tu bróker."
+        assert con_eem.get("/api/inicio").json()["acciones_pendientes"] == 3
+
+    def test_anotar_la_venta(self, con_eem: Api) -> None:
+        venta = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        # El euro se ha movido: cobra 2.080 € por lo que el fondo de referencia valora en 2.000.
+        hecha = {"cantidad": "40", "precio": "52", "comision": "1", "fecha": "2026-10-17"}
+
+        r = con_eem.post(f"/api/plan/hoy/{venta['id']}/hecho", json=hecha)
+
+        assert r.status_code == 201
+        mov = con_eem.get("/api/cartera/movimientos").json()["movimientos"][0]
+        assert (mov["tipo"], mov["simbolo"], mov["origen"]) == ("venta", "EEM", "plan")
+        assert D(mov["importe"]) == pytest.approx(D(2080), abs=D("0.01")), "lo cobrado, exacto"
+        assert (mov["moneda"], mov["es_referencia"]) == ("EUR", True)
+        assert mov["nota"].startswith(
+            "Vendiste 40 participaciones a 52 € en tu bróker; se anota como la venta de todo lo "
+            "que tenías de EEM con tu plan"
+        )
+        # Ya no hay nada que vender; lo cobrado (menos la comisión) espera en la lista de la compra.
+        hoy = con_eem.get("/api/plan/hoy").json()
+        assert [(a["simbolo"], a["lado"]) for a in hoy["acciones"]] == [
+            ("SHY", "buy"),
+            ("SPY", "buy"),
+        ]
+        assert sum(D(a["importe"]) for a in hoy["acciones"]) == pytest.approx(D(2079), abs=D("0.1"))
+        assert hoy["acciones"][0]["explicacion"].startswith(
+            "Con lo que cobraste al vender y aún no has invertido"
+        )
+
+        cartera = con_eem.get("/api/cartera").json()
+        assert D(cartera["efectivo_broker"]) == pytest.approx(D(2079), abs=D("0.01"))
+        assert [p["activo"] for p in cartera["abiertas"]] == ["SHY", "SPY"]
+        (eem,) = cartera["retiradas"]
+        assert (eem["activo"], eem["moneda"]) == ("EEM", "EUR"), "pagado y cobrado en euros"
+        assert D(eem["pnl_realizado"]) == pytest.approx(D(79), abs=D("0.01"))
+
+        inicio = con_eem.get("/api/inicio").json()
+        (prudente,) = inicio["plan"]
+        assert D(prudente["efectivo"]) == pytest.approx(D(2079), abs=D("0.01"))
+        assert D(prudente["valor"]) == pytest.approx(D(10079), abs=D("0.1"))
+        p = inicio["patrimonio"]
+        assert D(p["efectivo"]) == pytest.approx(D(2079), abs=D("0.01")), (
+            "sin ingresos anotados el efectivo derivado sale negativo: lo cobrado se cuenta igual"
+        )
+        assert D(p["valor"]) == pytest.approx(D(10079), abs=D("0.1")), (
+            "vender no hace bajar tu dinero"
+        )
+
+    def test_reinvertir_gasta_lo_cobrado(self, con_eem: Api) -> None:
+        venta = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        hecha = {"cantidad": "40", "precio": "50", "comision": "0", "fecha": "2026-10-17"}
+        assert con_eem.post(f"/api/plan/hoy/{venta['id']}/hecho", json=hecha).status_code == 201
+        shy = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        compra = {"cantidad": "20", "precio": "50", "comision": "0", "fecha": "2026-10-17"}
+        assert con_eem.post(f"/api/plan/hoy/{shy['id']}/hecho", json=compra).status_code == 201
+
+        assert D(con_eem.get("/api/cartera").json()["efectivo_broker"]) == pytest.approx(
+            D(1000), abs=D("0.01")
+        )
+        assert [a["simbolo"] for a in con_eem.get("/api/plan/hoy").json()["acciones"]] == ["SPY"]
+
+    def test_vender_mas_de_lo_que_tienes_es_422_en_llano(self, con_eem: Api) -> None:
+        venta = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        hecha = {"cantidad": "100", "precio": "52", "comision": "0", "fecha": "2026-10-17"}
+
+        r = con_eem.post(f"/api/plan/hoy/{venta['id']}/hecho", json=hecha)
+
+        assert r.status_code == 422
+        assert "es más de lo que tienes" in r.json()["detail"]
+        movimientos = con_eem.get("/api/cartera/movimientos").json()["movimientos"]
+        assert all(m["tipo"] == "compra" for m in movimientos), "no se anota nada"
+
+    def test_una_venta_de_antes_de_comprar_es_422(self, con_eem: Api) -> None:
+        venta = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        hecha = {"cantidad": "40", "precio": "50", "comision": "0", "fecha": "2026-10-15"}
+        r = con_eem.post(f"/api/plan/hoy/{venta['id']}/hecho", json=hecha)
+        assert r.status_code == 422
+        assert "no tienes nada" in r.json()["detail"]
+
+    def test_la_fecha_de_la_venta_no_puede_ser_futura(self, con_eem: Api) -> None:
+        venta = con_eem.get("/api/plan/hoy").json()["acciones"][0]
+        hecha = {"cantidad": "40", "precio": "50", "comision": "0", "fecha": "2026-10-18"}
+        r = con_eem.post(f"/api/plan/hoy/{venta['id']}/hecho", json=hecha)
+        assert r.status_code == 422
+        assert r.json()["detail"] == "La fecha de la venta no puede ser posterior a hoy."

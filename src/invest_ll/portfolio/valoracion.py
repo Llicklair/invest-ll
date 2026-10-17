@@ -47,13 +47,19 @@ def valorar(
     *,
     solo: Callable[[str], bool] | None = None,
     con_efectivo: bool = True,
+    efectivo_minimo: Decimal = CERO,
 ) -> Valoracion:
-    """Valora las posiciones abiertas (todas, o las que acepte `solo`)."""
+    """Valora las posiciones abiertas (todas, o las que acepte `solo`).
+
+    `efectivo_minimo`: el efectivo que se sabe que tienes aunque el derivado salga menor (lo
+    cobrado al vender en tu bróker con el plan, cuando faltan ingresos por anotar). Se suma como
+    efectivo, en `valor` y en `puesto`, también con `con_efectivo=False`.
+    """
 
     def entra(simbolo: str) -> bool:
         return solo is None or solo(simbolo)
 
-    efectivo = max(cartera.cash, CERO) if con_efectivo else CERO
+    efectivo = max(max(cartera.cash, CERO) if con_efectivo else CERO, efectivo_minimo)
     valor: Decimal | None = efectivo
     puesto = efectivo
     ganancia: Decimal | None = CERO

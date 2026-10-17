@@ -12,6 +12,12 @@ cantidad y el precio del fondo europeo junto al precio del de EE.UU. haría que 
 lo que no vale (con el oro, varias veces más). Lo pagado no cambia; las unidades sí. Para que eso
 no esconda lo que hiciste, el movimiento lleva una `nota` en llano con tus participaciones y tu
 precio, y la cartera lo marca (`es_referencia`): se enseñan importes, no unidades.
+
+Una venta del bróker (`lado="sell"`, cuando la estrategia sale de un fondo o le sobra) se anota
+igual, al revés: lo que cobraste entre el precio de referencia de ese día son las unidades que
+salen (`plan.hoy.venta_en_unidades`), nunca más de las que el plan compró. Lo cobrado queda como
+dinero sin invertir de tu parte de bolsa hasta que lo vuelvas a invertir con el plan
+(`plan.hoy.EnElBroker.libre`): Inicio y Cartera lo cuentan.
 """
 
 from __future__ import annotations
@@ -39,7 +45,14 @@ from invest_ll.estrategias.catalogo import ficha
 from invest_ll.live.modo_panel import modo_del_panel
 from invest_ll.nombres import moneda_de
 from invest_ll.plan import almacen, servicio
-from invest_ll.plan.hoy import FUENTE_PLAN
+from invest_ll.plan.hoy import (
+    FUENTE_PLAN,
+    UNIDADES_DE_REFERENCIA,
+    VentaAnotada,
+    VentaImposibleError,
+    venta_en_unidades,
+)
+from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.models import Activity, ActivityType
 from invest_ll.portfolio.triggers import TriggerStore
 
@@ -50,7 +63,6 @@ if TYPE_CHECKING:  # pragma: no cover
 router = APIRouter()
 
 SIN_PLAN: Final = "Todavía no tienes un plan. Empieza en Estrategias: cinco preguntas, sin jerga."
-UNIDADES_DE_REFERENCIA: Final = Decimal("0.00000001")
 CENTESIMAS: Final = Decimal("0.01")
 DIEZMILESIMAS: Final = Decimal("0.0001")
 
@@ -184,9 +196,72 @@ def nota_de_referencia(
     )
 
 
+def nota_de_venta(
+    hecha: AccionHecha, accion: AccionCalculada, venta: VentaAnotada, referencia: Decimal
+) -> str:
+    """Lo que de verdad vendiste y cómo queda anotado.
+
+    "Vendiste 3 participaciones a 210 € en tu bróker; se anota como 0,83 de EEM (el fondo de
+    EE.UU. de referencia) a 45,10 $ para poder valorarlo."
+    """
+    que = (
+        f"Vendiste {llano.cantidad(hecha.cantidad)} participaciones a "
+        f"{llano.dinero(hecha.precio, accion.moneda)} en tu bróker; "
+    )
+    anotadas = venta.unidades.quantize(
+        CENTESIMAS if venta.unidades >= 1 else DIEZMILESIMAS, ROUND_HALF_UP
+    )
+    if venta.todo:
+        return (
+            f"{que}se anota como la venta de todo lo que tenías de {accion.simbolo} con tu plan "
+            f"({llano.cantidad(anotadas)}, el fondo de EE.UU. de referencia), por lo que cobraste."
+        )
+    return (
+        f"{que}se anota como {llano.cantidad(anotadas)} de {accion.simbolo} (el fondo de EE.UU. "
+        f"de referencia) a {llano.dinero(referencia, moneda_de(accion.simbolo))} para poder "
+        "valorarlo."
+    )
+
+
+def _venta(plan: almacen.Plan, accion: AccionCalculada, hecha: AccionHecha) -> Activity:
+    """La venta del bróker en unidades del fondo de referencia (`plan.hoy.venta_en_unidades`)."""
+    cobrado = hecha.cantidad * hecha.precio
+    referencia = servicio.precio_de_referencia(accion.simbolo, hecha.fecha, accion.precio_ref)
+    if referencia is None or referencia <= 0:
+        raise invalido(
+            f"No hay precio de referencia de {accion.activo} para esa fecha: descarga los datos "
+            "de los fondos (uv run invest-ll-quant download --etf)."
+        )
+    with del_dominio("No registrado: "):
+        actividades = almacen_del_broker().activities()
+    tenido = servicio.lo_del_broker(plan, actividades, hasta=hecha.fecha)
+    tienes = tenido.unidades.get(accion.simbolo.upper(), Decimal(0))
+    try:
+        venta = venta_en_unidades(
+            cobrado, referencia, tienes, sale_del_todo=accion.todo, nombre=accion.activo
+        )
+    except VentaImposibleError as error:
+        raise invalido(str(error)) from error
+    with del_dominio("No registrado: "):
+        actividad = Activity(
+            timestamp=datetime(hecha.fecha.year, hecha.fecha.month, hecha.fecha.day, tzinfo=UTC),
+            type=ActivityType.SELL,
+            symbol=accion.simbolo,
+            quantity=venta.unidades,
+            unit_price=venta.precio,
+            fee=hecha.comision,
+            source=FUENTE_PLAN,
+            nota=nota_de_venta(hecha, accion, venta, referencia),
+        )
+        # Que la historia siga siendo posible: una venta fechada antes de las compras que vende
+        # dejaría el registro sin poder derivarse (y todo el panel con él).
+        derive_portfolio([*actividades, actividad])
+    return actividad
+
+
 @router.post("/plan/hoy/{accion_id}/hecho", tags=["plan"], status_code=201)
 def hecho(accion_id: str, hecha: AccionHecha) -> MovimientoRegistrado:
-    """Anota en tu registro una compra hecha en tu bróker (solo acciones `donde=broker`)."""
+    """Anota en tu registro una compra o una venta hecha en tu bróker (solo `donde=broker`)."""
     plan = _leer()
     if plan is None:
         raise no_encontrado("no hay ningún plan guardado")
@@ -201,8 +276,17 @@ def hecho(accion_id: str, hecha: AccionHecha) -> MovimientoRegistrado:
             "solas a tu cartera."
         )
     hoy_ = servicio.hoy_local()
+    venta = accion.lado == "sell"
     if hecha.fecha > hoy_:
-        raise invalido("La fecha de la compra no puede ser posterior a hoy.")
+        raise invalido(
+            f"La fecha de la {'venta' if venta else 'compra'} no puede ser posterior a hoy."
+        )
+    if venta:
+        actividad = _venta(plan, accion, hecha)
+        with del_dominio("No registrado: "):
+            # A la cartera real en cualquier modo, como las compras.
+            identificador = almacen_del_broker().append(actividad)
+        return MovimientoRegistrado(activity_id=identificador)
     if accion.periodo is not None and hecha.fecha < accion.periodo:
         raise invalido(
             f"Esta compra es de la aportación del {accion.periodo.isoformat()}: una compra de "
