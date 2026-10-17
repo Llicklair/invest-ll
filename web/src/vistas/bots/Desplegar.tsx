@@ -160,7 +160,7 @@ export function Desplegar() {
                     const v = valorParam(p);
                     params[p.clave] = p.tipo === "entero" || p.tipo === "decimal" ? (leerImporte(v) ?? v) : v;
                   }
-                  void desplegar.ejecutar({ plantilla: plantilla.clave, nombre: nombreFinal.trim(), monedas: elegidas, capital: capitalLimpio, parametros: params });
+                  void desplegar.ejecutar({ plantilla: plantilla.clave, nombre: nombreFinal.trim(), monedas: elegidas, capital: capitalLimpio, parametros: params, modo: "ficticio" });
                 }}
               >
                 {desplegar.enCurso ? "Desplegando…" : "Desplegar"}

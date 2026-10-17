@@ -145,6 +145,50 @@ export type EventoBot = S["EventoBot"];
 export type DetalleBot = S["DetalleBot"];
 export type EstadoBot = ResumenBot["estado"];
 
+// -- Panel v4: bots reales, varios exchanges y estrategias a medida (schemas_v3/v4) ----------------
+
+/** ficticio · pruebas · real (el modo de CADA bot; el del panel es `ModoPanel`). */
+export type ModoBot = ResumenBot["modo"];
+/** Los limites como llegan de la API (importes en cadena). */
+export type LimitesBot = S["LimitesBot-Output"];
+/** Los limites como se envian (la API acepta importes en cadena o numero; aqui, cadena). */
+export type LimitesBotEntrada = S["LimitesBot-Input"];
+export type ConsumoLimites = S["ConsumoLimites"];
+export type EstadoReal = S["EstadoReal"];
+export type ActivarReal = S["ActivarReal"];
+export type CambioLimites = S["CambioLimites"];
+export type ParadaGeneral = S["ParadaGeneral"];
+export type LimiteDiario = S["LimiteDiario"];
+
+export type CampoClave = S["CampoClave"];
+export type ExchangeDisponible = S["ExchangeDisponible"];
+export type EstadoRedExchange = S["EstadoRedExchange"];
+export type EstadoExchange = S["EstadoExchange"];
+export type ActivoExchange = EstadoExchange["activo"];
+export type RedExchange = EstadoRedExchange["red"];
+export type ConfigMcp = S["ConfigMcp"];
+export type Conexiones = S["Conexiones"];
+export type ClavesExchange = S["ClavesExchange"];
+export type PruebaExchange = S["PruebaExchange"];
+export type ActivarExchange = S["ActivarExchange"];
+export type MercadoExchange = S["MercadoExchange"];
+export type MercadosExchange = S["MercadosExchange"];
+
+export type ResultadoPrueba = S["ResultadoPrueba"];
+export type ResumenEstrategia = S["ResumenEstrategia"];
+/** La biblioteca de estrategias a medida (`GET /api/medida`); no confundir con el catalogo v2. */
+export type EstrategiasMedida = S["Estrategias"];
+export type EstadoEstrategia = ResumenEstrategia["estado"];
+export type AutorEstrategia = ResumenEstrategia["autor"];
+export type VersionEstrategia = S["VersionEstrategia"];
+export type DetalleEstrategia = S["DetalleEstrategia"];
+export type NuevaEstrategia = S["NuevaEstrategia"];
+export type PeticionPruebaEstrategia = S["PeticionPruebaEstrategia"];
+export type EsquemaEstrategia = S["EsquemaEstrategia"];
+export type PeticionDiseno = S["PeticionDiseno"];
+export type MensajeDiseno = S["MensajeDiseno"];
+export type RespuestaDiseno = S["RespuestaDiseno"];
+
 /**
  * Los eventos de `GET /api/vivo/stream` (docs/panel-v3-vivo.md, seccion 5). El OpenAPI no puede
  * describir un text/event-stream, asi que el reparto evento -> modelo se escribe aqui, pero cada
