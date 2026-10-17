@@ -25,6 +25,7 @@ from invest_ll.api import (
     bots,
     cartera,
     chat,
+    claude,
     conexion,
     conexiones,
     datos,
@@ -62,6 +63,7 @@ PESTANAS = (
     bots,
     conexiones,
     medida,
+    claude,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""

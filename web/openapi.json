@@ -1117,6 +1117,24 @@
         "title": "ComprobacionTriggers",
         "type": "object"
       },
+      "ConectarClaude": {
+        "properties": {
+          "abierto": {
+            "title": "Abierto",
+            "type": "boolean"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "abierto",
+          "texto"
+        ],
+        "title": "ConectarClaude",
+        "type": "object"
+      },
       "Conexion": {
         "properties": {
           "cerrojos_real": {
@@ -2195,6 +2213,66 @@
           "pausa"
         ],
         "title": "Estado",
+        "type": "object"
+      },
+      "EstadoClaude": {
+        "description": "Claude con tu suscripción: lo que dice `claude auth status`, sin nada que identifique la\ncuenta.",
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "con_suscripcion": {
+            "description": "Conectado con la suscripción de claude.ai (no con una clave de la API)",
+            "title": "Con Suscripcion",
+            "type": "boolean"
+          },
+          "conectado": {
+            "title": "Conectado",
+            "type": "boolean"
+          },
+          "instalado": {
+            "description": "Si Claude Code (el CLI `claude`) está en este equipo",
+            "title": "Instalado",
+            "type": "boolean"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'Max', 'Pro'… si se sabe",
+            "title": "Plan"
+          },
+          "usos": {
+            "description": "Lo que lo usa en el panel",
+            "items": {
+              "type": "string"
+            },
+            "title": "Usos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instalado",
+          "conectado",
+          "con_suscripcion",
+          "plan",
+          "aviso",
+          "usos"
+        ],
+        "title": "EstadoClaude",
         "type": "object"
       },
       "EstadoDatos": {
@@ -9981,6 +10059,130 @@
         "summary": "Chat",
         "tags": [
           "chat"
+        ]
+      }
+    },
+    "/api/claude": {
+      "get": {
+        "description": "Si Claude Code está instalado y conectado, y con qué (sin gastar cuota).",
+        "operationId": "estado_api_claude_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoClaude"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Estado",
+        "tags": [
+          "claude"
+        ]
+      }
+    },
+    "/api/claude/conectar": {
+      "post": {
+        "description": "Abre en este equipo la ventana de inicio de sesión de Claude Code con la suscripción. 409 si\nya está conectado con ella; 422 si Claude Code no está instalado.",
+        "operationId": "conectar_api_claude_conectar_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConectarClaude"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Conectar",
+        "tags": [
+          "claude"
         ]
       }
     },

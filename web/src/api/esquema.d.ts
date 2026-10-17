@@ -312,6 +312,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/claude": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado
+         * @description Si Claude Code está instalado y conectado, y con qué (sin gastar cuota).
+         */
+        get: operations["estado_api_claude_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/claude/conectar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conectar
+         * @description Abre en este equipo la ventana de inicio de sesión de Claude Code con la suscripción. 409 si
+         *     ya está conectado con ella; 422 si Claude Code no está instalado.
+         */
+        post: operations["conectar_api_claude_conectar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/conexion": {
         parameters: {
             query?: never;
@@ -2053,6 +2094,13 @@ export interface components {
              */
             sin_evaluar: string[];
         };
+        /** ConectarClaude */
+        ConectarClaude: {
+            /** Abierto */
+            abierto: boolean;
+            /** Texto */
+            texto: string;
+        };
         /** Conexion */
         Conexion: {
             /** Cerrojos Real */
@@ -2512,6 +2560,37 @@ export interface components {
              * @description Aviso de reserva de datos, si hay una declarada
              */
             reserva: string | null;
+        };
+        /**
+         * EstadoClaude
+         * @description Claude con tu suscripción: lo que dice `claude auth status`, sin nada que identifique la
+         *     cuenta.
+         */
+        EstadoClaude: {
+            /** Aviso */
+            aviso: string | null;
+            /**
+             * Con Suscripcion
+             * @description Conectado con la suscripción de claude.ai (no con una clave de la API)
+             */
+            con_suscripcion: boolean;
+            /** Conectado */
+            conectado: boolean;
+            /**
+             * Instalado
+             * @description Si Claude Code (el CLI `claude`) está en este equipo
+             */
+            instalado: boolean;
+            /**
+             * Plan
+             * @description 'Max', 'Pro'… si se sabe
+             */
+            plan: string | null;
+            /**
+             * Usos
+             * @description Lo que lo usa en el panel
+             */
+            usos: string[];
         };
         /**
          * EstadoDatos
@@ -6211,6 +6290,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RespuestaChat"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    estado_api_claude_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoClaude"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    conectar_api_claude_conectar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConectarClaude"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */

@@ -714,6 +714,8 @@ interface MundoV4 {
   estrategias: Map<string, EstrategiaMock>;
   sesiones: Map<string, SesionMock>;
   siguiente: number;
+  /** v5: en «sin-claude», si ya se pulsó Conectar (y pasó el rato de iniciar sesión). */
+  claudeConectado?: boolean;
 }
 
 let mundo: MundoV4 | null = null;
@@ -870,7 +872,7 @@ function esRed(v: string): v is Red {
 }
 
 export function esRutaV4(ruta: string): boolean {
-  return /^\/api\/(conexiones|medida)(\/|$)/.test(ruta);
+  return /^\/api\/(conexiones|medida|claude)(\/|$)/.test(ruta);
 }
 
 function conexiones(m: MundoV4): S["Conexiones"] {
@@ -1248,6 +1250,13 @@ async function disenar(m: MundoV4, o: Objeto): Promise<Response> {
   return json({ sesion: s.id, respuesta, estrategia, herramientas, historial: s.historial } satisfies S["RespuestaDiseno"]);
 }
 
+const USOS_CLAUDE = ["Pregunta", "Mi plan", "Diseñar con Claude", "El conector de Claude (MCP)"];
+
+function estadoClaude(m: MundoV4): S["EstadoClaude"] {
+  const conectado = m.escenario !== "sin-claude" || m.claudeConectado === true;
+  return { instalado: true, conectado, con_suscripcion: conectado, plan: conectado ? "Max" : null, aviso: null, usos: USOS_CLAUDE };
+}
+
 export async function responderV4(peticion: Request, url: URL): Promise<Response> {
   const m = elMundo();
   const ruta = url.pathname;
@@ -1255,6 +1264,20 @@ export async function responderV4(peticion: Request, url: URL): Promise<Response
   await esperar(120 + Math.random() * 200);
 
   switch (`${metodo} ${ruta}`) {
+    // Claude con tu suscripción (docs/panel-v5.md): conectado salvo en «sin-claude»; conectar lo deja
+    // conectado a los pocos segundos, como si se hubiera iniciado sesión en la ventana.
+    case "GET /api/claude":
+      return json(estadoClaude(m) satisfies S["EstadoClaude"]);
+    case "POST /api/claude/conectar": {
+      if (estadoClaude(m).con_suscripcion) return fallo(409, "Claude ya está conectado con tu suscripción Max.");
+      window.setTimeout(() => {
+        m.claudeConectado = true;
+      }, 6000);
+      return json({
+        abierto: true,
+        texto: "Se ha abierto una ventana de Claude Code en este equipo: sigue sus pasos (abre tu navegador para elegir la cuenta) y vuelve aquí. Esta página se entera sola.",
+      } satisfies S["ConectarClaude"]);
+    }
     case "GET /api/conexiones":
       return json(conexiones(m) satisfies S["Conexiones"]);
     case "GET /api/conexiones/disponibles":

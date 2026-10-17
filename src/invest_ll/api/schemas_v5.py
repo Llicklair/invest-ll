@@ -90,3 +90,22 @@ class PendienteBot(BaseModel):
     importe: Decimal | None = None
     cantidad: Decimal | None = None
     cuando: datetime | None = None
+
+
+class EstadoClaude(BaseModel):
+    """Claude con tu suscripción: lo que dice `claude auth status`, sin nada que identifique la
+    cuenta."""
+
+    instalado: bool = Field(description="Si Claude Code (el CLI `claude`) está en este equipo")
+    conectado: bool
+    con_suscripcion: bool = Field(
+        description="Conectado con la suscripción de claude.ai (no con una clave de la API)"
+    )
+    plan: str | None = Field(description="'Max', 'Pro'… si se sabe")
+    aviso: str | None
+    usos: list[str] = Field(description="Lo que lo usa en el panel")
+
+
+class ConectarClaude(BaseModel):
+    abierto: bool
+    texto: str
