@@ -12,11 +12,13 @@ dependencies = [
     # falla si eso deja de ser cierto (tests/unit/test_engine_isolation.py).
     "ccxt>=4.4",
     "yfinance>=0.2.50",
-    # Panel interactivo. Solo lo usa src/invest_ll/dashboard/; el motor no lo conoce.
+    # Parquet: el universo de Binance y el de ETFs (fetch/ y quant/). Llegaba de rebote con
+    # streamlit; al retirarlo se declara, que es lo que tenia que haber sido desde el principio.
+    "pyarrow>=17",
     # LLM como estrategia. Solo lo usa src/invest_ll/decision/; el motor no lo conoce.
     "anthropic>=0.60",
-    "streamlit>=1.40",
-    "altair>=5.4",
+    # Panel: la API que sirve al frontend de web/. Solo lo usa src/invest_ll/api/; el motor no
+    # lo conoce (tests/unit/test_dashboard_data.py lo vigila).
     "fastapi>=0.115",
     "uvicorn>=0.30",
 ]
@@ -24,7 +26,7 @@ dependencies = [
 [project.scripts]
 invest-ll = "invest_ll.cli:main"
 invest-ll-fetch = "invest_ll.cli_fetch:main"
-invest-ll-panel = "invest_ll.dashboard.launch:main"
+invest-ll-panel = "invest_ll.api.launch:main"
 invest-ll-compare = "invest_ll.cli.compare:main"
 invest-ll-propose = "invest_ll.cli.propose:main"
 invest-ll-analyze = "invest_ll.cli.analyze:main"

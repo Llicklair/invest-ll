@@ -27,9 +27,9 @@ y pruebas de sobreajuste (walk-forward, PBO, Sharpe deflactado). La cartera prin
 de ver resultados y se prueba hacia delante con registros diarios en git. Todo en
 [docs/quant-research.md](docs/quant-research.md) y en la pestaña **Investigación** del panel.
 
-**Arrancar**: doble clic en `levantar.cmd`. Comprueba el entorno, cierra paneles viejos y abre el
-panel en http://localhost:8601. Desde una terminal, Windows bloquea los `.ps1` por política de
-ejecución, así que hace falta el mismo rodeo que usa `levantar.cmd`:
+**Arrancar**: doble clic en `levantar.cmd`. Cierra paneles viejos, comprueba el entorno, compila el
+frontend si falta y abre el panel en http://localhost:8601. Desde una terminal, Windows bloquea los
+`.ps1` por política de ejecución, así que hace falta el mismo rodeo que usa `levantar.cmd`:
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1`.
 
 ---
@@ -68,7 +68,7 @@ Recogidos en [la constitución del proyecto](.specify/memory/constitution.md):
 | [001 · Motor de backtesting](specs/001-backtest-engine/) | Funcional | Mide una estrategia sobre el pasado y emite un veredicto honesto |
 | [002 · Descarga de histórico](specs/002-market-data-fetch/) | Funcional | Trae mercado real de cripto y bolsa, listo para el motor |
 | Carteras y rotación | Funcional | Universo de activos, momentum relativo, aportaciones periódicas y análisis de diversificación |
-| Panel interactivo | Funcional | Streamlit sobre el mismo motor |
+| Panel | API funcional; frontend en construcción | API FastAPI (`src/invest_ll/api`) y frontend Next.js (`web/`) en un solo proceso, sobre el mismo motor |
 | Investigación cuantitativa | Funcional | Universo sin sesgo de supervivencia, carteras por riesgo, pruebas de sobreajuste, prueba hacia delante |
 
 Soporta cripto (mercado continuo) y bolsa (con horario de sesión y festivos) sobre el mismo
@@ -94,12 +94,14 @@ uv run invest-ll-fetch AAPL --market equity --interval DAY_1 \
 bash scripts/start.sh            # Linux / macOS
 ```
 
-Comprueba el entorno, **te dice si el sistema puede enviar órdenes reales**, lista los históricos
-descargados y las decisiones ya generadas, y abre el panel. Con `-SoloCheck` / `--solo-check`
-comprueba sin arrancar nada.
+Cierra los paneles de este repositorio que siguieran abiertos, comprueba el entorno, **te dice si
+el sistema puede enviar órdenes reales**, lista los históricos descargados y las decisiones ya
+generadas, compila el frontend si todavía no lo está (`npm ci` + `npm run build` en `web/`; hace
+falta Node.js) y abre el panel, siempre en el puerto 8601. Con `-SoloCheck` / `--solo-check`
+comprueba sin arrancar ni compilar nada.
 
-> No hay "frontend y backend" separados: el panel llama al motor en el mismo proceso, sin API por
-> medio. Un script que arrancara dos cosas arrancaría una sola dos veces.
+> El panel son dos piezas pero **un solo proceso**: la API (FastAPI) sirve también el frontend ya
+> compilado (`web/out`) en el mismo puerto. Sin frontend compilado arranca igual, solo con la API.
 
 **Pedir una propuesta de cartera** (lo más simple que hay):
 
@@ -129,14 +131,27 @@ Separa los datos verificables (con su fuente y su fecha) de la interpretación.
 **Abrir el panel interactivo:**
 
 ```bash
-uv run invest-ll-panel
+npm --prefix web ci && npm --prefix web run build   # la primera vez: compila el frontend
+uv run invest-ll-panel                              # http://127.0.0.1:8601 y abre el navegador
+uv run invest-ll-panel --no-browser --puerto 8611   # sin navegador, en otro puerto
 ```
+
+Un proceso: la API FastAPI (`src/invest_ll/api`) en `/api` y el frontend Next.js (`web/`), ya
+compilado, en `/`. Si el frontend no está compilado lo dice, arranca solo la API y abre su
+documentación interactiva (`/docs`). Para trabajar en el frontend, `npm run dev` en `web/`
+(puerto 3000) habla con esta misma API, que solo admite ese origen además del suyo.
 
 Siete pestañas, una por pregunta: **Mercado** (cotizaciones al momento y rendimiento del histórico),
 **Mi cartera**, **Simular** (propuestas y backtests), **Vigilar** (alertas y triggers de retirada),
 **Estimado vs real**, **Investigación** (la cartera prerregistrada de hoy, su prueba hacia delante y
 el último estudio) y **Chat**. Todas las cifras salen del mismo motor que la línea de comandos,
-con las mismas advertencias. Ninguna pestaña envía órdenes.
+con las mismas advertencias, y el dinero viaja como texto exacto, nunca como `float`. La única
+ruta que puede enviar una orden es la de **Mi cartera**, y solo fuera de simulación y tecleando la
+cantidad, igual que `invest-ll-execute`; en simulación responde 403 sin tocar ningún broker.
+
+El contrato entre la API y el frontend es `web/openapi.json`, del que el frontend genera sus
+tipos. Si cambias una ruta o un modelo, regenéralo a propósito con
+`uv run python -m invest_ll.api.contrato`: un test falla mientras no coincidan.
 
 **Investigación cuantitativa:**
 

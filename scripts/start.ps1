@@ -1,11 +1,11 @@
 # Arranque de INVEST LL en Windows.
 #
-# NO arranca "frontend y backend" por separado: no hay dos. El panel de Streamlit llama al motor
-# directamente en el mismo proceso, sin API por medio. Este script comprueba que todo esta en su
-# sitio antes de levantarlo, que es donde de verdad se pierde tiempo cuando algo falla.
+# El panel son dos piezas pero UN proceso: la API (FastAPI, src/invest_ll/api) sirve tambien el
+# frontend ya compilado (Next.js exportado a web/out) en el mismo puerto. Este script comprueba que
+# todo esta en su sitio, compila el frontend si falta y arranca `invest-ll-panel`.
 #
 # Uso:  .\scripts\start.ps1              arranca el panel
-#       .\scripts\start.ps1 -SoloCheck   solo comprueba, no arranca
+#       .\scripts\start.ps1 -SoloCheck   solo comprueba, no arranca ni compila nada
 
 param(
     [switch]$SoloCheck,
@@ -34,15 +34,57 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 }
 Escribir-Bien "uv disponible"
 
+# --- 2. Paneles viejos ---
+# Un panel viejo tiene los modulos cacheados en memoria: tras editar codigo sirve lo de antes, y
+# mientras su ejecutable esta abierto `uv sync` falla con "os error 32". Se cierran ANTES de
+# sincronizar, y se usa SIEMPRE el mismo puerto para que el navegador no mire uno muerto.
+# Solo al arrancar: -SoloCheck no toca nada.
+if (-not $SoloCheck) {
+    Write-Host ""
+    Write-Host "Paneles anteriores"
+    # Los de ESTE repositorio (su .venv, no el de otra copia o worktree): invest-ll-panel, uvicorn
+    # sobre invest_ll, y los de Streamlit que quedaran de antes de retirarlo. Se excluye este mismo
+    # proceso por si su linea de ordenes contuviera lo que se busca.
+    $venv = Join-Path $raiz ".venv"
+    $viejos = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.ProcessId -ne $PID -and $_.CommandLine -and
+            $_.CommandLine -like "*$venv\*" -and (
+                $_.CommandLine -like "*invest-ll-panel*" -or
+                ($_.CommandLine -like "*uvicorn*" -and $_.CommandLine -like "*invest_ll*") -or
+                ($_.CommandLine -like "*streamlit*" -and $_.CommandLine -like "*invest_ll*")
+            )
+        }
+    if ($viejos) {
+        foreach ($proceso in $viejos) {
+            # El arbol entero: matar solo el padre deja el Python hijo vivo y con el puerto.
+            taskkill /PID $proceso.ProcessId /T /F 2>$null | Out-Null
+        }
+        Escribir-Bien "cerrados $(@($viejos).Count) proceso(s) de un arranque anterior"
+        Start-Sleep -Seconds 2
+    } else {
+        Escribir-Bien "ninguno abierto"
+    }
+
+    $ocupado = Get-NetTCPConnection -LocalPort $Puerto -State Listen -ErrorAction SilentlyContinue
+    if ($ocupado) {
+        $dueno = Get-Process -Id $ocupado[0].OwningProcess -ErrorAction SilentlyContinue
+        Escribir-Mal "el puerto $Puerto sigue ocupado por $($dueno.ProcessName) (PID $($ocupado[0].OwningProcess))"
+        Escribir-Paso "no es un panel de este repositorio: cierralo tu o arranca con -Puerto <otro>"
+        exit 1
+    }
+}
+
+Write-Host ""
 Escribir-Paso "Sincronizando dependencias..."
 uv sync --quiet
 if ($LASTEXITCODE -ne 0) {
-    Escribir-Mal "uv sync fallo. Si dice 'Acceso denegado', cierra el panel si esta abierto."
+    Escribir-Mal "uv sync fallo. Si dice 'os error 32' o 'Acceso denegado', hay un panel abierto: cierralo."
     exit 1
 }
 Escribir-Bien "dependencias al dia"
 
-# --- 2. Modo de operacion ---
+# --- 3. Modo de operacion ---
 # Esto es lo primero que hay que saber al arrancar: si el sistema puede mandar ordenes reales.
 Write-Host ""
 Write-Host "Modo de operacion"
@@ -59,10 +101,10 @@ if ($lineas[1] -eq "REAL") {
     Escribir-Bien "simulacion - ninguna orden sale al exterior"
 }
 
-# --- 3. Datos ---
+# --- 4. Datos ---
 Write-Host ""
 Write-Host "Datos de mercado"
-$activos = uv run python -c "from invest_ll.dashboard.data import discover_assets; a = discover_assets(); print(len(a)); print(' '.join(sorted({x.symbol for x in a}))[:200])" 2>$null
+$activos = uv run python -c "from invest_ll.fetch.available import discover_assets; a = discover_assets(); print(len(a)); print(' '.join(sorted({x.symbol for x in a}))[:200])" 2>$null
 $partes = $activos -split "`n" | ForEach-Object { $_.Trim() }
 $cuantos = [int]$partes[0]
 
@@ -77,7 +119,7 @@ if ($cuantos -eq 0) {
     Escribir-Bien "$cuantos historicos: $($partes[1])"
 }
 
-# --- 4. Decisiones cacheadas ---
+# --- 5. Decisiones cacheadas ---
 Write-Host ""
 Write-Host "Decisiones del LLM"
 if (Test-Path "decisions") {
@@ -94,35 +136,43 @@ if (Test-Path "decisions") {
     Escribir-Paso "ninguna generada todavia (usa invest-ll-generate)"
 }
 
+# --- 6. Frontend ---
+# Se compila solo si falta: `npm ci` + `npm run build` dejan web/out, que sirve la propia API.
+Write-Host ""
+Write-Host "Frontend"
+$web = Join-Path $raiz "web"
+$compilado = Join-Path $web "out\index.html"
+if (-not (Test-Path (Join-Path $web "package.json"))) {
+    Escribir-Aviso "no hay frontend en web/ todavia: se arrancara solo la API (http://localhost:$Puerto/docs)"
+} elseif (Test-Path $compilado) {
+    Escribir-Bien "compilado (web/out)"
+} elseif ($SoloCheck) {
+    Escribir-Aviso "sin compilar: se compilara al arrancar (npm ci + npm run build en web/)"
+} elseif (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    Escribir-Aviso "sin compilar y npm no esta instalado: se arrancara solo la API"
+    Escribir-Paso "instala Node.js y luego: npm --prefix web ci; npm --prefix web run build"
+} else {
+    Escribir-Paso "Compilando el frontend (la primera vez tarda un rato)..."
+    npm --prefix web ci
+    if ($LASTEXITCODE -eq 0) { npm --prefix web run build }
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $compilado)) {
+        Escribir-Bien "frontend compilado en web/out"
+    } else {
+        Escribir-Aviso "no se pudo compilar el frontend: se arrancara solo la API (mira los errores de npm arriba)"
+    }
+}
+
 if ($SoloCheck) {
     Write-Host ""
     Write-Host "Comprobacion terminada. No se ha arrancado nada."
     exit 0
 }
 
-# --- 5. Paneles viejos ---
-# Un panel viejo tiene los modulos cacheados en memoria: tras editar codigo da ImportError de
-# cosas que existen, y como cada arranque buscaba un puerto nuevo, el navegador seguia mirando
-# el panel muerto. Se mata lo que hubiera y se usa SIEMPRE el mismo puerto.
-Write-Host ""
-Write-Host "Paneles anteriores"
-$viejos = Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like "*streamlit*" }
-if ($viejos) {
-    foreach ($proceso in $viejos) {
-        Stop-Process -Id $proceso.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-    Escribir-Bien "cerrados $(@($viejos).Count) proceso(s) de un arranque anterior"
-    Start-Sleep -Seconds 2
-} else {
-    Escribir-Bien "ninguno abierto"
-}
-
-# --- 6. El panel ---
+# --- 7. El panel ---
 Write-Host ""
 Write-Host ("=" * 60)
 Write-Host "Abriendo el panel en http://localhost:$Puerto" -ForegroundColor Cyan
 Write-Host "Ctrl+C para pararlo."
 Write-Host ""
 
-uv run streamlit run src/invest_ll/dashboard/app.py --server.port $Puerto
+uv run invest-ll-panel --puerto $Puerto
