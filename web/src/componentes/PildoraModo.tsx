@@ -11,7 +11,7 @@ import { clases } from "./ui";
  * El modo, siempre a la vista (docs/panel-v2.md, seccion 3): Simulacion / Pruebas / Dinero real.
  * Lleva a Ajustes · Conexion, que es donde se cambia. Icono + palabra: el color nunca va solo.
  */
-export function PildoraModo({ className }: { className?: string }) {
+export function PildoraModo({ className, compacta = false }: { className?: string; compacta?: boolean }) {
   const { modo, error, cargando } = useModo();
 
   let texto = "Leyendo el modo…";
@@ -39,6 +39,20 @@ export function PildoraModo({ className }: { className?: string }) {
     estilo = "bg-real-suave text-real-tinta ring-1 ring-real/40";
   }
 
+  if (compacta) {
+    // En el carril estrecho (Operar): solo el icono del modo, con su nombre para el lector y al pasar.
+    return (
+      <Link
+        href="/ajustes/#conexion"
+        className={clases("inline-flex h-11 w-11 items-center justify-center rounded-full", estilo, className)}
+        aria-live="polite"
+        title={detalle ? `${texto}: ${detalle}. Cambiar en Ajustes · Conexión` : texto}
+      >
+        <Icono aria-hidden="true" className="h-5 w-5" strokeWidth={2} />
+        <span className="sr-only">Modo: {texto}</span>
+      </Link>
+    );
+  }
   return (
     <Link
       href="/ajustes/#conexion"
