@@ -34,6 +34,8 @@ PUERTO = 8601
 COMPILAR_FRONTEND = "npm --prefix web ci && npm --prefix web run build"
 ESPERA_MAXIMA = 30.0
 """Segundos que se espera a que el servidor escuche antes de renunciar a abrir el navegador."""
+ESPERA_AL_CERRAR = 3
+"""Segundos que se deja a las respuestas en curso al cerrar el panel antes de cortarlas."""
 
 
 class _Arrancable(Protocol):
@@ -113,7 +115,11 @@ def servir(
     """El servidor de verdad. Bloquea hasta Ctrl+C. Los tests lo sustituyen."""
     import uvicorn
 
-    servidor = uvicorn.Server(uvicorn.Config(app, host=host, port=puerto))
+    # El stream en vivo (GET /api/vivo/stream) no acaba nunca solo: sin un tope, Ctrl+C esperaría
+    # para siempre a que el navegador lo cerrara. Pasado el tope, uvicorn lo corta y cierra.
+    servidor = uvicorn.Server(
+        uvicorn.Config(app, host=host, port=puerto, timeout_graceful_shutdown=ESPERA_AL_CERRAR)
+    )
     # El catalogo de estrategias tarda unos segundos en calcularse la primera vez: se adelanta
     # en segundo plano para que la primera visita a Estrategias no espere. Si alguien lo pide
     # antes de que acabe, espera a este mismo calculo (no lo repite).
