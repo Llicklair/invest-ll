@@ -18,6 +18,7 @@ export const ESCENARIOS = [
   "en-frio",
   "datos-viejos",
   "datos-actualizando",
+  "vender",
 ] as const;
 export type Escenario = (typeof ESCENARIOS)[number];
 
@@ -37,4 +38,5 @@ export const DESCRIPCION_ESCENARIOS: Record<Escenario, string> = {
   "en-frio": "Primera vez tras arrancar la API: las estrategias tardan en calcularse",
   "datos-viejos": "Los precios tienen más de dos semanas; al actualizar, los fondos fallan",
   "datos-actualizando": "Una actualización de los datos en marcha, paso a paso",
+  vender: "Prudente con freno: toca vender en tu bróker un fondo que lleva meses bajando (v2.2)",
 };

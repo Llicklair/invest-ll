@@ -146,10 +146,13 @@ día del mes para aportar (1-28), resumen en una frase ("Cada día 1 pondrás 18
      el porqué en una frase ("Bitcoin lleva 30 días subiendo: tu estrategia dice estar dentro"), y
      [Revisar y confirmar]. En simulación la tarjeta se ve igual pero el botón es "Conectar Binance
      para hacerlo de verdad".
-   - **En tu bróker (tú)**: lista de la compra — "Compra unos 108 € de un ETF del S&P 500" con el
-     equivalente que se compra desde España (`equivalente`), precio de referencia y su fecha, y
-     [Ya lo he comprado] → formulario precargado (cantidad, precio real, comisión, fecha) que lo
-     anota en tu registro (`POST /api/plan/hoy/{id}/hecho`).
+   - **En tu bróker (tú)**: primero lo que toca vender — "Vende todo tu ETF de mercados
+     emergentes (unos 300 €)", con su porqué ("Lleva meses bajando: tu estrategia sale de él…") y
+     [Ya lo he vendido] (participaciones, precio, comisión, fecha) —; después la lista de la
+     compra — "Compra unos 108 € de un ETF del S&P 500" con el equivalente que se compra desde
+     España (`equivalente`), precio de referencia y su fecha, y [Ya lo he comprado] → formulario
+     precargado (cantidad, precio real, comisión, fecha). Los dos lo anotan en tu registro
+     (`POST /api/plan/hoy/{id}/hecho`).
    - Si no hay nada: el mismo estado bueno que en Inicio.
 2. **Confirmar una orden** (hoja modal, 3 estados):
    - Resumen: qué, cuánto, a qué precio aproximado, en qué modo. En dinero real, recuadro rojo.
@@ -225,7 +228,10 @@ Avisos obligatorios por estrategia (en la tarjeta y en la hoja):
   comen una parte visible."
 - `btc-freno`: "Pasa casi la mitad del tiempo fuera, en liquidez: habrá años en que lo haga peor
   que tener Bitcoin quieto."
-- `bolsa-prudente`: "Cae mucho menos, pero también crece aproximadamente la mitad."
+- `bolsa-prudente`: "Cae mucho menos, pero también crece aproximadamente la mitad." y "Su freno
+  funciona vendiendo: si solo aportas y no haces las ventas que te pida, no tienes esa protección
+  y caerá casi como sin freno." (su `como_funciona` dice que unas cuantas veces al año te tocará
+  vender en tu bróker).
 - `btc-mantener`: "Ha llegado a perder más del 80 %. Solo con dinero que puedas olvidar."
 - Todas las de bolsa: "Las cifras usan fondos de EE.UU.; desde España se compran sus versiones
   europeas (UCITS), que se comportan casi igual." y "Sin contar el cambio euro-dólar."
@@ -274,10 +280,44 @@ Un plan tiene como mucho una estrategia de bolsa y una de cripto (`PUT /api/plan
   activo**, valoradas al último cierre. Una orden por moneda cuya diferencia supere 10 USDT;
   cantidades redondeadas al paso del exchange cuando se conozca (si no, 6 decimales). Ventas
   antes que compras.
-- **Bolsa (tu bróker)**: el día del mes del plan (o después, si este mes aún no se anotó ninguna
-  compra de esa parte), una línea por fondo con importe = aportación × peso objetivo (la primera
-  vez, también el inicial). Cantidad aproximada = importe / último cierre. No se ajusta el
-  reparto con ventas: aportar a los pesos objetivo es más barato y casi igual de bueno.
+- **Bolsa (tu bróker), compras**: el día del mes del plan (o después, si este mes aún no se anotó
+  ninguna compra de esa parte), una línea por fondo con importe = aportación × peso objetivo (la
+  primera vez, también el inicial). Cantidad aproximada = importe / último cierre. Lo anotado con
+  el plan cuenta desde su primera aportación (creado el 17 con día 1, una compra del día 5 de esa
+  aportación cuenta).
+- **Bolsa (tu bróker), ventas** (v2.2): cualquier día, no solo el de aportar. La **parte de
+  bolsa** = lo que valen al último cierre los fondos que **compró el plan** (anotados con «Ya lo he
+  comprado», nunca lo que tuvieras antes ni lo anotado a mano; sin pasar de lo que tienes) + lo
+  que toca comprar hoy con la aportación + lo cobrado al vender con el plan y aún no reinvertido.
+  **Regla**: un fondo se vende cuando pesa en esa parte al menos **10 puntos más** que su peso
+  objetivo de hoy (`UMBRAL_CAMBIO`, el mismo umbral con que la tarjeta cuenta `cambios_al_anio`):
+  hasta su objetivo, o **entero** si su objetivo es ~0 (< 0,5 %; la Prudente con freno saca lo que
+  lleva meses bajando). Lo que se iba a comprar de ese fondo con la aportación ya no se compra.
+  Por debajo de 10 puntos no se vende: la diferencia la absorben las aportaciones. Medido sobre
+  2008-2026 (6.000 € al empezar, 200 € al mes, mirando cada semana): la Prudente pide vender
+  unas 4-5 veces al año y su peor caída queda en torno al −10 % (sin vender nunca, −16 %);
+  Equilibrada, una vez cada 5-6 años (deriva grande, de 60/40 a 70/30); Bolsa de EE.UU., nunca.
+- **Lo que liberan las ventas** (y lo cobrado que siga sin reinvertir) se reparte entre los
+  fondos que quedan por debajo de su objetivo, en proporción a lo que les falta, **en la misma
+  lista de la compra** (sumado a la línea de la aportación si la hay). La parte del objetivo que
+  sea liquidez (pesos que no suman 1) se queda sin invertir en el bróker; con las compras en
+  pausa, todo. La explicación de cada venta dice adónde va el dinero. Ventas antes que compras.
+- **Anotar una venta** (`POST /api/plan/hoy/{id}/hecho` con la acción `lado="sell"`): tus
+  participaciones, tu precio, comisión y fecha. Se anota una SELL en unidades del fondo de
+  referencia = cobrado / cierre de referencia de esa fecha, sin pasar de lo que el plan tenía de
+  ese fondo en esa fecha. Si sale más (el cambio euro-dólar), hasta un 25 % más se da por vendido
+  todo (con el precio = cobrado / unidades, para que el importe sea lo cobrado); más allá, 422 en
+  llano. Si la acción era salir del todo y lo cobrado queda dentro del 25 % por debajo, también
+  se anota todo (si no, quedaría un resto que ya no tienes). Lleva su `nota` ("Vendiste 3
+  participaciones a 210 € en tu bróker; …"). Una venta fechada antes de las compras que vende es
+  422.
+- **El dinero que queda en el bróker** tras vender es el **efectivo de la parte de bolsa**: lo
+  cobrado con el plan que aún no se ha reinvertido con él (las compras del plan gastan primero de
+  ahí, en el orden en que se anotan: por eso la lista pone las ventas primero y la pantalla pide
+  anotarlas antes que las compras que se pagan con ellas). Se ve en Inicio
+  (`ParteResumen.efectivo`, incluido en el valor y en lo puesto de la parte; y "Tu dinero hoy"
+  nunca cuenta menos efectivo que eso, aunque falten ingresos por anotar) y en Cartera
+  (`Cartera.efectivo_broker`). Lo vendido con el plan sale en "Lo que ya vendiste" en euros.
 - Si faltan datos para calcular algo, la acción no se inventa: aparece en `avisos` diciendo qué
   falta (p. ej. "Descarga los datos de Binance: uv run invest-ll-quant download").
 
@@ -333,7 +373,7 @@ Detalle en `src/invest_ll/api/schemas.py` y los routers; el OpenAPI en `web/open
 | `POST /api/estrategias/recomendar` | Perfil → reparto recomendado, por qué y avisos |
 | `GET/PUT/DELETE /api/plan` | El plan guardado (`plan/plan.json`, fuera de git) |
 | `GET /api/plan/hoy` | Qué toca hacer hoy |
-| `POST /api/plan/hoy/{id}/hecho` | Anotar una compra hecha en tu bróker |
+| `POST /api/plan/hoy/{id}/hecho` | Anotar una compra o una venta hecha en tu bróker |
 | `GET /api/cartera/movimientos` | El registro de movimientos, legible |
 | `GET /api/conexion` | Modo, claves guardadas por red, cerrojos, qué falta para cada modo |
 | `PUT/DELETE /api/conexion/claves/{red}` | Guardar/borrar claves (almacén de Windows) |

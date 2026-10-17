@@ -22,7 +22,6 @@ import { useEstado } from "@/contexto/estado";
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { fraccionComoPorcentaje, formatoCantidad } from "@/lib/decimal";
 import { euros, fechaCorta, momento } from "@/lib/formato";
-import { nombreLlano } from "@/lib/nombres";
 
 const REGLAS: Record<string, { corto: string; frase: (pct: number) => string }> = {
   "loss-from-entry": {
@@ -40,7 +39,7 @@ export interface ActivoConNombre {
   nombre: string;
 }
 
-function Comprobar({ armados, nombreDe }: { armados: number; nombreDe: (simbolo: string) => string }) {
+function Comprobar({ armados }: { armados: number }) {
   const comprobar = useAccion(() => pedir(api.GET("/api/triggers/comprobar")));
   const r = comprobar.resultado;
   return (
@@ -57,7 +56,7 @@ function Comprobar({ armados, nombreDe }: { armados: number; nombreDe: (simbolo:
           {r.disparados.map((d) => (
             <Tarjeta key={d.trigger_id} className="space-y-3 border-pruebas/50 p-5">
               <p className="text-[0.9375rem] text-tinta">
-                <strong className="font-semibold">{nombreDe(d.symbol)}</strong> ha caído un{" "}
+                <strong className="font-semibold">{d.nombre}</strong> ha caído un{" "}
                 <strong className="cifras">{fraccionComoPorcentaje(d.medido.replace("-", ""), 1) ?? d.medido}</strong> (tu freno
                 estaba en {fraccionComoPorcentaje(d.umbral, 0) ?? d.umbral}). Te proponemos vender{" "}
                 <strong className="cifras">{formatoCantidad(d.cantidad_propuesta)}</strong> al precio del cierre del{" "}
@@ -90,7 +89,8 @@ function Comprobar({ armados, nombreDe }: { armados: number; nombreDe: (simbolo:
  */
 export function Proteccion({ activos }: { activos: readonly ActivoConNombre[] }) {
   const simbolos = activos.map((a) => a.simbolo);
-  const nombreDe = (s: string) => activos.find((a) => a.simbolo === s)?.nombre ?? nombreLlano(s);
+  // Para elegir a qué poner un freno: lo que tienes, con el nombre que trae la cartera.
+  const nombreDe = (s: string) => activos.find((a) => a.simbolo === s)?.nombre ?? s;
   const { refrescarDatos, versionDatos } = useEstado();
   const [version, setVersion] = useState(0);
   const recargar = () => {
@@ -161,7 +161,7 @@ export function Proteccion({ activos }: { activos: readonly ActivoConNombre[] })
                   return (
                     <li key={x.trigger_id} className="flex items-start justify-between gap-3 py-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-tinta">{nombreDe(x.symbol)}</p>
+                        <p className="font-semibold text-tinta">{x.nombre}</p>
                         <p className="text-[0.9375rem] text-tinta">{REGLAS[x.regla]?.frase(pct) ?? x.descripcion}.</p>
                         <p className="mt-0.5 text-sm text-tinta-suave">Puesto el {momento(x.armado)}</p>
                       </div>
@@ -169,7 +169,7 @@ export function Proteccion({ activos }: { activos: readonly ActivoConNombre[] })
                         type="button"
                         onClick={() => void quitar.ejecutar(x.trigger_id)}
                         disabled={quitar.enCurso}
-                        aria-label={`Quitar el freno de ${nombreDe(x.symbol)}`}
+                        aria-label={`Quitar el freno de ${x.nombre}`}
                         className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-tinta-suave hover:bg-superficie-2 hover:text-real-tinta"
                       >
                         <Trash2 aria-hidden="true" className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function Proteccion({ activos }: { activos: readonly ActivoConNombre[] })
               </p>
             )}
             {quitar.error ? <ErrorApiVista error={quitar.error} prefijo="No se quitó:" /> : null}
-            {t.triggers.length ? <Comprobar armados={t.triggers.length} nombreDe={nombreDe} /> : null}
+            {t.triggers.length ? <Comprobar armados={t.triggers.length} /> : null}
 
             {simbolos.length || t.triggers.length ? (
             <form onSubmit={enviarFreno} className="space-y-4 border-t border-linea pt-5">
@@ -220,7 +220,7 @@ export function Proteccion({ activos }: { activos: readonly ActivoConNombre[] })
               {poner.resultado ? (
                 // La frase de la pantalla, no la `descripcion` de la terminal ("SPY: proponer la venta
                 // si pierde mas del 15% desde tu entrada (coste medio con comisiones)").
-                <Aviso tipo="hecho" vivo titulo={`Freno puesto en ${nombreDe(poner.resultado.symbol)}`}>
+                <Aviso tipo="hecho" vivo titulo={`Freno puesto en ${poner.resultado.nombre}`}>
                   {REGLAS[poner.resultado.regla]?.frase(Math.round(Number(poner.resultado.umbral) * 100)) ?? (
                     <TextoApi texto={poner.resultado.descripcion} />
                   )}

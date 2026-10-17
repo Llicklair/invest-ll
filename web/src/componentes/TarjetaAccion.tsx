@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ChevronRight, Coins, Landmark, PlugZap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronRight, Coins, Landmark, PlugZap } from "lucide-react";
 import Link from "next/link";
 
 import type { Accion, ModoPanel } from "@/api/tipos";
@@ -22,8 +22,9 @@ export function cuantoAccion(a: Accion): string {
   return `Unos ${importe}`;
 }
 
-function IconoDonde({ donde }: { donde: Accion["donde"] }) {
-  const Icono = donde === "binance" ? Coins : Landmark;
+function IconoDonde({ donde, lado }: { donde: Accion["donde"]; lado: Accion["lado"] }) {
+  // En el broker, una venta se distingue de un vistazo de la lista de la compra.
+  const Icono = donde === "binance" ? Coins : lado === "sell" ? ArrowUpRight : Landmark;
   return (
     <span
       className={clases(
@@ -39,7 +40,8 @@ function IconoDonde({ donde }: { donde: Accion["donde"] }) {
 
 /**
  * Algo que toca hacer hoy. En Binance se revisa y se confirma aqui (en simulacion, el boton lleva
- * a conectar Binance); en tu broker es una linea de la lista de la compra que anotas al hacerla.
+ * a conectar Binance); en tu broker es una venta (`lado="sell"`, va primero: lo que libera esta ya
+ * en la lista de la compra) o una linea de la lista de la compra, y la anotas al hacerla.
  */
 export function TarjetaAccion({
   accion: a,
@@ -53,10 +55,11 @@ export function TarjetaAccion({
   onHecho: (a: Accion) => void;
 }) {
   const binance = a.donde === "binance";
+  const venta = a.lado === "sell";
   return (
     <Tarjeta como="article" className="flex flex-col gap-4 p-5 sm:p-6" id={`accion-${a.id}`}>
       <div className="flex items-start gap-4">
-        <IconoDonde donde={a.donde} />
+        <IconoDonde donde={a.donde} lado={a.lado} />
         <div className="min-w-0 flex-1 self-center">
           <h3 className="text-lg leading-snug font-semibold text-tinta">{a.titulo}</h3>
           {binance ? <p className="cifras mt-0.5 text-[0.9375rem] font-medium text-tinta">{cuantoAccion(a)}</p> : null}
@@ -68,8 +71,17 @@ export function TarjetaAccion({
           <p className="text-[0.9375rem] leading-relaxed text-tinta-suave">{a.explicacion}</p>
           {!binance && a.equivalente ? (
             <p className="mt-3 rounded-xl bg-superficie-2 px-4 py-3 text-[0.9375rem] leading-relaxed text-tinta">
-              <span className="font-semibold">Qué comprar desde España: </span>
-              {a.equivalente}
+              {venta ? (
+                <>
+                  <span className="font-semibold">Qué vender: </span>
+                  el fondo que compraste para esto, {a.equivalente}.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">Qué comprar desde España: </span>
+                  {a.equivalente}
+                </>
+              )}
             </p>
           ) : null}
           {a.precio_ref ? (
@@ -92,7 +104,7 @@ export function TarjetaAccion({
       </div>
       <div className="flex flex-col items-stretch gap-3 border-t border-linea pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <Chip tono={binance ? "destaque" : "marca"} className="self-start sm:self-auto">
-          {binance ? "En Binance · lo hace el panel" : "En tu bróker · lo haces tú"}
+          {binance ? "En Binance · lo hace el panel" : venta ? "En tu bróker · lo vendes tú" : "En tu bróker · lo haces tú"}
         </Chip>
         {binance ? (
           modo === "simulacion" ? (
@@ -113,7 +125,7 @@ export function TarjetaAccion({
           )
         ) : (
           <Boton variante="secundario" onClick={() => onHecho(a)}>
-            Ya lo he comprado
+            {venta ? "Ya lo he vendido" : "Ya lo he comprado"}
           </Boton>
         )}
       </div>
@@ -129,11 +141,15 @@ export function FilaAccion({ accion: a }: { accion: Accion }) {
         href={`/invertir/#accion-${a.id}`}
         className="flex min-h-16 items-center gap-4 rounded-xl px-3 py-3 hover:bg-superficie-2"
       >
-        <IconoDonde donde={a.donde} />
+        <IconoDonde donde={a.donde} lado={a.lado} />
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-tinta">{a.titulo}</span>
           <span className="cifras block text-sm text-tinta-suave">
-            {a.donde === "binance" ? `${cuantoAccion(a)} · en Binance` : "En tu bróker · lo compras tú"}
+            {a.donde === "binance"
+              ? `${cuantoAccion(a)} · en Binance`
+              : a.lado === "sell"
+                ? "En tu bróker · lo vendes tú"
+                : "En tu bróker · lo compras tú"}
           </span>
         </span>
         <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0 text-tinta-suave" />

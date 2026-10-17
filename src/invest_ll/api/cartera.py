@@ -55,6 +55,7 @@ from invest_ll.live.broker import OrderStatus, Side
 from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
 from invest_ll.nombres import moneda_de, nombre_llano
+from invest_ll.plan import almacen, servicio
 from invest_ll.plan.hoy import MONEDA_BOLSA, es_de_referencia
 from invest_ll.portfolio.derive import aviso_de_efectivo, derive_portfolio
 from invest_ll.portfolio.from_orders import importar_a_cartera
@@ -107,6 +108,7 @@ def cartera() -> Cartera:
             invertido_abiertas=CERO,
             valor_total=None,
             efectivo=CERO,
+            efectivo_broker=CERO,
             realizado_total=CERO,
         )
 
@@ -148,7 +150,15 @@ def cartera() -> Cartera:
         PosicionRetirada(
             activo=t.symbol,
             nombre=nombre_llano(t.symbol),
-            moneda=moneda_de(t.symbol),
+            # Comprado y vendido con el plan en tu bróker: lo pagado y lo cobrado, en euros.
+            moneda=MONEDA_BOLSA
+            if any(
+                a.symbol == t.symbol
+                and t.opened_at <= a.timestamp <= t.closed_at
+                and es_de_referencia(a)
+                for a in actividades
+            )
+            else moneda_de(t.symbol),
             abierta=t.opened_at.date(),
             retirada=t.closed_at.date(),
             dias=t.holding_days,
@@ -177,8 +187,22 @@ def cartera() -> Cartera:
         invertido_abiertas=derivada.invested_open,
         valor_total=valor_total,
         efectivo=derivada.cash,
+        # Lo del bróker se anota en la cartera real: en la de pruebas no está.
+        efectivo_broker=efectivo_del_broker(actividades) if del_modo == "real" else CERO,
         realizado_total=derivada.realized_pnl,
     )
+
+
+def efectivo_del_broker(actividades: list[Activity]) -> Decimal:
+    """Lo cobrado al vender con el plan en tu bróker y aún no reinvertido (`plan.hoy.EnElBroker`).
+
+    Sin plan (o con uno que no se puede leer, que ya avisa Inicio) no hay parte de bolsa: 0.
+    """
+    try:
+        plan = almacen.PlanStore().leer()
+    except almacen.PlanIlegibleError:
+        return CERO
+    return servicio.lo_del_broker(plan, actividades).libre
 
 
 def _avisos_en_llano(derivada: Portfolio) -> list[str]:

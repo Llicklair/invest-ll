@@ -36,7 +36,11 @@ class Patrimonio(BaseModel):
     incompleto: bool
     cartera: CarteraDelModo = Field(description="'pruebas' = dinero ficticio")
     efectivo: Decimal = Field(
-        description="Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)"
+        description=(
+            "Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma). En la "
+            "cartera real, nunca menos de lo que tienes sin invertir en tu bróker por las ventas "
+            "del plan (`ParteResumen.efectivo` de bolsa), aunque falten ingresos por anotar"
+        )
     )
     moneda: str = Field(
         description=(
@@ -59,6 +63,13 @@ class ParteResumen(BaseModel):
         description=(
             "Moneda de `valor` y `puesto`, la misma que la de sus acciones de hoy: 'EUR' en "
             "bolsa (lo pagado en tu bróker), 'USDT' en cripto"
+        )
+    )
+    efectivo: Decimal = Field(
+        description=(
+            "Lo que esta parte tiene sin invertir, incluido en `valor` y en `puesto`. En bolsa, "
+            "lo cobrado al vender en tu bróker con el plan («Ya lo he vendido») que aún no has "
+            "vuelto a invertir con él; en cripto, 0 (lo dice tu saldo de Binance)"
         )
     )
 
@@ -241,14 +252,20 @@ class PlanGuardado(BaseModel):
 class Accion(BaseModel):
     """Algo que toca hacer hoy.
 
-    En Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras tú
-    y lo anotas con `POST /api/plan/hoy/{id}/hecho`.
+    En Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras o
+    lo vendes tú y lo anotas con `POST /api/plan/hoy/{id}/hecho`. Las ventas van antes que las
+    compras: lo que liberan está ya en la lista de la compra.
     """
 
     id: str
     donde: Ejecucion
     estrategia: str
-    titulo: str = Field(description="'Comprar Bitcoin', 'Compra unos 108 € de…'")
+    titulo: str = Field(
+        description=(
+            "'Comprar Bitcoin', 'Compra unos 108 € de…', 'Vende unos 300 € de…', 'Vende todo tu "
+            "ETF de… (unos 300 €)'"
+        )
+    )
     explicacion: str = Field(description="El porqué en una frase")
     activo: str = Field(description="Nombre llano")
     simbolo: str
@@ -279,8 +296,11 @@ class Hoy(BaseModel):
 
 
 class AccionHecha(BaseModel):
-    cantidad: Decimal = Field(gt=0)
-    precio: Decimal = Field(gt=0)
+    """Lo que hiciste en tu bróker: tus participaciones y tu precio, de compra o de venta según la
+    acción. 422 en llano si una venta pasa de lo que tienes anotado con el plan."""
+
+    cantidad: Decimal = Field(gt=0, description="Participaciones que compraste o vendiste")
+    precio: Decimal = Field(gt=0, description="Precio de cada una, en euros")
     comision: Decimal = Field(default=Decimal(0), ge=0)
     fecha: date
 
@@ -308,10 +328,16 @@ class Movimiento(BaseModel):
         )
     )
     es_referencia: bool = Field(
-        description="True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)"
+        description=(
+            "True: compra o venta de tu bróker anotada con el plan; cantidad/precio son del fondo "
+            "de EE.UU. de referencia (ver `nota`) y el importe es lo que pagaste o cobraste"
+        )
     )
     nota: str | None = Field(
-        description="En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'"
+        description=(
+            "En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker…' o "
+            "'Vendiste 3 participaciones a 210 € en tu bróker…'"
+        )
     )
 
 

@@ -226,7 +226,12 @@ class PosicionRetirada(BaseModel):
 
     activo: str
     nombre: str = Field(description="Nombre llano del activo")
-    moneda: str
+    moneda: str = Field(
+        description=(
+            "Moneda de invertido, recuperado y lo ganado: la de su cotización ('USD', 'USDT'); "
+            "'EUR' si se compró y vendió en tu bróker con el plan (lo que pagaste y cobraste)"
+        )
+    )
     abierta: date
     retirada: date
     dias: int
@@ -254,7 +259,15 @@ class Cartera(BaseModel):
     retiradas: list[PosicionRetirada]
     invertido_abiertas: Decimal
     valor_total: Decimal | None = Field(description="None si falta el precio de alguna abierta")
-    efectivo: Decimal
+    efectivo: Decimal = Field(description="El efectivo que sale de tus movimientos (puede ser < 0)")
+    efectivo_broker: Decimal = Field(
+        description=(
+            "Lo que tienes sin invertir en tu bróker por las ventas del plan: lo cobrado con «Ya "
+            "lo he vendido» que aún no has vuelto a invertir con él (0 sin plan o en la cartera "
+            "de pruebas). Está dentro de `efectivo` si tus ingresos están anotados; si `efectivo` "
+            "sale menor, es que faltan ingresos por anotar, y esto es lo que seguro tienes"
+        )
+    )
     realizado_total: Decimal
 
 

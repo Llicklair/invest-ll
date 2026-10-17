@@ -9,7 +9,6 @@ import { Aviso, Boton, Cargando, CampoTexto, ErrorApiVista, Nota, Seccion, clase
 import { useEstado } from "@/contexto/estado";
 import { useAccion } from "@/lib/consulta";
 import { momento, numero, porcentaje, precio } from "@/lib/formato";
-import { nombreLlano } from "@/lib/nombres";
 
 type Mercado = "equity" | "crypto";
 
@@ -58,7 +57,7 @@ function TablaViva({
           <tbody>
             {filas.map((f) => {
               const activo = f.activo === elegido;
-              const nombre = nombreLlano(f.activo);
+              const nombre = f.nombre;
               return (
                 <tr
                   key={f.activo}
@@ -116,7 +115,7 @@ export function Cotizaciones({ onVerGrafica }: { onVerGrafica: (simbolo: string)
   });
 
   const q = normal(filtro.trim());
-  const filtrar = (xs: Cotizacion[]) => (q ? xs.filter((x) => normal(`${nombreLlano(x.activo)} ${x.activo}`).includes(q)) : xs);
+  const filtrar = (xs: Cotizacion[]) => (q ? xs.filter((x) => normal(`${x.nombre} ${x.activo}`).includes(q)) : xs);
 
   const elegir = (activo: string, mercado: Mercado) => {
     setElegido({ activo, mercado });
@@ -127,7 +126,7 @@ export function Cotizaciones({ onVerGrafica }: { onVerGrafica: (simbolo: string)
     elegido && foto
       ? [...foto.bolsa, ...foto.cripto].find((c) => c.activo === elegido.activo) ?? null
       : null;
-  const nombreElegido = elegido ? nombreLlano(elegido.activo) : "";
+  const nombreElegido = cotizacionElegida?.nombre ?? elegido?.activo ?? "";
 
   return (
     <Seccion titulo="Cotizaciones" id="cotizaciones">

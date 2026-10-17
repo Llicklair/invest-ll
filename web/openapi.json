@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "Accion": {
-        "description": "Algo que toca hacer hoy.\n\nEn Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras tú\ny lo anotas con `POST /api/plan/hoy/{id}/hecho`.",
+        "description": "Algo que toca hacer hoy.\n\nEn Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras o\nlo vendes tú y lo anotas con `POST /api/plan/hoy/{id}/hecho`. Las ventas van antes que las\ncompras: lo que liberan está ya en la lista de la compra.",
         "properties": {
           "activo": {
             "description": "Nombre llano",
@@ -139,7 +139,7 @@
             "type": "string"
           },
           "titulo": {
-            "description": "'Comprar Bitcoin', 'Compra unos 108 € de…'",
+            "description": "'Comprar Bitcoin', 'Compra unos 108 € de…', 'Vende unos 300 € de…', 'Vende todo tu ETF de… (unos 300 €)'",
             "title": "Titulo",
             "type": "string"
           }
@@ -167,6 +167,7 @@
         "type": "object"
       },
       "AccionHecha": {
+        "description": "Lo que hiciste en tu bróker: tus participaciones y tu precio, de compra o de venta según la\nacción. 422 en llano si una venta pasa de lo que tienes anotado con el plan.",
         "properties": {
           "cantidad": {
             "anyOf": [
@@ -179,6 +180,7 @@
                 "type": "string"
               }
             ],
+            "description": "Participaciones que compraste o vendiste",
             "title": "Cantidad"
           },
           "comision": {
@@ -211,6 +213,7 @@
                 "type": "string"
               }
             ],
+            "description": "Precio de cada una, en euros",
             "title": "Precio"
           }
         },
@@ -470,8 +473,15 @@
             "type": "string"
           },
           "efectivo": {
+            "description": "El efectivo que sale de tus movimientos (puede ser < 0)",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Efectivo",
+            "type": "string"
+          },
+          "efectivo_broker": {
+            "description": "Lo que tienes sin invertir en tu bróker por las ventas del plan: lo cobrado con «Ya lo he vendido» que aún no has vuelto a invertir con él (0 sin plan o en la cartera de pruebas). Está dentro de `efectivo` si tus ingresos están anotados; si `efectivo` sale menor, es que faltan ingresos por anotar, y esto es lo que seguro tienes",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Efectivo Broker",
             "type": "string"
           },
           "error": {
@@ -550,6 +560,7 @@
           "invertido_abiertas",
           "valor_total",
           "efectivo",
+          "efectivo_broker",
           "realizado_total"
         ],
         "title": "Cartera",
@@ -2551,7 +2562,7 @@
             "type": "string"
           },
           "es_referencia": {
-            "description": "True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)",
+            "description": "True: compra o venta de tu bróker anotada con el plan; cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`) y el importe es lo que pagaste o cobraste",
             "title": "Es Referencia",
             "type": "boolean"
           },
@@ -2584,7 +2595,7 @@
                 "type": "null"
               }
             ],
-            "description": "En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'",
+            "description": "En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker…' o 'Vendiste 3 participaciones a 210 € en tu bróker…'",
             "title": "Nota"
           },
           "origen": {
@@ -3049,6 +3060,12 @@
       },
       "ParteResumen": {
         "properties": {
+          "efectivo": {
+            "description": "Lo que esta parte tiene sin invertir, incluido en `valor` y en `puesto`. En bolsa, lo cobrado al vender en tu bróker con el plan («Ya lo he vendido») que aún no has vuelto a invertir con él; en cripto, 0 (lo dice tu saldo de Binance)",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Efectivo",
+            "type": "string"
+          },
           "estrategia": {
             "title": "Estrategia",
             "type": "string"
@@ -3094,7 +3111,8 @@
           "mercado",
           "valor",
           "puesto",
-          "moneda"
+          "moneda",
+          "efectivo"
         ],
         "title": "ParteResumen",
         "type": "object"
@@ -3148,7 +3166,7 @@
             "type": "string"
           },
           "efectivo": {
-            "description": "Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)",
+            "description": "Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma). En la cartera real, nunca menos de lo que tienes sin invertir en tu bróker por las ventas del plan (`ParteResumen.efectivo` de bolsa), aunque falten ingresos por anotar",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Efectivo",
             "type": "string"
@@ -4078,6 +4096,7 @@
             "type": "string"
           },
           "moneda": {
+            "description": "Moneda de invertido, recuperado y lo ganado: la de su cotización ('USD', 'USDT'); 'EUR' si se compró y vendió en tu bróker con el plan (lo que pagaste y cobraste)",
             "title": "Moneda",
             "type": "string"
           },
@@ -7315,7 +7334,7 @@
     },
     "/api/plan/hoy/{accion_id}/hecho": {
       "post": {
-        "description": "Anota en tu registro una compra hecha en tu bróker (solo acciones `donde=broker`).",
+        "description": "Anota en tu registro una compra o una venta hecha en tu bróker (solo `donde=broker`).",
         "operationId": "hecho_api_plan_hoy__accion_id__hecho_post",
         "parameters": [
           {

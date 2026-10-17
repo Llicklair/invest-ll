@@ -65,16 +65,23 @@ def _mercado() -> list[MiniMercado]:
     return filas
 
 
-def _partes(plan: almacen.Plan, cartera: Portfolio | None) -> list[ParteResumen]:
+def _partes(
+    plan: almacen.Plan, cartera: Portfolio | None, del_broker: Portfolio | None, libre: Decimal
+) -> list[ParteResumen]:
+    """Cada parte, valorada donde vive: cripto en la cartera del modo; bolsa en la del bróker (la
+    real, en cualquier modo), con lo que tiene sin invertir por las ventas del plan (`libre`)."""
     partes: list[ParteResumen] = []
     for parte in plan.partes:
         f = ficha(parte.estrategia)
         if f is None:  # pragma: no cover - validado al guardar
             continue
+        de_bolsa = f.mercado == "bolsa"
+        donde = del_broker if de_bolsa else cartera
+        efectivo = libre if de_bolsa else Decimal(0)
         valor: Decimal | None = None
         puesto = Decimal(0)
-        if cartera is not None:
-            v = valorar(cartera, _precio, solo=f.posee, con_efectivo=False)
+        if donde is not None:
+            v = valorar(donde, _precio, solo=f.posee, con_efectivo=False, efectivo_minimo=efectivo)
             valor, puesto = v.valor, v.puesto
         partes.append(
             ParteResumen(
@@ -85,6 +92,7 @@ def _partes(plan: almacen.Plan, cartera: Portfolio | None) -> list[ParteResumen]
                 puesto=puesto,
                 # La de sus acciones de hoy: lo del bróker se paga en euros; lo de Binance, en USDT.
                 moneda=MONEDA_CRIPTO if f.mercado == "cripto" else MONEDA_BOLSA,
+                efectivo=efectivo if donde is not None else Decimal(0),
             )
         )
     return partes
@@ -98,17 +106,34 @@ def inicio() -> Inicio:
     actividades: list[Activity] = []
     del_broker: list[Activity] = []
     cartera: Portfolio | None = None
+    cartera_del_broker: Portfolio | None = None
     try:
         actividades = almacen_del_modo(efectivo.modo).activities()
         # Lo del bróker se anota siempre en la cartera real (ver `almacen_del_broker`).
         del_broker = almacen_del_broker().activities()
         cartera = derive_portfolio(actividades)
+        cartera_del_broker = derive_portfolio(del_broker)
     except InvestLLError as error:
         avisos.append(f"Tu registro de movimientos tiene un problema: {error}")
 
+    try:
+        plan = almacen.PlanStore().leer()
+    except almacen.PlanIlegibleError as error:
+        # Inicio es lo primero que se ve: un plan estropeado se dice aquí, no tumba la pantalla.
+        plan = None
+        avisos.append(str(error))
+    # Lo cobrado al vender en tu bróker con el plan y aún no reinvertido: dinero tuyo, que se
+    # cuenta aunque falten ingresos por anotar (sin ellos, el efectivo derivado sale negativo y
+    # la venta haría bajar "Tu dinero hoy" en lo que cobraste).
+    libre = (
+        servicio.lo_del_broker(plan, del_broker).libre
+        if cartera_del_broker is not None
+        else Decimal(0)
+    )
+
     del_modo = cartera_del_modo(efectivo.modo)
     if cartera is not None:
-        v = valorar(cartera, _precio)
+        v = valorar(cartera, _precio, efectivo_minimo=libre if del_modo == "real" else Decimal(0))
         sin_precio = [
             nombre_llano(p.symbol) for p in cartera.open_positions if _precio(p.symbol) is None
         ]
@@ -126,8 +151,9 @@ def inicio() -> Inicio:
             fecha_precios=v.fecha_precios,
             incompleto=v.incompleto,
             cartera=del_modo,
-            # Lo mismo que suma `valorar`: el efectivo derivado, si es positivo.
-            efectivo=max(cartera.cash, Decimal(0)),
+            # Lo mismo que suma `valorar`: el efectivo derivado si es positivo, y nunca menos de
+            # lo que tienes sin invertir en tu bróker por las ventas del plan.
+            efectivo=max(cartera.cash, Decimal(0), libre if del_modo == "real" else Decimal(0)),
             moneda=moneda_de_la_cartera(del_modo),
             nota_moneda=nota_de_moneda(
                 del_modo,
@@ -156,17 +182,11 @@ def inicio() -> Inicio:
     if pausa is not None:
         avisos.append(f"Las compras están en pausa: {pausa}.")
 
-    try:
-        plan = almacen.PlanStore().leer()
-    except almacen.PlanIlegibleError as error:
-        # Inicio es lo primero que se ve: un plan estropeado se dice aquí, no tumba la pantalla.
-        plan = None
-        avisos.append(str(error))
     pendientes = 0
     proxima: date | None = None
     partes: list[ParteResumen] | None = None
     if plan is not None:
-        partes = _partes(plan, cartera)
+        partes = _partes(plan, cartera, cartera_del_broker, libre)
         if cartera is not None:
             resultado = servicio.calcular_hoy(
                 plan,

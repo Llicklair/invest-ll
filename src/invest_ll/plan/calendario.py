@@ -44,6 +44,12 @@ def primera(creado: date, dia: int) -> date:
     return date(creado.year, creado.month, dia)
 
 
+def inicio(creado: date, dia: int) -> date:
+    """Desde cuándo cuenta lo anotado con el plan: su creación o, si es antes, el día de su
+    primera aportación (creado el 17 con día 1, la compra de esa aportación puede ser del 5)."""
+    return min(creado, primera(creado, dia))
+
+
 def proxima(creado: date, dia: int, hoy: date) -> date:
     """El primer día de aportación posterior a hoy."""
     candidata = primera(creado, dia)

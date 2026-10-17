@@ -597,7 +597,7 @@ export interface paths {
         put?: never;
         /**
          * Hecho
-         * @description Anota en tu registro una compra hecha en tu bróker (solo acciones `donde=broker`).
+         * @description Anota en tu registro una compra o una venta hecha en tu bróker (solo `donde=broker`).
          */
         post: operations["hecho_api_plan_hoy__accion_id__hecho_post"];
         delete?: never;
@@ -889,8 +889,9 @@ export interface components {
          * Accion
          * @description Algo que toca hacer hoy.
          *
-         *     En Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras tú
-         *     y lo anotas con `POST /api/plan/hoy/{id}/hecho`.
+         *     En Binance se ejecuta con `POST /api/ordenes` (par, lado, cantidad); en tu bróker lo compras o
+         *     lo vendes tú y lo anotas con `POST /api/plan/hoy/{id}/hecho`. Las ventas van antes que las
+         *     compras: lo que liberan está ya en la lista de la compra.
          */
         Accion: {
             /**
@@ -960,13 +961,20 @@ export interface components {
             simbolo: string;
             /**
              * Titulo
-             * @description 'Comprar Bitcoin', 'Compra unos 108 € de…'
+             * @description 'Comprar Bitcoin', 'Compra unos 108 € de…', 'Vende unos 300 € de…', 'Vende todo tu ETF de… (unos 300 €)'
              */
             titulo: string;
         };
-        /** AccionHecha */
+        /**
+         * AccionHecha
+         * @description Lo que hiciste en tu bróker: tus participaciones y tu precio, de compra o de venta según la
+         *     acción. 422 en llano si una venta pasa de lo que tienes anotado con el plan.
+         */
         AccionHecha: {
-            /** Cantidad */
+            /**
+             * Cantidad
+             * @description Participaciones que compraste o vendiste
+             */
             cantidad: number | string;
             /**
              * Comision
@@ -978,7 +986,10 @@ export interface components {
              * Format: date
              */
             fecha: string;
-            /** Precio */
+            /**
+             * Precio
+             * @description Precio de cada una, en euros
+             */
             precio: number | string;
         };
         /**
@@ -1096,8 +1107,16 @@ export interface components {
              * @enum {string}
              */
             cartera: "real" | "pruebas";
-            /** Efectivo */
+            /**
+             * Efectivo
+             * @description El efectivo que sale de tus movimientos (puede ser < 0)
+             */
             efectivo: string;
+            /**
+             * Efectivo Broker
+             * @description Lo que tienes sin invertir en tu bróker por las ventas del plan: lo cobrado con «Ya lo he vendido» que aún no has vuelto a invertir con él (0 sin plan o en la cartera de pruebas). Está dentro de `efectivo` si tus ingresos están anotados; si `efectivo` sale menor, es que faltan ingresos por anotar, y esto es lo que seguro tienes
+             */
+            efectivo_broker: string;
             /**
              * Error
              * @description El ledger cuenta una historia imposible
@@ -1935,7 +1954,7 @@ export interface components {
             comision: string;
             /**
              * Es Referencia
-             * @description True: cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`)
+             * @description True: compra o venta de tu bróker anotada con el plan; cantidad/precio son del fondo de EE.UU. de referencia (ver `nota`) y el importe es lo que pagaste o cobraste
              */
             es_referencia: boolean;
             /**
@@ -1957,7 +1976,7 @@ export interface components {
             moneda: string;
             /**
              * Nota
-             * @description En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker.'
+             * @description En llano, p. ej. 'Compraste 5,437 participaciones a 650 € en tu bróker…' o 'Vendiste 3 participaciones a 210 € en tu bróker…'
              */
             nota: string | null;
             /**
@@ -2130,6 +2149,11 @@ export interface components {
         };
         /** ParteResumen */
         ParteResumen: {
+            /**
+             * Efectivo
+             * @description Lo que esta parte tiene sin invertir, incluido en `valor` y en `puesto`. En bolsa, lo cobrado al vender en tu bróker con el plan («Ya lo he vendido») que aún no has vuelto a invertir con él; en cripto, 0 (lo dice tu saldo de Binance)
+             */
+            efectivo: string;
             /** Estrategia */
             estrategia: string;
             /**
@@ -2174,7 +2198,7 @@ export interface components {
             cartera: "real" | "pruebas";
             /**
              * Efectivo
-             * @description Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma)
+             * @description Efectivo incluido en `valor` (0 si no hay o si sale negativo: no se suma). En la cartera real, nunca menos de lo que tienes sin invertir en tu bróker por las ventas del plan (`ParteResumen.efectivo` de bolsa), aunque falten ingresos por anotar
              */
             efectivo: string;
             /**
@@ -2529,7 +2553,10 @@ export interface components {
             dias: number;
             /** Invertido */
             invertido: string;
-            /** Moneda */
+            /**
+             * Moneda
+             * @description Moneda de invertido, recuperado y lo ganado: la de su cotización ('USD', 'USDT'); 'EUR' si se compró y vendió en tu bróker con el plan (lo que pagaste y cobraste)
+             */
             moneda: string;
             /**
              * Nombre

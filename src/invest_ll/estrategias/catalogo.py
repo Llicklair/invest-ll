@@ -96,7 +96,8 @@ class Ficha:
     motivo_dentro: str = "Tu estrategia la quiere en cartera"
     """Cripto: el porqué de una orden cuando la estrategia quiere estar en esa moneda."""
     motivo_fuera: str = "Tu estrategia ya no la quiere en cartera"
-    """Cripto: el porqué cuando la estrategia quiere salir de esa moneda."""
+    """El porqué cuando la estrategia sale del todo de una moneda (cripto) o de un fondo (bolsa:
+    "Vende todo tu ETF de…")."""
 
     @property
     def ejecucion(self) -> Ejecucion:
@@ -177,7 +178,8 @@ FICHAS: Final[tuple[Ficha, ...]] = (
         como_funciona=(
             "Tu dinero va a dos fondos: 60 % a la bolsa de EE.UU. y 40 % a bonos del Tesoro de "
             "EE.UU. a 7-10 años.",
-            "Cada mes, al aportar, compras de los dos según ese reparto.",
+            "Cada mes, al aportar, compras de los dos según ese reparto. Si uno se aleja mucho de "
+            "él (pasa muy pocas veces), te diremos que vendas lo que sobra.",
             "Cuando la bolsa cae, los bonos suelen aguantar mejor y amortiguan la caída.",
         ),
         avisos=AVISOS_BOLSA,
@@ -203,15 +205,25 @@ FICHAS: Final[tuple[Ficha, ...]] = (
             "Reparte entre bolsa, bonos, oro, materias primas e inmobiliario: más dinero a lo que "
             "se mueve menos.",
             "Cada mes mira la tendencia de cada uno: lo que lleva meses bajando sale, y su parte "
-            "espera en bonos del Tesoro a corto plazo.",
+            "espera en bonos del Tesoro a corto plazo. Salir es vender: unas cuantas veces al año "
+            "te diremos qué vender en tu bróker y qué comprar con ese dinero.",
             "Cada mes aportas según el reparto de ese momento.",
         ),
-        avisos=("Cae mucho menos, pero también crece aproximadamente la mitad.", *AVISOS_BOLSA),
+        avisos=(
+            "Cae mucho menos, pero también crece aproximadamente la mitad.",
+            "Su freno funciona vendiendo: si solo aportas y no haces las ventas que te pida, no "
+            "tienes esa protección y caerá casi como sin freno.",
+            *AVISOS_BOLSA,
+        ),
         activos=(*_ocho_fondos(), "Bonos del Tesoro de EE.UU. a corto plazo"),
         motor=_bolsa(
             lambda: CashSleeve(RiskParity(ASSETS, vol_lookback=63, trend_lookbacks=TREND), CASH),
             simbolos=(*ASSETS, CASH),
             liquidez=CASH,
+        ),
+        motivo_fuera=(
+            "Lleva meses bajando: tu estrategia sale de él y su parte espera en bonos del Tesoro "
+            "a corto plazo"
         ),
     ),
     Ficha(
