@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from invest_ll import claude_cli
 from invest_ll.estrategias_custom import disenar
 from invest_ll.estrategias_custom.biblioteca import Biblioteca
 from invest_ll.estrategias_custom.disenar import (
@@ -237,7 +238,7 @@ class TestErrores:
     def test_sin_claude_instalado_lo_dice_en_llano(
         self, biblioteca: Biblioteca, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(disenar.shutil, "which", _ninguno)
+        monkeypatch.setattr(claude_cli.shutil, "which", _ninguno)
         with pytest.raises(ClaudeNoDisponibleError, match="No se encuentra el programa «claude»"):
             Disenador(biblioteca).turno("Hola")
 
@@ -286,15 +287,15 @@ class TestEjecutable:
         nativo.parent.mkdir(parents=True)
         nativo.write_bytes(b"")
         cmd.write_text("@echo off", encoding="utf-8")
-        monkeypatch.setattr(disenar.shutil, "which", _siempre(str(cmd)))
-        monkeypatch.setattr(disenar.sys, "platform", "win32")
-        assert disenar.ejecutable() == str(nativo)
+        monkeypatch.setattr(claude_cli.shutil, "which", _siempre(str(cmd)))
+        monkeypatch.setattr(claude_cli.sys, "platform", "win32")
+        assert claude_cli.ejecutable() == str(nativo)
 
     def test_si_no_hay_exe_usa_lo_que_haya(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        monkeypatch.setattr(disenar.shutil, "which", _siempre(str(tmp_path / "claude")))
-        assert disenar.ejecutable() == str(tmp_path / "claude")
+        monkeypatch.setattr(claude_cli.shutil, "which", _siempre(str(tmp_path / "claude")))
+        assert claude_cli.ejecutable() == str(tmp_path / "claude")
 
 
 def test_leer_salida_sin_resultado_junta_los_textos() -> None:

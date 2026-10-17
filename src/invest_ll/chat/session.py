@@ -14,6 +14,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from invest_ll.claude_cli import ejecutable
 from invest_ll.errors import InvestLLError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -90,7 +91,7 @@ class ChatSession:
         try:
             proceso = subprocess.run(
                 [
-                    EJECUTABLE,
+                    ejecutable() or EJECUTABLE,
                     "-p",
                     "--output-format",
                     "text",

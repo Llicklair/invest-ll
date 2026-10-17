@@ -24,6 +24,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from invest_ll.claude_cli import ejecutable
 from invest_ll.decision.models import Decision, DecisionRequest
 from invest_ll.decision.prompt import INSTRUCCIONES
 from invest_ll.decision.schema import (
@@ -128,7 +129,7 @@ class ClaudeCliProvider:
         self._cwd.mkdir(parents=True, exist_ok=True)
         try:
             proceso = subprocess.run(
-                [EJECUTABLE, *self._extra_args],
+                [ejecutable() or EJECUTABLE, *self._extra_args],
                 input=prompt,
                 capture_output=True,
                 text=True,

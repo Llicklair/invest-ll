@@ -27,7 +27,6 @@ from __future__ import annotations
 import json
 import re
 import secrets
-import shutil
 import subprocess
 import sys
 import threading
@@ -37,6 +36,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal, cast
 
+from invest_ll.claude_cli import ejecutable
 from invest_ll.errors import InvestLLError
 from invest_ll.estrategias_custom.formato import EXPLICACION
 from invest_ll.fetch.atomic_write import replace_atomically
@@ -154,21 +154,6 @@ type Runner = Callable[[Sequence[str], str, Path], str]
 
 
 # -- El CLI ----------------------------------------------------------------------------------------
-
-
-def ejecutable() -> str | None:
-    """El `claude` de verdad. En Windows, npm deja un `claude.cmd` que llama a un `claude.exe`:
-    se usa el .exe directamente, porque cmd.exe estropea los argumentos con comillas y saltos de
-    línea (el prompt de sistema los lleva)."""
-    ruta = shutil.which(EJECUTABLE)
-    if ruta is None:
-        return None
-    p = Path(ruta)
-    if sys.platform == "win32" and p.suffix.lower() != ".exe":
-        nativo = p.parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
-        if nativo.is_file():
-            return str(nativo)
-    return ruta
 
 
 def ejecutar_cli(argumentos: Sequence[str], entrada: str, cwd: Path) -> str:
