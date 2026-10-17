@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import threading
 from datetime import date
 from typing import TYPE_CHECKING
@@ -16,6 +17,7 @@ from invest_ll.quant.etf_study import load_etf_panel
 from invest_ll.quant.panel import load_binance_universe
 
 from ..fixtures.paneles_v2 import BOLSA, CRIPTO, escribir_paneles
+from ..quant.builders import panel_from_closes
 
 if TYPE_CHECKING:  # pragma: no cover
     from pathlib import Path
@@ -207,3 +209,62 @@ def test_si_btc_cae_un_mes_el_freno_sale(tmp_path: Path, monkeypatch: pytest.Mon
     escribir_paneles(bolsa=False, btc="baja")
     cripto = load_binance_universe(CRIPTO)
     assert objetivo.pesos_de_hoy(_ficha("btc-freno"), cripto).pesos == {}
+
+
+# -- Cuántas veces al año te toca hacer algo además de aportar ---------------------------------
+
+
+def test_movido_cuenta_la_liquidez() -> None:
+    assert historico.movido(np.array([1.0]), np.array([0.0])) == pytest.approx(1.0)
+    assert historico.movido(np.array([0.5, 0.5, 0.0]), np.array([0.3, 0.5, 0.2])) == (
+        pytest.approx(0.2)
+    )
+    assert historico.movido(np.array([0.6, 0.4]), np.array([0.6, 0.4])) == 0.0
+
+
+def test_la_primera_decision_es_invertir_y_no_cuenta() -> None:
+    cambios = historico.Cambios(tramos=2)
+    for tramo in (0, 1):
+        cambios(tramo, 0, np.array([1.0]))
+    assert cambios.por_tramo == 0.0
+    cambios(0, 7, np.array([0.95]))  # un retoque del 5 %: no es algo que hacer
+    cambios(0, 14, np.array([0.0]))  # salir: sí
+    cambios(1, 15, np.array([0.0]))
+    cambios(1, 22, np.array([1.0]))  # y volver a entrar
+    assert cambios.por_tramo == pytest.approx(1.5)
+
+
+def test_un_reparto_fijo_no_te_pide_nada_aunque_el_motor_reequilibre(paneles: Path) -> None:
+    bolsa = load_etf_panel(str(BOLSA))
+    equilibrada = cifras(ejecutar(_ficha("bolsa-equilibrada"), bolsa))
+    assert equilibrada.operaciones_al_anio > 0
+    assert equilibrada.cambios_al_anio == 0.0
+    cripto = load_binance_universe(CRIPTO)
+    assert cifras(ejecutar(_ficha("btc-mantener"), cripto)).cambios_al_anio == 0.0
+
+
+def _bitcoin_en_dientes_de_sierra(dias: int, fase: int) -> list[float]:
+    """Sube `fase` días y baja otros tantos, una y otra vez: la tendencia de 30 días se da la
+    vuelta un número de veces que se puede contar a mano."""
+    precios = [100.0]
+    for t in range(1, dias):
+        sube = (t // fase) % 2 == 0
+        precios.append(precios[-1] * (1.01 if sube else 0.99))
+    return precios
+
+
+def test_bitcoin_con_freno_cuenta_sus_entradas_y_salidas() -> None:
+    dias = 900
+    precios = _bitcoin_en_dientes_de_sierra(dias, fase=75)
+    panel = panel_from_closes({"BTCUSDT": precios, "ETHUSDT": [10.0] * dias})
+    recorrido = ejecutar(_ficha("btc-freno"), panel)
+    c = cifras(recorrido)
+    anios = (len(recorrido.valor) - 1) / recorrido.periodos_al_anio
+
+    # Las entradas y salidas de la señal, día a día: Bitcoin vale más (o menos) que hace 30 días.
+    dentro = [precios[t] / precios[t - 30] - 1 > 0 for t in range(30, dias - 1)]
+    vueltas = sum(1 for a, b in itertools.pairwise(dentro) if a != b)
+
+    assert vueltas >= 8, "el diente de sierra tiene que dar varias vueltas"
+    assert c.cambios_al_anio * anios == pytest.approx(vueltas, abs=1)
+    assert c.operaciones_al_anio > 3 * c.cambios_al_anio, "el motor lo hace en siete tramos"

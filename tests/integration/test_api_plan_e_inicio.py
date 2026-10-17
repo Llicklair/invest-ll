@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import pytest
 
+from invest_ll import llano
 from invest_ll.plan import servicio
+from invest_ll.portfolio.store import ActivityStore
 
 from ..fixtures.paneles_v2 import escribir_paneles
 from .api_apoyo import Api
@@ -88,6 +91,8 @@ class TestHoy:
         btc, spy, ief = hoy["acciones"]
         assert D(btc["importe"]) == pytest.approx(D(620), abs=D(1))
         assert btc["par"] == "BTC/USDT" and btc["moneda"] == "USDT"
+        assert (btc["precio_ref_moneda"], btc["referencia"]) == ("USDT", None)
+        assert (spy["moneda"], spy["precio_ref_moneda"], spy["referencia"]) == ("EUR", "USD", "SPY")
         assert D(spy["importe"]) == D("3348.00")
         assert D(ief["importe"]) == D("2232.00")
         assert "IE00B5BMR087" in spy["equivalente"]
@@ -116,6 +121,29 @@ class TestHoy:
         assert D(mov["importe"]) == pytest.approx(D(3300), abs=D("0.01")), "lo pagado, exacto"
         assert D(mov["precio"]) == D(spy["precio_ref"]), "en unidades del fondo de referencia"
         assert D(mov["comision"]) == D(2)
+        assert (mov["moneda"], mov["es_referencia"]) == ("EUR", True), "lo que pagaste"
+        unidades = (D(3300) / D(spy["precio_ref"])).quantize(D("0.01"), ROUND_HALF_UP)
+        assert mov["nota"] == (
+            f"Compraste 6 participaciones a 550 € en tu bróker; se anota como "
+            f"{llano.cantidad(unidades)} de SPY (el fondo de EE.UU. de referencia) a "
+            f"{llano.dinero(D(spy['precio_ref']), 'USD')} para poder valorarlo."
+        )
+        (posicion,) = con_plan.get("/api/cartera").json()["abiertas"]
+        assert (posicion["activo"], posicion["es_referencia"]) == ("SPY", True), (
+            "sus unidades no son tus participaciones: se enseñan importes"
+        )
+        assert posicion["moneda"] == "EUR", "sus importes son lo que pagaste, sin convertir"
+
+    def test_la_nota_no_cambia_la_huella(self, con_plan: Api) -> None:
+        """Anotar dos veces lo mismo sigue siendo imposible aunque la nota sea otra."""
+        spy = con_plan.get("/api/plan/hoy").json()["acciones"][1]
+        hecha = {"cantidad": "6", "precio": "550", "comision": "2", "fecha": "2026-10-17"}
+        r = con_plan.post(f"/api/plan/hoy/{spy['id']}/hecho", json=hecha)
+        (mov,) = con_plan.get("/api/cartera/movimientos").json()["movimientos"]
+        assert mov["id"] == r.json()["activity_id"]
+        (actividad,) = ActivityStore().activities()
+        assert actividad.nota is not None
+        assert actividad.activity_id == replace(actividad, nota=None).activity_id
 
     def test_lo_del_broker_es_dinero_real_en_cualquier_modo(
         self, con_plan: Api, monkeypatch: pytest.MonkeyPatch
@@ -193,6 +221,9 @@ class TestInicio:
         assert cuerpo["hay_movimientos"] is False
         assert cuerpo["acciones_pendientes"] == 0
         assert cuerpo["patrimonio"]["cartera"] == "real"
+        assert cuerpo["patrimonio"]["efectivo"] == "0"
+        assert cuerpo["patrimonio"]["moneda"] == "EUR"
+        assert cuerpo["patrimonio"]["nota_moneda"] is None, "nada que convertir"
         assert cuerpo["mercado"] == []
 
     def test_con_plan_y_una_compra(self, con_plan: Api) -> None:
@@ -210,8 +241,11 @@ class TestInicio:
         assert D(p["valor"]) == pytest.approx(D(3300), abs=D("0.01")), "al precio de referencia"
         assert p["fecha_precios"] == "2026-10-16"
         assert p["incompleto"] is False
+        assert (p["moneda"], p["efectivo"]) == ("EUR", "0")
+        assert p["nota_moneda"] == "Aproximado: sin contar el cambio euro-dólar."
         equilibrada, btc = cuerpo["plan"]
         assert equilibrada["estrategia"] == "bolsa-equilibrada"
+        assert (equilibrada["moneda"], btc["moneda"]) == ("EUR", "USDT")
         assert D(equilibrada["puesto"]) == pytest.approx(D(3302), abs=D("0.01"))
         assert D(btc["puesto"]) == 0
         assert [m["nombre"] for m in cuerpo["mercado"]] == [

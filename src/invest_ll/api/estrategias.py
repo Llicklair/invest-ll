@@ -8,6 +8,7 @@ recomendación en `estrategias.recomendacion`.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date
 from typing import TYPE_CHECKING, Final
 
@@ -34,13 +35,19 @@ from invest_ll.estrategias.recomendacion import CaidasDelCatalogo, Respuestas
 from invest_ll.estrategias.simulacion import SinDatosDesdeError
 
 if TYPE_CHECKING:  # pragma: no cover
-    from invest_ll.estrategias.historico import Cifras
+    from collections.abc import Generator
+
+    from fastapi import HTTPException
+
+    from invest_ll.estrategias.historico import Cifras, Recorrido
+    from invest_ll.estrategias.simulacion import Simulada
 
 router = APIRouter()
 
 NOTA_CATALOGO: Final = (
     "Las cifras salen de probar cada estrategia sobre el pasado, con sus comisiones y costes, "
-    "empezando con 10.000. El pasado no es una promesa: si hubieras empezado en otra fecha, el "
+    "empezando con 10.000 en la moneda de cada estrategia (dólares o USDT). El pasado no es una "
+    "promesa: si hubieras empezado en otra fecha, el "
     "resultado sería distinto."
 )
 NOTA_SIMULACION: Final = (
@@ -49,6 +56,8 @@ NOTA_SIMULACION: Final = (
     "propia. El pasado no es una promesa: prueba a cambiar el año de inicio."
 )
 TEXTO_PASADO: Final = "Probada sobre el pasado"
+CLAVE_REPARTO: Final = "reparto"
+CIEN: Final = 100
 
 
 def _evidencia(f: Ficha) -> Evidencia:
@@ -79,6 +88,7 @@ def _historico(c: Cifras) -> Historico:
         peor_racha_anios=c.peor_racha_anios,
         tiempo_invertido=c.tiempo_invertido,
         operaciones_al_anio=c.operaciones_al_anio,
+        cambios_al_anio=c.cambios_al_anio,
     )
 
 
@@ -114,24 +124,18 @@ def catalogo() -> Catalogo:
 
 @router.post("/estrategias/simular", tags=["estrategias"])
 def simular(peticion: PeticionSimulacion) -> Simulacion:
-    """Inicial + mensual desde un año, en 1-4 estrategias. 404 si una clave no existe."""
-    fichas: list[Ficha] = []
-    for clave in dict.fromkeys(peticion.estrategias):
-        encontrada = ficha(clave)
-        if encontrada is None:
-            raise no_encontrado(f"no hay ninguna estrategia {clave!r}")
-        fichas.append(encontrada)
+    """Inicial + mensual desde un año, en 1-4 estrategias y, si llega `reparto`, tu dinero
+    repartido así (`combinado`). 404 si una clave no existe; 422 si el reparto no suma 100."""
+    fichas = [_ficha_o_404(clave) for clave in dict.fromkeys(peticion.estrategias)]
+    reparto = _reparto(peticion)
     if peticion.inicial == 0 and peticion.mensual == 0:
         raise invalido("Pon una cantidad inicial o una aportación mensual: con cero no hay nada.")
 
     desde = date(peticion.desde_anio, 1, 1)
     resultados: list[ResultadoSimulado] = []
     for f in fichas:
-        ejecucion = historico.ejecucion(f)
-        if ejecucion.recorrido is None:
-            raise invalido(f"{f.nombre}: {ejecucion.motivo}")
-        r = ejecucion.recorrido
-        try:
+        r = _recorrido(f)
+        with _sin_datos_desde(f, r, peticion.desde_anio):
             hecha = simulacion.simular(
                 [int(d) for d in r.dias],
                 [float(v) for v in r.valor],
@@ -140,35 +144,103 @@ def simular(peticion: PeticionSimulacion) -> Simulacion:
                 desde=desde,
                 fecha_texto=llano.fecha_corta(r.desde),
             )
-        except SinDatosDesdeError:
-            raise invalido(
-                f"{f.nombre}: no hay datos desde {peticion.desde_anio}; sus datos llegan hasta el "
-                f"{llano.fecha_corta(r.hasta)}."
-            ) from None
-        except ValueError as error:
-            raise invalido(f"{f.nombre}: {error}") from None
-        resultados.append(
-            ResultadoSimulado(
-                clave=f.clave,
-                nombre=f.nombre,
-                desde=hecha.desde,
-                hasta=hecha.hasta,
-                puntos=[
-                    PuntoSimulado(fecha=p.fecha, valor=p.valor, aportado=p.aportado)
-                    for p in hecha.puntos
-                ],
-                aportado=hecha.aportado,
-                valor_final=hecha.valor_final,
-                ganancia=hecha.ganancia,
-                peor_momento_fecha=hecha.peor_momento_fecha,
-                peor_momento_valor=hecha.peor_momento_valor,
-                peor_momento_aportado=hecha.peor_momento_aportado,
-                peor_caida=hecha.peor_caida,
-                meses_por_debajo=hecha.meses_por_debajo,
-                aviso=hecha.aviso,
+        resultados.append(_resultado(f.clave, f.nombre, hecha))
+
+    combinado: ResultadoSimulado | None = None
+    if reparto:
+        curvas: list[simulacion.Curva] = []
+        for f, porcentaje in reparto:
+            r = _recorrido(f)
+            if r.hasta < desde:
+                # Sin datos desde ese año en una parte, el reparto entero tampoco los tiene.
+                raise _no_hay_datos_desde(f, r, peticion.desde_anio)
+            curvas.append(
+                simulacion.Curva(
+                    [int(d) for d in r.dias], [float(v) for v in r.valor], porcentaje / 100
+                )
             )
+        hecha = simulacion.simular_reparto(
+            curvas,
+            inicial=float(peticion.inicial),
+            mensual=float(peticion.mensual),
+            desde=desde,
+            escribir_fecha=llano.fecha_corta,
+            sujeto="tu reparto",
         )
-    return Simulacion(resultados=resultados, nota=NOTA_SIMULACION)
+        nombre = "Tu reparto (" + ", ".join(f"{p} % {f.nombre}" for f, p in reparto) + ")"
+        combinado = _resultado(CLAVE_REPARTO, nombre, hecha)
+    return Simulacion(resultados=resultados, combinado=combinado, nota=NOTA_SIMULACION)
+
+
+def _ficha_o_404(clave: str) -> Ficha:
+    encontrada = ficha(clave)
+    if encontrada is None:
+        raise no_encontrado(f"no hay ninguna estrategia {clave!r}")
+    return encontrada
+
+
+def _reparto(peticion: PeticionSimulacion) -> list[tuple[Ficha, int]]:
+    """Las partes del reparto pedido, comprobadas: que existan, sin repetir y que sumen 100."""
+    if peticion.reparto is None:
+        return []
+    partes = [(_ficha_o_404(p.estrategia), p.porcentaje) for p in peticion.reparto]
+    vistas: set[str] = set()
+    for f, _ in partes:
+        if f.clave in vistas:
+            raise invalido(
+                f"{f.nombre} sale dos veces en el reparto: pon cada estrategia una sola vez."
+            )
+        vistas.add(f.clave)
+    suma = sum(p for _, p in partes)
+    if suma != CIEN:
+        raise invalido(f"El reparto tiene que sumar 100 %, y suma {suma} %.")
+    return partes
+
+
+def _recorrido(f: Ficha) -> Recorrido:
+    ejecucion = historico.ejecucion(f)
+    if ejecucion.recorrido is None:
+        raise invalido(f"{f.nombre}: {ejecucion.motivo}")
+    return ejecucion.recorrido
+
+
+def _no_hay_datos_desde(f: Ficha, r: Recorrido, anio: int) -> HTTPException:
+    return invalido(
+        f"{f.nombre}: no hay datos desde {anio}; sus datos llegan hasta el "
+        f"{llano.fecha_corta(r.hasta)}."
+    )
+
+
+@contextmanager
+def _sin_datos_desde(f: Ficha, r: Recorrido, anio: int) -> Generator[None]:
+    """Lo que la simulación rechace, como 422 en llano y con el nombre de la estrategia."""
+    try:
+        yield
+    except SinDatosDesdeError:
+        raise _no_hay_datos_desde(f, r, anio) from None
+    except ValueError as error:
+        raise invalido(f"{f.nombre}: {error}") from None
+
+
+def _resultado(clave: str, nombre: str, hecha: Simulada) -> ResultadoSimulado:
+    return ResultadoSimulado(
+        clave=clave,
+        nombre=nombre,
+        desde=hecha.desde,
+        hasta=hecha.hasta,
+        puntos=[
+            PuntoSimulado(fecha=p.fecha, valor=p.valor, aportado=p.aportado) for p in hecha.puntos
+        ],
+        aportado=hecha.aportado,
+        valor_final=hecha.valor_final,
+        ganancia=hecha.ganancia,
+        peor_momento_fecha=hecha.peor_momento_fecha,
+        peor_momento_valor=hecha.peor_momento_valor,
+        peor_momento_aportado=hecha.peor_momento_aportado,
+        peor_caida=hecha.peor_caida,
+        meses_por_debajo=hecha.meses_por_debajo,
+        aviso=hecha.aviso,
+    )
 
 
 def caidas_del_catalogo() -> CaidasDelCatalogo:

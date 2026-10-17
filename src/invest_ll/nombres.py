@@ -17,6 +17,9 @@ from typing import Final
 
 MONEDAS_DE_COTIZACION: Final = ("USDT",)
 
+SUFIJOS_EN_EUROS: Final = (".MC", ".DE", ".F", ".PA", ".AS", ".MI", ".BR", ".LS")
+"""Bolsas europeas que cotizan en euros, por el sufijo con que las nombra yfinance (`SAN.MC`)."""
+
 NOMBRES: Final[dict[str, str]] = {
     # Fondos cotizados (ETF) de EE.UU. que usan las estrategias de bolsa y el mercado.
     "SPY": "Bolsa de EE.UU.",
@@ -131,6 +134,24 @@ def es_cripto(simbolo: str) -> bool:
     return any(
         limpio.endswith(f"{sep}{m}") for m in MONEDAS_DE_COTIZACION for sep in ("/", "-", "")
     )
+
+
+def moneda_de(simbolo: str) -> str:
+    """La moneda en que cotiza: `BTC/EUR` → EUR, `BTCUSDT` → USDT, `SAN.MC` → EUR, `SPY` → USD.
+
+    En un par manda lo que va detrás de la barra; un par de Binance sin barra cotiza en su moneda
+    de cotización; en bolsa, las europeas en euros por su sufijo y lo demás (los fondos de EE.UU.
+    del proyecto) en dólares.
+    """
+    limpio = simbolo.strip().upper().split("~")[0]
+    if "/" in limpio and limpio.split("/", 1)[1]:
+        return limpio.split("/", 1)[1]
+    for cotizacion in MONEDAS_DE_COTIZACION:
+        if limpio.endswith(cotizacion) and len(limpio) > len(cotizacion):
+            return cotizacion
+    if limpio.endswith(SUFIJOS_EN_EUROS):
+        return "EUR"
+    return "USD"
 
 
 def nombre_conocido(simbolo: str) -> str | None:

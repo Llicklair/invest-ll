@@ -33,6 +33,7 @@ from invest_ll.api.schemas import (
     Triggers,
 )
 from invest_ll.data.series import PriceSeries
+from invest_ll.nombres import nombre_llano
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.triggers import (
     Trigger,
@@ -48,6 +49,7 @@ def _armado(trigger: Trigger) -> TriggerArmado:
     return TriggerArmado(
         trigger_id=trigger.trigger_id,
         symbol=trigger.symbol,
+        nombre=nombre_llano(trigger.symbol),
         regla=trigger.rule.value,
         umbral=trigger.threshold,
         armado=trigger.armed_at,
@@ -130,6 +132,7 @@ def comprobar_triggers() -> ComprobacionTriggers:
             Disparo(
                 trigger_id=f.trigger.trigger_id,
                 symbol=f.trigger.symbol,
+                nombre=nombre_llano(f.trigger.symbol),
                 medido=f.measured,
                 umbral=f.trigger.threshold,
                 cantidad_propuesta=f.quantity,

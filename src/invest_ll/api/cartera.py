@@ -26,7 +26,14 @@ from fastapi import APIRouter
 
 from invest_ll import llano
 from invest_ll.api.errores import del_dominio, invalido, prohibido
-from invest_ll.api.modo import almacen_activo, almacen_del_modo, cartera_del_modo, modo_efectivo
+from invest_ll.api.modo import (
+    almacen_activo,
+    almacen_del_modo,
+    cartera_del_modo,
+    modo_efectivo,
+    moneda_de_la_cartera,
+    nota_de_moneda,
+)
 from invest_ll.api.schemas import (
     Cartera,
     ComprobacionEnvio,
@@ -47,7 +54,8 @@ from invest_ll.estrategias.datos import cierre
 from invest_ll.live.broker import OrderStatus, Side
 from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
-from invest_ll.nombres import nombre_llano
+from invest_ll.nombres import moneda_de, nombre_llano
+from invest_ll.plan.hoy import MONEDA_BOLSA, es_de_referencia
 from invest_ll.portfolio.derive import aviso_de_efectivo, derive_portfolio
 from invest_ll.portfolio.from_orders import importar_a_cartera
 from invest_ll.portfolio.models import Activity, ActivityType
@@ -81,10 +89,16 @@ def broker_para(modo: OperatingMode) -> Broker:
 @router.get("/cartera", tags=["cartera"])
 def cartera() -> Cartera:
     """La cartera derivada del ledger, valorada con el último cierre y SU fecha."""
+    modo = modo_efectivo().modo
+    del_modo = cartera_del_modo(modo)
     try:
-        derivada = derive_portfolio(almacen_activo().activities())
+        actividades = almacen_del_modo(modo).activities()
+        derivada = derive_portfolio(actividades)
     except InvestLLError as error:
         return Cartera(
+            cartera=del_modo,
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=None,
             vacia=False,
             error=f"Tu registro de movimientos cuenta una historia imposible: {error}",
             avisos=[],
@@ -107,9 +121,18 @@ def cartera() -> Cartera:
             precio, fecha = ultimo.precio, ultimo.fecha
             if valor_total is not None:
                 valor_total += p.value_at(precio)
+        # De referencia si alguna compra del episodio abierto se anotó así (plan/hecho): sus
+        # importes son entonces lo que pagaste en euros, no dólares.
+        de_referencia = any(
+            a.symbol == p.symbol and a.timestamp >= p.opened_at and es_de_referencia(a)
+            for a in actividades
+        )
         abiertas.append(
             PosicionAbierta(
                 activo=p.symbol,
+                nombre=nombre_llano(p.symbol),
+                moneda=MONEDA_BOLSA if de_referencia else moneda_de(p.symbol),
+                es_referencia=de_referencia,
                 cantidad=p.quantity,
                 coste_medio=p.avg_cost,
                 invertido=p.cost,
@@ -124,6 +147,8 @@ def cartera() -> Cartera:
     retiradas = [
         PosicionRetirada(
             activo=t.symbol,
+            nombre=nombre_llano(t.symbol),
+            moneda=moneda_de(t.symbol),
             abierta=t.opened_at.date(),
             retirada=t.closed_at.date(),
             dias=t.holding_days,
@@ -135,6 +160,15 @@ def cartera() -> Cartera:
     ]
 
     return Cartera(
+        cartera=del_modo,
+        moneda=moneda_de_la_cartera(del_modo),
+        nota_moneda=nota_de_moneda(
+            del_modo,
+            [
+                *(p.symbol for p in derivada.open_positions),
+                *(t.symbol for t in derivada.closed_trades),
+            ],
+        ),
         vacia=not derivada.open_positions and not derivada.closed_trades,
         error=None,
         avisos=_avisos_en_llano(derivada),
@@ -191,7 +225,7 @@ def _actividad(movimiento: NuevoMovimiento) -> Activity:
     with del_dominio("No registrado: "):
         return Activity(
             timestamp=momento,
-            type=ActivityType.DEPOSIT if movimiento.tipo == "deposito" else ActivityType.WITHDRAWAL,
+            type=ActivityType.DEPOSIT if movimiento.tipo == "ingreso" else ActivityType.WITHDRAWAL,
             symbol=None,
             quantity=movimiento.cantidad,
             unit_price=Decimal(1),
@@ -221,6 +255,8 @@ def ordenes() -> OrdenesEnviadas:
             cuando=e.result.executed_at or e.recorded_at,
             modo=e.mode_name,
             activo=e.result.request.symbol,
+            nombre=nombre_llano(e.result.request.symbol),
+            moneda=moneda_de(e.result.request.symbol),
             lado=e.result.request.side.value,
             pedida=e.result.request.quantity,
             ejecutada=e.result.filled_quantity,
@@ -277,53 +313,97 @@ def enviar(peticion: PeticionOrden) -> ResultadoOrden:
             ledger=registro,
         )
     descripcion = resultado.describe()
-    nota = _a_la_cartera(modo, resultado, registro)
+    en_cartera, nota = _a_la_cartera(modo, resultado, registro)
     return ResultadoOrden(
         estado=resultado.status.value,
         descripcion=descripcion if nota is None else f"{descripcion} {nota}",
+        resumen=resumen_de_orden(resultado, en_cartera=en_cartera),
         necesita_atencion=resultado.needs_attention,
         modo=modo.name,
+        pedida=resultado.request.quantity,
+        ejecutada=resultado.filled_quantity,
+        precio=resultado.fill_price or None,
+        comision=resultado.commission,
+        moneda=moneda_de(peticion.par),
+        en_cartera=en_cartera,
+    )
+
+
+def resumen_de_orden(resultado: OrderResult, *, en_cartera: bool) -> str:
+    """Lo que pasó con la orden, en llano y con sus cifras ("Compraste 0,00122 Bitcoin a…")."""
+    pedido = resultado.request
+    if resultado.status is OrderStatus.UNKNOWN:
+        return "No se sabe si se ejecutó: compruébalo en Binance antes de volver a operar."
+    compra = pedido.side is Side.BUY
+    if resultado.status is OrderStatus.REJECTED or resultado.filled_quantity <= 0:
+        return (
+            f"Binance rechazó la orden: no se ha {'comprado' if compra else 'vendido'} nada y tu "
+            "cartera no cambia."
+        )
+    nombre = nombre_llano(pedido.symbol)
+    hecha = llano.cantidad(resultado.filled_quantity)
+    a_precio = (
+        f" a {llano.dinero(resultado.fill_price, moneda_de(pedido.symbol))}"
+        if resultado.fill_price
+        else ""
+    )
+    verbo = "compraste" if compra else "vendiste"
+    if resultado.filled_quantity < pedido.quantity:
+        que = (
+            f"Solo se ejecutó una parte: {verbo} {hecha} de {llano.cantidad(pedido.quantity)} "
+            f"{nombre}{a_precio}. El resto no se ejecutó."
+        )
+    else:
+        que = f"{verbo.capitalize()} {hecha} {nombre}{a_precio}."
+    if en_cartera:
+        return f"{que} Ya está en tu cartera."
+    return (
+        f"{que} No se ha podido anotar en tu cartera: anótalo a mano en «Anotar un movimiento», "
+        "con la comisión que te cobraron."
     )
 
 
 def _a_la_cartera(
     modo: OperatingMode, resultado: OrderResult, registro: ExecutionLedger
-) -> str | None:
-    """Pasa lo ejecutado a la cartera del modo. Devuelve una nota si NO pudo pasar.
+) -> tuple[bool, str | None]:
+    """Pasa lo ejecutado a la cartera del modo: (si quedó anotado, nota si NO pudo pasar).
 
     Se importa la entrada tal como quedó en el registro (la última que coincide con este
     resultado), para que `invest-ll-portfolio import-ledger` la reconozca después y no la duplique.
     Nada de aquí puede lanzar: la orden ya salió, y un 500 haría creer que no.
     """
     if resultado.status not in (OrderStatus.FILLED, OrderStatus.PARTIAL):
-        return None  # rechazada o desconocida: `describe()` ya dice que no hay nada que anotar
+        return False, None  # rechazada o desconocida: `describe()` ya dice que no hay nada
     try:
         entrada = next(e for e in reversed(registro.entries()) if e.result == resultado)
         importado = importar_a_cartera(
             [entrada], almacen_del_modo(modo), modos=frozenset({modo.name})
         )
     except (StopIteration, InvestLLError, ValueError, OSError) as error:
-        return (
+        return False, (
             f"No se ha podido anotar en tu cartera ({error}): anótala a mano o con "
             "invest-ll-portfolio import-ledger."
         )
     if importado.activities or importado.already_known:
-        return None
-    return f"No ha pasado a tu cartera: {importado.describe()} Anótala a mano con su comisión real."
+        return True, None
+    return False, (
+        f"No ha pasado a tu cartera: {importado.describe()} Anótala a mano con su comisión real."
+    )
 
 
 @router.get("/cartera/movimientos", tags=["cartera"])
 def movimientos() -> Movimientos:
     """El registro de la cartera del modo activo, legible y el más reciente primero."""
     modo = modo_efectivo().modo
+    del_modo = cartera_del_modo(modo)
     actividades = almacen_del_modo(modo).activities()
     return Movimientos(
-        cartera=cartera_del_modo(modo),
-        movimientos=[_movimiento(a) for a in reversed(actividades)],
+        cartera=del_modo,
+        movimientos=[_movimiento(a, moneda_de_la_cartera(del_modo)) for a in reversed(actividades)],
     )
 
 
-def _movimiento(a: Activity) -> Movimiento:
+def _movimiento(a: Activity, moneda_del_efectivo: str) -> Movimiento:
     efectivo = a.type.is_cash
     return Movimiento(
         id=a.activity_id,
@@ -336,4 +416,15 @@ def _movimiento(a: Activity) -> Movimiento:
         comision=a.fee,
         importe=a.quantity if efectivo else a.gross,
         origen=a.source,
+        moneda=_moneda_del_movimiento(a, moneda_del_efectivo),
+        es_referencia=es_de_referencia(a),
+        nota=a.nota,
     )
+
+
+def _moneda_del_movimiento(a: Activity, moneda_del_efectivo: str) -> str:
+    """La del importe: la de la cartera en el efectivo, el euro en lo comprado en tu bróker con el
+    plan (lo que pagaste) y la de cotización en lo demás."""
+    if a.symbol is None:
+        return moneda_del_efectivo
+    return MONEDA_BOLSA if es_de_referencia(a) else moneda_de(a.symbol)

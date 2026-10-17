@@ -36,6 +36,20 @@ CAPITAL: Final = 10_000.0
 FALLOS_DE_DATOS = (KeyError, ValueError, IndexError, ZeroDivisionError)
 """Lo que lanza el motor cuando el panel no trae lo que la estrategia necesita (p. ej. SPY)."""
 
+UMBRAL_CAMBIO: Final = 0.10
+"""Desde cuánto un cambio del reparto objetivo es "algo que hacer": mover al menos el 10 % del
+dinero (la mitad de la suma de las diferencias de peso, contando la liquidez).
+
+Por qué el 10 %: es lo que separa decidir de retocar. Salir de un fondo o de una moneda, entrar, o
+cambiar una moneda de la cesta por otra mueve una parte entera del dinero; volver a pesar los
+mismos fondos por lo que se mueve cada uno, no. Medido con los datos del 17-10-2026: la paridad de
+riesgo sin freno (solo esos retoques) mueve un 3 % de mediana y pasa del 10 % 0,2 veces al año; su
+versión con freno, que además saca los fondos que bajan, 8 veces. Por debajo del umbral, el
+retoque lo absorben las aportaciones (el plan compra a los pesos de ese día). Un reparto fijo no
+cambia nunca su objetivo (sale 0 aunque el motor lo reequilibre por deriva) y Bitcoin con freno
+salta del 0 al 100 %: cada entrada y cada salida cuenta una vez.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class Recorrido:
@@ -47,6 +61,8 @@ class Recorrido:
     invertido: FloatArray
     operaciones: int
     periodos_al_anio: int
+    cambios: float = 0.0
+    """Decisiones que cambian el reparto de forma apreciable, de media por tramo (`Cambios`)."""
 
     @property
     def desde(self) -> date:
@@ -70,6 +86,49 @@ class Cifras:
     peor_racha_anios: float
     tiempo_invertido: float
     operaciones_al_anio: float
+    cambios_al_anio: float
+
+
+class Cambios:
+    """Cuenta las veces que la estrategia te pediría hacer algo además de aportar.
+
+    Se mira cada tramo por separado, que es como lo viviría quien la siga en su día de la semana
+    (o del mes): en cada decisión, cuánto dinero habría que mover para pasar del reparto anterior
+    al nuevo (`movido`). Si llega a `umbral`, cuenta. La primera decisión de cada tramo no cuenta:
+    es invertir lo que pones al empezar. Al final, la media por tramo (`por_tramo`).
+
+    Con tramos, el motor reparte cada cambio en varios días (un séptimo cada día en Bitcoin con
+    freno); contarlos sobre la suma de los tramos diría siete veces lo que hace una persona.
+    """
+
+    __slots__ = ("_cuenta", "_previo", "_tramos", "_umbral")
+
+    def __init__(self, tramos: int, umbral: float = UMBRAL_CAMBIO) -> None:
+        self._tramos = tramos
+        self._umbral = umbral
+        self._previo: dict[int, FloatArray] = {}
+        self._cuenta = 0
+
+    def __call__(self, tramo: int, fila: int, objetivo: FloatArray) -> None:
+        del fila  # solo importa el orden, que es el de las decisiones
+        anterior = self._previo.get(tramo)
+        if anterior is not None and movido(anterior, objetivo) >= self._umbral:
+            self._cuenta += 1
+        self._previo[tramo] = objetivo
+
+    @property
+    def por_tramo(self) -> float:
+        return self._cuenta / self._tramos
+
+
+def movido(antes: FloatArray, despues: FloatArray) -> float:
+    """La parte del dinero que hay que mover para pasar de un reparto a otro (0 a 1).
+
+    La mitad de la suma de las diferencias de peso, contando la liquidez (lo que no suma 1): salir
+    del todo de Bitcoin a USDT es mover el 100 %, y cambiar un 20 % de un fondo a otro, el 20 %.
+    """
+    liquidez = abs((1.0 - float(despues.sum())) - (1.0 - float(antes.sum())))
+    return (float(np.abs(despues - antes).sum()) + liquidez) / 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +166,10 @@ def ejecutar(ficha: Ficha, panel: Panel) -> Recorrido:
     )
     universo = None if motor.universo is None else PointInTimeUniverse(p, motor.universo)
     copias = [motor.fabrica() for _ in range(motor.tramos)]
-    resultado = run(p, copias, motor.costes, config, universo, name=ficha.clave)
+    cambios = Cambios(motor.tramos)
+    resultado = run(
+        p, copias, motor.costes, config, universo, name=ficha.clave, on_decision=cambios
+    )
     pesos = resultado.weights[inicio:]
     if motor.liquidez is not None and motor.liquidez in p.symbols:
         pesos = np.delete(pesos, p.column(motor.liquidez), axis=1)
@@ -118,6 +180,7 @@ def ejecutar(ficha: Ficha, panel: Panel) -> Recorrido:
         invertido=pesos.sum(axis=1),
         operaciones=resultado.trades,
         periodos_al_anio=resultado.periods_per_year,
+        cambios=cambios.por_tramo,
     )
 
 
@@ -140,6 +203,7 @@ def cifras(recorrido: Recorrido) -> Cifras:
         peor_racha_anios=longest_drawdown(valor) / ppa,
         tiempo_invertido=float(np.mean(recorrido.invertido)),
         operaciones_al_anio=recorrido.operaciones / anios,
+        cambios_al_anio=recorrido.cambios / anios,
     )
 
 

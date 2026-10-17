@@ -12,7 +12,10 @@ versions a European investor would buy; the asset classes and their history are 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
+
+from invest_ll.fetch.atomic_write import replace_atomically
 
 DEFAULT_ROOT = Path("data/market/etf-universe")
 FILE = "etf_1d.parquet"
@@ -43,5 +46,6 @@ def download(root: Path = DEFAULT_ROOT, tickers: tuple[str, ...] = TICKERS) -> P
         frames.append(frame[frame["day"] < today])
     root.mkdir(parents=True, exist_ok=True)
     path = root / FILE
-    pd.concat(frames, ignore_index=True).to_parquet(path, index=False)
+    # In one step: the panel may be reading this file while it updates in the background.
+    replace_atomically(path, partial(pd.concat(frames, ignore_index=True).to_parquet, index=False))
     return path

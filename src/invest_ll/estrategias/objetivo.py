@@ -53,6 +53,11 @@ def _de_hoy(clave: str, huella: Huella) -> Objetivo | None:
     return None if p is None else pesos_de_hoy(encontrada, p)
 
 
+def olvidar() -> None:
+    """Suelta los objetivos calculados (al acabar de actualizar los datos)."""
+    _de_hoy.cache_clear()
+
+
 def de_hoy(ficha: Ficha) -> Objetivo | None:
     """El objetivo de hoy con los datos descargados (en memoria por la huella del fichero).
 

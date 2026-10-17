@@ -53,7 +53,10 @@ def escribir_csv(destino: Path, cierres: list[float]) -> None:
 
 
 @pytest.fixture
-def mercado(tmp_path: Path) -> tuple[Path, Path]:
+def mercado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    # Comparar apunta cuántas pruebas llevas en `attempts/`, relativo al directorio de trabajo:
+    # sin esto, la suite lo dejaba en la raíz del repositorio con AAA y BBB.
+    monkeypatch.chdir(tmp_path)
     a = tmp_path / "yfinance" / "AAA" / "DAY_1.csv"
     b = tmp_path / "yfinance" / "BBB" / "DAY_1.csv"
     escribir_csv(a, list(ramp(200)))

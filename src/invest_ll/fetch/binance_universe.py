@@ -26,8 +26,11 @@ import json
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Protocol
+
+from invest_ll.fetch.atomic_write import replace_atomically
 
 DEFAULT_ROOT = Path("data/market/binance-universe")
 KLINES_FILE = "klines_1d.parquet"
@@ -146,7 +149,8 @@ def download(
         # Checkpoint: a failure halfway through must not throw away what was already downloaded.
         if n % checkpoint_every == 0 or n == len(infos):
             merged = _merge(merged, fresh)
-            merged.to_parquet(path, index=False)
+            # In one step: the panel may be reading this file while it updates in the background.
+            replace_atomically(path, partial(merged.to_parquet, index=False))
             fresh = []
 
     _write_manifest(root, infos, merged, moment)

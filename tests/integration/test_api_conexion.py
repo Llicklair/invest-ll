@@ -67,6 +67,28 @@ def _modo(cliente: Api) -> str:
     return _sin_secretos(cliente.get("/api/conexion")).json()["modo"]
 
 
+@pytest.fixture(autouse=True)
+def saldos_leidos(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, credenciales.Claves]]:
+    """El exchange contesta con un saldo a cualquier clave: activar un modo lo lee primero.
+
+    Los tests de claves que fallan lo sustituyen otra vez por uno que rechaza.
+    """
+    pedidos: list[tuple[str, credenciales.Claves]] = []
+
+    def saldo(red: credenciales.Red, claves: credenciales.Claves) -> dict[str, Decimal]:
+        pedidos.append((red, claves))
+        return {"USDT": D(100)}
+
+    monkeypatch.setattr(rutas_conexion, "leer_saldo", saldo)
+    return pedidos
+
+
+def _rechaza(red: credenciales.Red, claves: credenciales.Claves) -> dict[str, Decimal]:
+    raise type("AuthenticationError", (Exception,), {})(
+        f'binance {{"code":-2015}} apiKey={claves.clave}'
+    )
+
+
 class TestEstado:
     def test_de_entrada_simulacion_sin_claves(self, cliente: Api) -> None:
         cuerpo = cliente.get("/api/conexion").json()
@@ -183,12 +205,7 @@ class TestProbar:
     def test_un_fallo_se_explica_en_llano(
         self, cliente: Api, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        def rechaza(red: credenciales.Red, claves: credenciales.Claves) -> dict[str, Decimal]:
-            raise type("AuthenticationError", (Exception,), {})(
-                f'binance {{"code":-2015}} apiKey={claves.clave}'
-            )
-
-        monkeypatch.setattr(rutas_conexion, "leer_saldo", rechaza)
+        monkeypatch.setattr(rutas_conexion, "leer_saldo", _rechaza)
         cliente.put("/api/conexion/claves/real", json=REALES)
 
         cuerpo = _sin_secretos(cliente.post("/api/conexion/probar/real")).json()
@@ -220,6 +237,48 @@ class TestCambiarModo:
             "/api/ordenes/comprobar", json={"cantidad": "0.001", "escrito": "0.001"}
         )
         assert comprobar.json() == {"puede": True, "motivo": None}
+
+    def test_activar_un_modo_prueba_antes_las_claves(
+        self, cliente: Api, saldos_leidos: list[tuple[str, credenciales.Claves]]
+    ) -> None:
+        cliente.put("/api/conexion/claves/pruebas", json=PRUEBAS)
+        assert cliente.put("/api/conexion/modo", json={"modo": "pruebas"}).status_code == 200
+        assert saldos_leidos == [("pruebas", credenciales.Claves(**PRUEBAS))]
+        assert cliente.put("/api/conexion/modo", json={"modo": "simulacion"}).status_code == 200
+        assert len(saldos_leidos) == 1, "volver a simulación no habla con nadie"
+
+    def test_pruebas_con_claves_que_no_funcionan_422_en_llano(
+        self, cliente: Api, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rutas_conexion, "leer_saldo", _rechaza)
+        cliente.put("/api/conexion/claves/pruebas", json=PRUEBAS)
+
+        r = _sin_secretos(cliente.put("/api/conexion/modo", json={"modo": "pruebas"}))
+
+        assert r.status_code == 422
+        detalle = r.json()["detail"]
+        assert detalle.startswith("No se activa la red de pruebas: ")
+        assert "rechaza las claves" in detalle and "HMAC-SHA256" in detalle
+        assert '"code"' not in detalle
+        assert _modo(cliente) == "simulacion"
+        assert not Path("config/panel.json").exists()
+
+    def test_real_con_claves_que_no_funcionan_no_se_activa(
+        self, cliente: Api, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cliente.put("/api/conexion/claves/pruebas", json=PRUEBAS)
+        cliente.put("/api/conexion/claves/real", json=REALES)
+        _orden_de_pruebas_ejecutada()
+        monkeypatch.setattr(rutas_conexion, "leer_saldo", _rechaza)
+
+        r = _sin_secretos(
+            cliente.put("/api/conexion/modo", json={"modo": "real", "confirmacion": "DINERO REAL"})
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"].startswith("No se activa dinero real: ")
+        assert "testnet.binance.vision" in r.json()["detail"], "qué revisar, en llano"
+        assert _modo(cliente) == "simulacion"
 
     def test_real_exige_la_confirmacion_tecleada(self, cliente: Api) -> None:
         cliente.put("/api/conexion/claves/pruebas", json=PRUEBAS)

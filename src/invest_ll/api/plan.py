@@ -9,7 +9,9 @@ Anotar una compra del bróker (`hecho`) guarda lo que pagaste —importe y comis
 unidades del fondo de EE.UU. de referencia: desde España se compra la versión europea (UCITS), que
 cotiza a otro precio, y la cartera se valora con el precio del fondo de referencia. Guardar la
 cantidad y el precio del fondo europeo junto al precio del de EE.UU. haría que la cartera valiera
-lo que no vale (con el oro, varias veces más). Lo pagado no cambia; las unidades sí.
+lo que no vale (con el oro, varias veces más). Lo pagado no cambia; las unidades sí. Para que eso
+no esconda lo que hiciste, el movimiento lleva una `nota` en llano con tus participaciones y tu
+precio, y la cartera lo marca (`es_referencia`): se enseñan importes, no unidades.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from typing import TYPE_CHECKING, Final
 
 from fastapi import APIRouter
 
+from invest_ll import llano
 from invest_ll.api.errores import del_dominio, invalido, no_encontrado
 from invest_ll.api.modo import almacen_activo, almacen_del_broker, modo_efectivo
 from invest_ll.api.schemas import MovimientoRegistrado
@@ -34,6 +37,7 @@ from invest_ll.api.schemas_v2 import (
 from invest_ll.api.schemas_v2 import Plan as PlanApi
 from invest_ll.estrategias.catalogo import ficha
 from invest_ll.live.modo_panel import modo_del_panel
+from invest_ll.nombres import moneda_de
 from invest_ll.plan import almacen, servicio
 from invest_ll.plan.hoy import FUENTE_PLAN
 from invest_ll.portfolio.models import Activity, ActivityType
@@ -47,6 +51,8 @@ router = APIRouter()
 
 SIN_PLAN: Final = "Todavía no tienes un plan. Empieza en Estrategias: cinco preguntas, sin jerga."
 UNIDADES_DE_REFERENCIA: Final = Decimal("0.00000001")
+CENTESIMAS: Final = Decimal("0.01")
+DIEZMILESIMAS: Final = Decimal("0.0001")
 
 
 def _plan_api(plan: almacen.Plan) -> PlanApi:
@@ -130,6 +136,8 @@ def _accion(a: AccionCalculada) -> Accion:
         importe=a.importe,
         moneda=a.moneda,
         precio_ref=a.precio_ref,
+        precio_ref_moneda=a.precio_ref_moneda,
+        referencia=a.referencia,
         precio_fecha=a.precio_fecha,
         equivalente=a.equivalente,
     )
@@ -156,6 +164,23 @@ def hoy() -> Hoy:
         resumen=resultado.resumen,
         proxima_fecha=resultado.proxima_fecha,
         avisos=avisos,
+    )
+
+
+def nota_de_referencia(
+    hecha: AccionHecha, accion: AccionCalculada, unidades: Decimal, referencia: Decimal
+) -> str:
+    """Lo que de verdad compraste y cómo queda anotado, para que la cartera no lo esconda.
+
+    "Compraste 5,437 participaciones a 650 € en tu bróker; se anota como 4,63 de SPY (el fondo
+    de EE.UU. de referencia) a 763,25 $ para poder valorarlo."
+    """
+    anotadas = unidades.quantize(CENTESIMAS if unidades >= 1 else DIEZMILESIMAS, ROUND_HALF_UP)
+    return (
+        f"Compraste {llano.cantidad(hecha.cantidad)} participaciones a "
+        f"{llano.dinero(hecha.precio, accion.moneda)} en tu bróker; se anota como "
+        f"{llano.cantidad(anotadas)} de {accion.simbolo} (el fondo de EE.UU. de referencia) a "
+        f"{llano.dinero(referencia, moneda_de(accion.simbolo))} para poder valorarlo."
     )
 
 
@@ -191,15 +216,17 @@ def hecho(accion_id: str, hecha: AccionHecha) -> MovimientoRegistrado:
             f"No hay precio de referencia de {accion.activo} para esa fecha: descarga los datos "
             "de los fondos (uv run invest-ll-quant download --etf)."
         )
+    unidades = (pagado / referencia).quantize(UNIDADES_DE_REFERENCIA, ROUND_HALF_UP)
     with del_dominio("No registrado: "):
         actividad = Activity(
             timestamp=datetime(hecha.fecha.year, hecha.fecha.month, hecha.fecha.day, tzinfo=UTC),
             type=ActivityType.BUY,
             symbol=accion.simbolo,
-            quantity=(pagado / referencia).quantize(UNIDADES_DE_REFERENCIA, ROUND_HALF_UP),
+            quantity=unidades,
             unit_price=referencia,
             fee=hecha.comision,
             source=FUENTE_PLAN,
+            nota=nota_de_referencia(hecha, accion, unidades, referencia),
         )
         # A la cartera real en cualquier modo: lo del bróker nunca es dinero ficticio.
         identificador = almacen_del_broker().append(actividad)

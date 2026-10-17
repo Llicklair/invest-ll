@@ -68,3 +68,29 @@ def test_cifras_y_fechas_a_la_espanola() -> None:
     assert llano.porcentaje(0.57) == "57 %"
     assert llano.fecha_corta(date(2026, 10, 15)) == "15 oct 2026"
     assert llano.fecha_larga(date(2026, 11, 1)) == "1 de noviembre"
+
+
+@pytest.mark.parametrize(
+    ("simbolo", "moneda"),
+    [
+        ("BTC/USDT", "USDT"),
+        ("BTCUSDT", "USDT"),
+        ("btc-usdt", "USDT"),
+        ("LUNAUSDT~2", "USDT"),
+        ("BTC/EUR", "EUR"),
+        ("SPY", "USD"),
+        ("SAN.MC", "EUR"),
+    ],
+)
+def test_la_moneda_en_que_cotiza(simbolo: str, moneda: str) -> None:
+    assert nombres.moneda_de(simbolo) == moneda
+
+
+def test_cantidades_y_dinero_a_la_espanola() -> None:
+    assert llano.cantidad(Decimal("0.00122")) == "0,00122"
+    assert llano.cantidad(Decimal("5.4370")) == "5,437"
+    assert llano.cantidad(Decimal(1500)) == "1.500"
+    assert llano.dinero(Decimal("82245.93"), "USDT") == "82.245,93 USDT"
+    assert llano.dinero(Decimal("763.25"), "USD") == "763,25 $"
+    assert llano.dinero(Decimal(650), "EUR") == "650 €"
+    assert llano.dinero(Decimal("0.0000123"), "USDT") == "0,0000123 USDT", "nunca 0,00"

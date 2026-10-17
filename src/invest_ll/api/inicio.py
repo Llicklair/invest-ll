@@ -17,6 +17,8 @@ from invest_ll.api.modo import (
     almacen_del_modo,
     cartera_del_modo,
     modo_efectivo,
+    moneda_de_la_cartera,
+    nota_de_moneda,
 )
 from invest_ll.api.schemas_v2 import Inicio, MiniMercado, ParteResumen, Patrimonio
 from invest_ll.errors import InvestLLError
@@ -24,7 +26,7 @@ from invest_ll.estrategias import datos
 from invest_ll.estrategias.catalogo import ficha
 from invest_ll.nombres import nombre_llano
 from invest_ll.plan import almacen, servicio
-from invest_ll.plan.hoy import AVISO_USDT
+from invest_ll.plan.hoy import AVISO_USDT, MONEDA_BOLSA, MONEDA_CRIPTO
 from invest_ll.portfolio.derive import derive_portfolio
 from invest_ll.portfolio.triggers import TriggerStore
 from invest_ll.portfolio.valoracion import valorar
@@ -76,7 +78,13 @@ def _partes(plan: almacen.Plan, cartera: Portfolio | None) -> list[ParteResumen]
             valor, puesto = v.valor, v.puesto
         partes.append(
             ParteResumen(
-                estrategia=f.clave, nombre=f.nombre, mercado=f.mercado, valor=valor, puesto=puesto
+                estrategia=f.clave,
+                nombre=f.nombre,
+                mercado=f.mercado,
+                valor=valor,
+                puesto=puesto,
+                # La de sus acciones de hoy: lo del bróker se paga en euros; lo de Binance, en USDT.
+                moneda=MONEDA_CRIPTO if f.mercado == "cripto" else MONEDA_BOLSA,
             )
         )
     return partes
@@ -98,6 +106,7 @@ def inicio() -> Inicio:
     except InvestLLError as error:
         avisos.append(f"Tu registro de movimientos tiene un problema: {error}")
 
+    del_modo = cartera_del_modo(efectivo.modo)
     if cartera is not None:
         v = valorar(cartera, _precio)
         sin_precio = [
@@ -116,7 +125,17 @@ def inicio() -> Inicio:
             realizado=v.realizado,
             fecha_precios=v.fecha_precios,
             incompleto=v.incompleto,
-            cartera=cartera_del_modo(efectivo.modo),
+            cartera=del_modo,
+            # Lo mismo que suma `valorar`: el efectivo derivado, si es positivo.
+            efectivo=max(cartera.cash, Decimal(0)),
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=nota_de_moneda(
+                del_modo,
+                [
+                    *(p.symbol for p in cartera.open_positions),
+                    *(t.symbol for t in cartera.closed_trades),
+                ],
+            ),
         )
     else:
         patrimonio = Patrimonio(
@@ -127,7 +146,10 @@ def inicio() -> Inicio:
             realizado=Decimal(0),
             fecha_precios=None,
             incompleto=True,
-            cartera=cartera_del_modo(efectivo.modo),
+            cartera=del_modo,
+            efectivo=Decimal(0),
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=None,
         )
 
     pausa = TriggerStore().halted()

@@ -137,7 +137,7 @@ def leer_jsonl(fichero: Path) -> list[tuple[int, dict[str, Any]]]:
 
 
 def _escribir(a: Activity) -> dict[str, Any]:
-    return {
+    linea: dict[str, Any] = {
         "timestamp": a.timestamp.isoformat(),
         "type": a.type.value,
         "symbol": a.symbol,
@@ -148,10 +148,14 @@ def _escribir(a: Activity) -> dict[str, Any]:
         # Cuando se ESCRIBIO, que no es cuando ocurrio: solo para auditar.
         "recorded_at": datetime.now(UTC).isoformat(),
     }
+    if a.nota is not None:
+        linea["nota"] = a.nota
+    return linea
 
 
 def _leer(c: dict[str, Any]) -> Activity:
     simbolo = c["symbol"]
+    nota = c.get("nota")  # las lineas de antes de la nota no la llevan
     return Activity(
         timestamp=datetime.fromisoformat(c["timestamp"]),
         type=ActivityType(c["type"]),
@@ -160,4 +164,5 @@ def _leer(c: dict[str, Any]) -> Activity:
         unit_price=Decimal(c["unit_price"]),
         fee=Decimal(c["fee"]),
         source=str(c["source"]),
+        nota=None if nota is None else str(nota),
     )

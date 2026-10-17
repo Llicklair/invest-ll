@@ -13,7 +13,7 @@ ganado dinero que aún puede evaporarse.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
@@ -74,6 +74,11 @@ class Activity:
     """Comisión de ESTA operación. Forma parte del coste: es lo que de verdad pagaste."""
     source: str = FUENTE_MANUAL
     """De dónde vino: `manual`, `csv:<fichero>`, `ledger:<modo>:<referencia>`, `panel`..."""
+    nota: str | None = field(default=None, compare=False)
+    """Lo que pasó de verdad, en llano, cuando las cifras no lo cuentan solas (una compra del
+    bróker anotada en unidades del fondo de referencia). Es un comentario: no entra en la huella
+    (`activity_id`) ni en la igualdad, así que la misma compra con otra nota sigue siendo la misma
+    y no se puede anotar dos veces."""
 
     def __post_init__(self) -> None:
         if self.timestamp.tzinfo is None:

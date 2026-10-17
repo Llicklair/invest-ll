@@ -254,8 +254,9 @@ def probar(red: Red) -> PruebaConexion:
 
 @router.put("/conexion/modo", tags=["conexion"])
 def cambiar_modo(cambio: CambioModo) -> Conexion:
-    """422 si faltan condiciones (dice cuáles) o, para real, la confirmación 'DINERO REAL'.
-    409 si el modo lo fija el entorno."""
+    """422 si faltan condiciones (dice cuáles), para real la confirmación 'DINERO REAL', o si las
+    claves de pruebas o real no funcionan (se lee el saldo; no se envía nada). 409 si el modo lo
+    fija el entorno."""
     f = fuentes_actuales()
     if origen_del_modo(f.entorno) == "entorno":
         raise HTTPException(status_code=409, detail=LO_FIJA_EL_ENTORNO)
@@ -269,6 +270,13 @@ def cambiar_modo(cambio: CambioModo) -> Conexion:
     resultado = resolver(pedido)
     if modo_del_panel(resultado.modo) != cambio.modo:
         raise invalido(resultado.aviso or "Ese modo no se puede activar ahora.")
+    if cambio.modo != "simulacion":
+        # Un modo que envía órdenes con unas claves que el exchange rechaza solo falla al operar:
+        # se prueban antes de activarlo, leyendo el saldo (no se envía nada).
+        red: Red = cambio.modo
+        prueba = prueba_conexion.probar(red, claves_efectivas(f, red), leer_saldo)
+        if not prueba.ok:
+            raise invalido(f"No se activa {EN_LLANO[cambio.modo]}: {prueba.detalle}")
     ConfigPanel().guardar_modo(cambio.modo)
     return _estado(pedido)
 

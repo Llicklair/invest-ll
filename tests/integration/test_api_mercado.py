@@ -38,6 +38,8 @@ class TestEstado:
         assert activos[BTC]["is_crypto"] is True
         assert activos[GLD]["is_crypto"] is False
         assert activos[GLD]["hasta"] == "2026-09-30"
+        assert (activos[GLD]["nombre"], activos[GLD]["moneda"]) == ("Oro", "USD")
+        assert (activos[BTC]["nombre"], activos[BTC]["moneda"]) == ("Bitcoin", "USDT")
 
     def test_la_pausa_va_en_la_cabecera(self, cliente: Api) -> None:
         TriggerStore().halt(reason="mercado raro", at=datetime(2026, 10, 1, tzinfo=UTC))
@@ -63,6 +65,9 @@ class TestRendimiento:
         assert [f["activo"] for f in cuerpo["cripto"]] == ["BTC/USDT"]
         fila = cuerpo["bolsa"][0]
         assert fila["que_es"] == "Oro"
+        assert (fila["nombre"], fila["moneda"]) == ("Oro", "USD")
+        btc = cuerpo["cripto"][0]
+        assert (btc["nombre"], btc["moneda"]) == ("Bitcoin", "USDT")
         assert fila["datos_hasta"] == "2026-09-30", "sin fecha, un historico parado parece de hoy"
         # Tres meses naturales (del 1 de julio al 30 de septiembre): 66 sesiones de bolsa.
         assert len(fila["sparkline"]) == 66
@@ -185,6 +190,7 @@ class TestCotizaciones:
         assert cripto["SOL/USDT"]["descargado"] is False
         assert cripto["SOL/USDT"]["volumen_24h_m"] == 12.35
         assert cuerpo["bolsa"][0]["activo"] == "AAPL"
+        assert (cuerpo["bolsa"][0]["nombre"], cripto["SOL/USDT"]["nombre"]) == ("Apple", "Solana")
 
     def test_si_la_red_falla_se_dice_y_el_resto_sigue(
         self, cliente: Api, monkeypatch: pytest.MonkeyPatch

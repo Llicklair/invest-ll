@@ -252,6 +252,16 @@
             "title": "Label",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de su precio: 'USD', 'USDT'",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "Nombre llano: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "provider": {
             "title": "Provider",
             "type": "string"
@@ -264,6 +274,8 @@
         "required": [
           "id",
           "symbol",
+          "nombre",
+          "moneda",
           "provider",
           "interval",
           "is_crypto",
@@ -479,6 +491,23 @@
             "title": "Invertido Abiertas",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de los totales (`valor_total`, `invertido_abiertas`, `efectivo`, `realizado_total`): 'EUR' la real, 'USDT' la de pruebas. Suman posiciones en dólares sin convertir y `nota_moneda` lo dice",
+            "title": "Moneda",
+            "type": "string"
+          },
+          "nota_moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P. ej. 'Aproximado: sin contar el cambio euro-dólar.'; None si no hace falta",
+            "title": "Nota Moneda"
+          },
           "realizado_total": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Realizado Total",
@@ -511,6 +540,8 @@
         },
         "required": [
           "cartera",
+          "moneda",
+          "nota_moneda",
           "vacia",
           "error",
           "avisos",
@@ -956,6 +987,11 @@
             "title": "Descargado",
             "type": "boolean"
           },
+          "nombre": {
+            "description": "Nombre llano: 'Bitcoin', 'Bolsa de EE.UU.'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "precio": {
             "title": "Precio",
             "type": "number"
@@ -987,6 +1023,7 @@
         },
         "required": [
           "activo",
+          "nombre",
           "precio",
           "var_24h",
           "volumen_24h_m",
@@ -1076,6 +1113,11 @@
             "title": "Medido",
             "type": "string"
           },
+          "nombre": {
+            "description": "Nombre llano del activo: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "precio": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio",
@@ -1103,6 +1145,7 @@
         "required": [
           "trigger_id",
           "symbol",
+          "nombre",
           "medido",
           "umbral",
           "cantidad_propuesta",
@@ -1111,6 +1154,20 @@
           "comando"
         ],
         "title": "Disparo",
+        "type": "object"
+      },
+      "Error": {
+        "description": "Forma de todos los errores: un texto que se le puede enseñar al operador.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "Error",
         "type": "object"
       },
       "Estado": {
@@ -1910,19 +1967,6 @@
         "title": "FuenteDatos",
         "type": "object"
       },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
-        "type": "object"
-      },
       "Historico": {
         "description": "Lo que hizo con 10.000 desde el principio de los datos. Calculado, no escrito a mano.",
         "properties": {
@@ -2527,6 +2571,7 @@
             "type": "string"
           },
           "moneda": {
+            "description": "Moneda del importe y la comisión: la de cotización del activo ('USD', 'USDT'); en el efectivo, la de la cartera ('EUR' la real, 'USDT' la de pruebas); 'EUR' si `es_referencia` (lo que pagaste; el `precio` es el del fondo de referencia, en dólares)",
             "title": "Moneda",
             "type": "string"
           },
@@ -3016,6 +3061,11 @@
             "title": "Mercado",
             "type": "string"
           },
+          "moneda": {
+            "description": "Moneda de `valor` y `puesto`, la misma que la de sus acciones de hoy: 'EUR' en bolsa (lo pagado en tu bróker), 'USDT' en cripto",
+            "title": "Moneda",
+            "type": "string"
+          },
           "nombre": {
             "title": "Nombre",
             "type": "string"
@@ -3043,7 +3093,8 @@
           "nombre",
           "mercado",
           "valor",
-          "puesto"
+          "puesto",
+          "moneda"
         ],
         "title": "ParteResumen",
         "type": "object"
@@ -3676,7 +3727,7 @@
                 "type": "null"
               }
             ],
-            "description": "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia.",
+            "description": "Si se da (suma 100), además se calcula `combinado`: tu dinero repartido así, con cada parte en su estrategia. Sus estrategias no tienen por qué estar también en `estrategias`: se calculan igual.",
             "title": "Reparto"
           }
         },
@@ -3930,7 +3981,7 @@
             "type": "string"
           },
           "moneda": {
-            "description": "Moneda de precio, valor e importes: 'USD', 'USDT'",
+            "description": "Moneda de los importes (invertido, valor, lo que ganas o pierdes): la de su cotización ('USD', 'USDT'); 'EUR' si `es_referencia`, porque entonces son lo que pagaste en euros, valorado con el fondo de referencia sin contar el cambio euro-dólar (y `precio` y `coste_medio` son de ese fondo, en dólares)",
             "title": "Moneda",
             "type": "string"
           },
@@ -4894,6 +4945,11 @@
             "title": "Descripcion",
             "type": "string"
           },
+          "nombre": {
+            "description": "Nombre llano del activo: 'Oro', 'Bitcoin'",
+            "title": "Nombre",
+            "type": "string"
+          },
           "regla": {
             "title": "Regla",
             "type": "string"
@@ -4915,6 +4971,7 @@
         "required": [
           "trigger_id",
           "symbol",
+          "nombre",
           "regla",
           "umbral",
           "armado",
@@ -4958,51 +5015,11 @@
         ],
         "title": "Triggers",
         "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
       }
     }
   },
   "info": {
-    "description": "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo POST /api/ordenes, que exige la cantidad tecleada como confirmacion.",
+    "description": "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo POST /api/ordenes, que exige la cantidad tecleada como confirmacion. Todos los errores tienen la misma forma: {\"detail\": \"texto en llano\"}.",
     "title": "INVEST LL",
     "version": "1.0.0"
   },
@@ -5022,6 +5039,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Cartera",
@@ -5044,6 +5101,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Movimientos",
@@ -5075,15 +5172,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Registrar Movimiento",
@@ -5117,15 +5244,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Chat",
@@ -5147,6 +5304,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Conexion",
@@ -5178,15 +5375,45 @@
           "204": {
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Borrar Claves",
@@ -5226,15 +5453,45 @@
           "204": {
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Guardar Claves",
@@ -5245,7 +5502,7 @@
     },
     "/api/conexion/modo": {
       "put": {
-        "description": "422 si faltan condiciones (dice cuáles) o, para real, la confirmación 'DINERO REAL'.\n409 si el modo lo fija el entorno.",
+        "description": "422 si faltan condiciones (dice cuáles), para real la confirmación 'DINERO REAL', o si las\nclaves de pruebas o real no funcionan (se lee el saldo; no se envía nada). 409 si el modo lo\nfija el entorno.",
         "operationId": "cambiar_modo_api_conexion_modo_put",
         "requestBody": {
           "content": {
@@ -5268,15 +5525,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Cambiar Modo",
@@ -5315,15 +5602,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Probar",
@@ -5346,6 +5663,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Estado Datos",
@@ -5368,6 +5725,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Actualizar Datos",
@@ -5390,6 +5787,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Estado",
@@ -5412,6 +5849,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Catalogo",
@@ -5445,15 +5922,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Recomendar",
@@ -5464,7 +5971,7 @@
     },
     "/api/estrategias/simular": {
       "post": {
-        "description": "Inicial + mensual desde un año, en 1-4 estrategias. 404 si una clave no existe.",
+        "description": "Inicial + mensual desde un año, en 1-4 estrategias y, si llega `reparto`, tu dinero\nrepartido así (`combinado`). 404 si una clave no existe; 422 si el reparto no suma 100.",
         "operationId": "simular_api_estrategias_simular_post",
         "requestBody": {
           "content": {
@@ -5487,15 +5994,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Simular",
@@ -5518,6 +6055,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Inicio",
@@ -5554,15 +6131,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Investigacion",
@@ -5585,6 +6192,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Estudio",
@@ -5607,6 +6254,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Actualizar",
@@ -5664,15 +6351,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Comparacion",
@@ -5695,6 +6412,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Cotizaciones",
@@ -5717,6 +6474,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Datos",
@@ -5750,15 +6547,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Descargar",
@@ -5781,6 +6608,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Rendimiento",
@@ -5831,15 +6698,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Serie",
@@ -5862,6 +6759,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Ordenes",
@@ -5893,15 +6830,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Enviar",
@@ -5935,15 +6902,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Comprobar Envio",
@@ -5959,6 +6956,46 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Reanudar",
@@ -5983,15 +7020,45 @@
           "204": {
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Pausar",
@@ -6007,6 +7074,46 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Borrar Plan",
@@ -6026,6 +7133,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Ver Plan",
@@ -6057,15 +7204,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Guardar Plan",
@@ -6088,6 +7265,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Hoy",
@@ -6132,15 +7349,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Hecho",
@@ -6163,6 +7410,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Saldo",
@@ -6184,6 +7471,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Seguimiento",
@@ -6217,15 +7544,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Un Activo",
@@ -6259,15 +7616,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Analisis Cartera",
@@ -6301,15 +7688,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Aportaciones",
@@ -6343,15 +7760,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Rotacion",
@@ -6385,15 +7832,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Llm",
@@ -6416,6 +7893,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Opciones Simular",
@@ -6449,15 +7966,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Propuesta",
@@ -6491,15 +8038,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Registrar Propuesta",
@@ -6521,6 +8098,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Triggers",
@@ -6551,15 +8168,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Armar",
@@ -6582,6 +8229,46 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Comprobar Triggers",
@@ -6609,15 +8296,45 @@
           "204": {
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Desarmar",
@@ -6667,15 +8384,45 @@
             },
             "description": "Successful Response"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
           }
         },
         "summary": "Alertas",

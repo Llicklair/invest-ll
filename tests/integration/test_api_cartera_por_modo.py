@@ -72,14 +72,26 @@ def test_lo_ejecutado_en_pruebas_pasa_solo_a_la_cartera_de_pruebas(
 
     assert r.status_code == 200
     assert r.json()["descripcion"] == "BTC/USDT: ejecutada 0.001 a 90000.", "sin nada que avisar"
+    assert r.json()["resumen"] == (
+        "Compraste 0,001 Bitcoin a 90.000,00 USDT. Ya está en tu cartera."
+    )
+    assert r.json()["en_cartera"] is True
     assert PRUEBAS.exists()
     assert not REAL.exists(), "las pruebas no entran en la cartera real"
     (mov,) = en_pruebas.get("/api/cartera/movimientos").json()["movimientos"]
     assert (mov["tipo"], mov["simbolo"], mov["activo"]) == ("compra", "BTC/USDT", "Bitcoin")
+    assert (mov["moneda"], mov["es_referencia"]) == ("USDT", False)
     assert mov["origen"] == "ledger:pruebas:ref-1"
     assert D(mov["comision"]) == D("0.09")
     cartera = en_pruebas.get("/api/cartera").json()
+    assert cartera["cartera"] == "pruebas"
+    assert (cartera["moneda"], cartera["nota_moneda"]) == ("USDT", None)
     assert cartera["abiertas"][0]["activo"] == "BTC/USDT"
+    assert cartera["abiertas"][0]["moneda"] == "USDT"
+    patrimonio = en_pruebas.get("/api/inicio").json()["patrimonio"]
+    assert (patrimonio["moneda"], patrimonio["nota_moneda"]) == ("USDT", None), (
+        "todo en USDT ficticios: no hay nada que convertir"
+    )
 
 
 def test_sin_comision_no_entra_y_se_dice(en_pruebas: Api, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,6 +102,10 @@ def test_sin_comision_no_entra_y_se_dice(en_pruebas: Api, monkeypatch: pytest.Mo
     assert r.status_code == 200
     assert "No ha pasado a tu cartera" in r.json()["descripcion"]
     assert "sin comision registrada" in r.json()["descripcion"]
+    assert r.json()["en_cartera"] is False
+    assert r.json()["comision"] is None
+    assert r.json()["resumen"].startswith("Compraste 0,001 Bitcoin a 90.000,00 USDT. No se ha")
+    assert "Anotar un movimiento" in r.json()["resumen"]
     assert en_pruebas.get("/api/cartera/movimientos").json()["movimientos"] == []
 
 
@@ -98,19 +114,38 @@ def test_una_rechazada_no_toca_la_cartera(en_pruebas: Api, monkeypatch: pytest.M
     r = en_pruebas.post("/api/ordenes", json=ORDEN)
     assert r.json()["estado"] == "rejected"
     assert r.json()["descripcion"] == "BTC/USDT: rechazada."
+    assert r.json()["resumen"] == (
+        "Binance rechazó la orden: no se ha comprado nada y tu cartera no cambia."
+    )
+    assert (r.json()["ejecutada"], r.json()["precio"], r.json()["en_cartera"]) == ("0", None, False)
+    assert not PRUEBAS.exists()
+
+
+def test_una_desconocida_pide_mirar_en_binance(
+    en_pruebas: Api, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _broker(monkeypatch, estado=OrderStatus.UNKNOWN)
+    r = en_pruebas.post("/api/ordenes", json=ORDEN)
+    assert r.json()["estado"] == "unknown"
+    assert r.json()["necesita_atencion"] is True
+    assert r.json()["resumen"] == (
+        "No se sabe si se ejecutó: compruébalo en Binance antes de volver a operar."
+    )
+    assert r.json()["en_cartera"] is False
     assert not PRUEBAS.exists()
 
 
 def test_anotar_a_mano_va_a_la_cartera_del_modo(en_pruebas: Api) -> None:
-    deposito = {"tipo": "deposito", "fecha": "2026-09-01", "cantidad": "5000"}
+    deposito = {"tipo": "ingreso", "fecha": "2026-09-01", "cantidad": "5000"}
     assert en_pruebas.post("/api/cartera/movimientos", json=deposito).status_code == 201
     assert PRUEBAS.exists() and not REAL.exists()
     (mov,) = en_pruebas.get("/api/cartera/movimientos").json()["movimientos"]
-    assert (mov["tipo"], mov["activo"], mov["precio"], mov["importe"]) == (
+    assert (mov["tipo"], mov["activo"], mov["precio"], mov["importe"], mov["moneda"]) == (
         "ingreso",
         None,
         None,
         "5000",
+        "USDT",
     )
 
 
@@ -118,7 +153,7 @@ def test_en_simulacion_se_ve_la_real_la_mas_reciente_primero(cliente: Api) -> No
     for fecha, cantidad in (("2026-09-01", "100"), ("2026-09-10", "50")):
         cliente.post(
             "/api/cartera/movimientos",
-            json={"tipo": "deposito", "fecha": fecha, "cantidad": cantidad},
+            json={"tipo": "ingreso", "fecha": fecha, "cantidad": cantidad},
         )
     cuerpo = cliente.get("/api/cartera/movimientos").json()
     assert cuerpo["cartera"] == "real"
