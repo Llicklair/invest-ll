@@ -116,11 +116,14 @@ one the first study saw:
 | Stage 2, tax paid every July | 178,593 | 134,899 |
 | Current policy (top-1 rotation) | 56 | 181 |
 
-The conclusions above stand: the market trend filter is still what works, and stage two is still
-the best line, but by a much thinner margin, and the size of that margin depends on reference data
-that changed between two downloads a day apart. That is one more reason to quote the forward test
-and not these numbers. The panel computes its figures from whatever is downloaded, so it shows the
-second column. Report: `research/runs/20261017-1128-crypto-study/report.html` (not in git).
+**Correction, same day.** That second download was incomplete. A full update a few hours later
+(the panel's own `POST /api/datos/actualizar`) brought stage two back to **262,696** (pre-registered
+46,385; current policy 54), within 2% of the first study. So the first table stands, and the lesson
+is a different one: a partial universe download changes the result of every strategy that picks
+coins without failing loudly. Check that the download finished before citing a basket number. The
+panel computes its figures from whatever is downloaded and shows the date of the data it used.
+Report of the run on the partial data: `research/runs/20261017-1128-crypto-study/report.html`
+(not in git).
 
 ## What this means for using INVEST LL
 
