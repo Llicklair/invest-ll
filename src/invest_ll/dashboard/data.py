@@ -1,15 +1,17 @@
 """Lógica del panel, separada de la presentación.
 
 Aquí vive todo lo que se puede probar: descubrir qué hay descargado, cargarlo y convertir los
-informes en tablas. La interfaz de Streamlit solo dibuja lo que esto devuelve.
+informes en tablas. La API del panel (`invest_ll.api`) solo traduce a HTTP lo que esto devuelve,
+y el frontend solo lo dibuja.
 
 La separación no es estética. Un panel donde la lógica vive dentro de los widgets no se puede
 testear, y un panel que muestra cifras de dinero sin tests es justo lo que este proyecto lleva
-toda la sesión evitando.
+toda la sesión evitando. Sobrevivió al cambio de Streamlit a FastAPI sin tocarse por eso mismo.
 """
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -36,6 +38,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 __all__ = [
+    "EXCHANGE_CRIPTO",
+    "INICIO_HISTORICO_COMPLETO",
     "NOMBRES",
     "PROVEEDORES_CRIPTO",
     "RAIZ_DATOS",
@@ -46,6 +50,8 @@ __all__ = [
     "discover_assets",
     "equity_table",
     "fetch_args",
+    "full_history_args",
+    "lanzador_fetch",
     "market_overview",
     "metrics_table",
     "normalised_series",
@@ -207,6 +213,45 @@ def normalised_series(
     return puntos
 
 
+INICIO_HISTORICO_COMPLETO = "2015-01-01"
+"""Desde donde se descarga un activo nuevo: lo bastante atras para cubrir varios ciclos."""
+
+EXCHANGE_CRIPTO = "binance"
+
+
+def lanzador_fetch() -> list[str]:
+    """Cómo se invoca `invest-ll-fetch` desde el panel: con el Python que ya está corriendo.
+
+    No con `uv run`: el panel es un proceso del entorno virtual en marcha, y `uv run` intenta
+    sincronizar ese mismo entorno antes de ejecutar nada. En Windows eso choca con los ejecutables
+    abiertos ("os error 32") y la descarga muere antes de empezar.
+    """
+    return [sys.executable, "-m", "invest_ll.cli_fetch"]
+
+
+def full_history_args(symbol: str, *, market: str, hasta: datetime) -> list[str]:
+    """El comando para descargar un activo nuevo entero, desde 2015 hasta `hasta`.
+
+    Es la descarga del botón de las cotizaciones: un activo que se ve al momento y aún no tiene
+    histórico. En cripto se fija Binance, que es de donde salen esas cotizaciones.
+    """
+    args = [
+        *lanzador_fetch(),
+        symbol,
+        "--market",
+        market,
+        "--interval",
+        "DAY_1",
+        "--start",
+        INICIO_HISTORICO_COMPLETO,
+        "--end",
+        hasta.date().isoformat(),
+    ]
+    if market == "crypto":
+        args += ["--exchange", EXCHANGE_CRIPTO]
+    return args
+
+
 def fetch_args(asset: AvailableAsset, *, hasta: datetime) -> list[str] | None:
     """El comando para re-descargar un histórico hasta `hasta`, o `None` sin procedencia.
 
@@ -219,9 +264,7 @@ def fetch_args(asset: AvailableAsset, *, hasta: datetime) -> list[str] | None:
         return None
 
     args = [
-        "uv",
-        "run",
-        "invest-ll-fetch",
+        *lanzador_fetch(),
         p.symbol,
         "--market",
         p.market,

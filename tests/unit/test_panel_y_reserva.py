@@ -83,6 +83,25 @@ class TestMirarElMercadoVeTodo:
         assert len(activo.load_completa()) > len(activo.load())
 
 
+class TestLaCacheNoSirveSeriesViejas:
+    """El panel pide la misma serie en cada pantalla, y se guarda en memoria por su contenido."""
+
+    def test_la_misma_serie_no_se_vuelve_a_validar(self, activo: AvailableAsset) -> None:
+        assert activo.load_completa() is activo.load_completa()
+
+    def test_reescribir_el_fichero_la_invalida_aunque_mida_lo_mismo(
+        self, activo: AvailableAsset
+    ) -> None:
+        """Mismo tamaño y, en Windows, quizá la misma fecha de modificación: manda el contenido."""
+        assert activo.load_completa().bars[-1].close == 100
+        texto = activo.path.read_text(encoding="utf-8")
+        nuevo = texto.replace("100,101,99,100,1000", "100,101,99,101,1000")
+        assert len(nuevo) == len(texto)
+        activo.path.write_text(nuevo, encoding="utf-8")
+
+        assert activo.load_completa().bars[-1].close == 101
+
+
 class TestElPanelPuedeDecirloEnVozAlta:
     def test_sin_reserva_no_hay_nada_que_avisar(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("invest_ll.dashboard.data.load_reservation", lambda: None)

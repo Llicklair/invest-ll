@@ -26,11 +26,13 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from invest_ll.errors import InvestLLError
+from invest_ll.fetch.available import RAIZ_DATOS
 from invest_ll.portfolio.models import CERO, UNO, como_texto
+from invest_ll.portfolio.quotes import maximo_y_ultimo, ultimo_cierre
 from invest_ll.portfolio.store import RAIZ, CorruptLedgerError, anadir_linea, leer_jsonl
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from pathlib import Path
 
     from invest_ll.portfolio.models import OpenPosition
@@ -177,6 +179,57 @@ def liquidation_commands(positions: Iterable[OpenPosition]) -> list[str]:
     de acción irreversible que el Principio I prohíbe.
     """
     return [comando_de_venta(p.symbol, p.quantity) for p in positions]
+
+
+@dataclass(frozen=True, slots=True)
+class TriggerCheck:
+    """Todas las reglas armadas, evaluadas contra la cartera real. Nada se ha enviado."""
+
+    fired: tuple[tuple[FiredTrigger, datetime], ...]
+    """Cada disparo con la fecha del precio usado: con historicos parados, sin ella pareceria
+    de hoy."""
+    not_evaluated: tuple[str, ...]
+    """Las que no se pudieron mirar, con el porque. No poder mirar NO es 'todo en orden'."""
+    armed: int
+
+
+def check_triggers(
+    triggers: Sequence[Trigger],
+    positions: Iterable[OpenPosition],
+    *,
+    data_root: Path = RAIZ_DATOS,
+) -> TriggerCheck:
+    """Evalúa cada regla armada con el último cierre descargado de su activo.
+
+    Vive aquí y no en la línea de comandos para que el terminal y el panel cuenten lo mismo: una
+    regla sin posición abierta o sin datos se declara sin evaluar, nunca se da por no saltada.
+    """
+    abiertas = {p.symbol: p for p in positions}
+    disparados: list[tuple[FiredTrigger, datetime]] = []
+    sin_evaluar: list[str] = []
+
+    for trigger in triggers:
+        posicion = abiertas.get(trigger.symbol)
+        if posicion is None:
+            sin_evaluar.append(
+                f"{trigger.trigger_id}: no hay posicion abierta de {trigger.symbol} en el ledger"
+            )
+            continue
+        cierre = ultimo_cierre(trigger.symbol, data_root)
+        if cierre is None:
+            sin_evaluar.append(f"{trigger.trigger_id}: sin datos descargados de {trigger.symbol}")
+            continue
+        precio, fecha = cierre
+        pico = maximo_y_ultimo(trigger.symbol, data_root)
+        resultado = evaluate_trigger(
+            trigger, posicion, last_price=precio, peak=pico[0] if pico else None
+        )
+        if resultado is not None:
+            disparados.append((resultado, fecha))
+
+    return TriggerCheck(
+        fired=tuple(disparados), not_evaluated=tuple(sin_evaluar), armed=len(triggers)
+    )
 
 
 @dataclass(frozen=True, slots=True)

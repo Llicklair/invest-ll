@@ -21,14 +21,13 @@ from invest_ll.cli.compare import SALIDA_ERROR, SALIDA_OK
 from invest_ll.cli.emit import Salida, add_json_flag, salida_de
 from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.derive import derive_portfolio
-from invest_ll.portfolio.quotes import maximo_y_ultimo, ultimo_cierre
 from invest_ll.portfolio.store import ActivityStore
 from invest_ll.portfolio.triggers import (
     FiredTrigger,
     Trigger,
     TriggerRule,
     TriggerStore,
-    evaluate_trigger,
+    check_triggers,
     liquidation_commands,
 )
 
@@ -103,31 +102,15 @@ def _comprobar(store: TriggerStore, actividades: ActivityStore, salida: Salida) 
     except InvestLLError as error:
         return salida.error(str(error), SALIDA_ERROR)
 
-    posiciones = {p.symbol: p for p in cartera.open_positions}
+    comprobacion = check_triggers(store.triggers(), cartera.open_positions)
     disparados: list[FiredTrigger] = []
-    sin_evaluar: list[str] = []
+    sin_evaluar = list(comprobacion.not_evaluated)
 
-    for trigger in store.triggers():
-        posicion = posiciones.get(trigger.symbol)
-        if posicion is None:
-            sin_evaluar.append(
-                f"{trigger.trigger_id}: no hay posicion abierta de {trigger.symbol} en el ledger"
-            )
-            continue
-        cierre = ultimo_cierre(trigger.symbol)
-        if cierre is None:
-            sin_evaluar.append(f"{trigger.trigger_id}: sin datos descargados de {trigger.symbol}")
-            continue
-        precio, fecha = cierre
-        pico = maximo_y_ultimo(trigger.symbol)
-        resultado = evaluate_trigger(
-            trigger, posicion, last_price=precio, peak=pico[0] if pico else None
-        )
-        if resultado is not None:
-            disparados.append(resultado)
-            salida.linea(resultado.render())
-            salida.linea(f"    (precio del {fecha.date()})")
-            salida.linea()
+    for resultado, fecha in comprobacion.fired:
+        disparados.append(resultado)
+        salida.linea(resultado.render())
+        salida.linea(f"    (precio del {fecha.date()})")
+        salida.linea()
 
     salida.dato(
         fired=[
@@ -142,7 +125,7 @@ def _comprobar(store: TriggerStore, actividades: ActivityStore, salida: Salida) 
             for f in disparados
         ],
         not_evaluated=sin_evaluar,
-        armed=len(store.triggers()),
+        armed=comprobacion.armed,
     )
 
     for pendiente in sin_evaluar:

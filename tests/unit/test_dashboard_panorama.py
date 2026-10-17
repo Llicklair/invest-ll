@@ -7,6 +7,7 @@ normalice para que un precio alto no aplaste visualmente a los demás.
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
@@ -15,6 +16,7 @@ from invest_ll.dashboard.data import (
     AvailableAsset,
     discover_assets,
     fetch_args,
+    full_history_args,
     market_overview,
     normalised_series,
 )
@@ -202,11 +204,47 @@ class TestActualizarHistoricos:
         argumentos = fetch_args(activo, hasta=datetime(2026, 7, 26, tzinfo=UTC))
 
         assert argumentos is not None
-        assert argumentos[:3] == ["uv", "run", "invest-ll-fetch"]
+        assert argumentos[:3] == [sys.executable, "-m", "invest_ll.cli_fetch"]
         assert "AAA" in argumentos
         assert "--market" in argumentos and "crypto" in argumentos
         assert "--start" in argumentos and "2020-01-01" in argumentos
         assert "--end" in argumentos and "2026-07-26" in argumentos
+
+    def test_no_pasa_por_uv_run(self, tmp_path: Path) -> None:
+        """El panel corre dentro del entorno virtual: `uv run` intentaria resincronizarlo.
+
+        En Windows eso falla con 'os error 32' mientras el ejecutable del panel esta abierto, y
+        la descarga moria antes de empezar.
+        """
+        guardar(tmp_path, "AAA", subida(30))
+        activo = discover_assets(tmp_path)[0]
+        hasta = datetime(2026, 7, 26, tzinfo=UTC)
+        for argumentos in (
+            fetch_args(activo, hasta=hasta),
+            full_history_args("GLD", market="equity", hasta=hasta),
+        ):
+            assert argumentos is not None
+            assert "uv" not in argumentos[:2]
+
+    def test_la_descarga_nueva_trae_el_historico_completo(self) -> None:
+        argumentos = full_history_args(
+            "SOL/USDT", market="crypto", hasta=datetime(2026, 10, 17, tzinfo=UTC)
+        )
+        assert argumentos[3:] == [
+            "SOL/USDT",
+            "--market",
+            "crypto",
+            "--interval",
+            "DAY_1",
+            "--start",
+            "2015-01-01",
+            "--end",
+            "2026-10-17",
+            "--exchange",
+            "binance",
+        ]
+        bolsa = full_history_args("GLD", market="equity", hasta=datetime(2026, 10, 17, tzinfo=UTC))
+        assert "--exchange" not in bolsa
 
     def test_sin_procedencia_no_se_adivina(self, tmp_path: Path) -> None:
         """Descargar con parametros supuestos produciria una serie distinta en silencio."""

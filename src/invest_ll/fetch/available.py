@@ -7,7 +7,9 @@ panel como el chat sin que uno dependa del otro. `invest_ll.dashboard.data` lo r
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -46,7 +48,7 @@ class AvailableAsset:
         return f"{self.symbol} ({self.interval.name})"
 
     def calendar(self) -> MarketCalendar:
-        return Continuous24x7() if self.is_crypto else ExchangeCalendarAdapter("XNYS")
+        return _calendario(cripto=self.is_crypto)
 
     def load(self) -> PriceSeries:
         """Para **medir**: respeta la reserva de datos, igual que la linea de comandos."""
@@ -68,15 +70,37 @@ class AvailableAsset:
         Ver el precio de ayer no contamina ninguna decisión de estrategia, y ocultarlo sí hace
         daño: al fijar una reserva, el panel pasó a mostrar precios de año y medio antes sin
         decirlo. La reserva protege lo que se **mide**, no lo que se **mira**.
+
+        Se guarda en memoria por el CONTENIDO del fichero: el panel pide la misma serie en cada
+        pantalla y validarla cuesta casi un segundo para trece historicos. La clave es la huella
+        de los bytes y no la fecha de modificacion, que en Windows puede no cambiar entre dos
+        escrituras seguidas: una descarga nueva cambia la huella y se vuelve a leer, nunca se
+        sirve una serie vieja.
         """
-        serie, _ = load_series(
-            self.path,
-            symbol=self.symbol,
-            interval=self.interval,
-            calendar=self.calendar(),
-            use_reserved=True,
+        huella = hashlib.sha256(self.path.read_bytes()).hexdigest()
+        return _completa(
+            self.path.resolve(), huella, self.path, self.symbol, self.interval, self.is_crypto
         )
-        return serie
+
+
+def _calendario(*, cripto: bool) -> MarketCalendar:
+    return Continuous24x7() if cripto else ExchangeCalendarAdapter("XNYS")
+
+
+@lru_cache(maxsize=128)
+def _completa(
+    clave: Path, huella: str, ruta: Path, symbol: str, interval: Interval, cripto: bool
+) -> PriceSeries:
+    """La serie completa de un fichero con esa huella. `clave` y `huella` solo indexan la cache."""
+    del clave, huella
+    serie, _ = load_series(
+        ruta,
+        symbol=symbol,
+        interval=interval,
+        calendar=_calendario(cripto=cripto),
+        use_reserved=True,
+    )
+    return serie
 
 
 def discover_assets(root: Path = RAIZ_DATOS) -> list[AvailableAsset]:
