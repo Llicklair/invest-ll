@@ -287,6 +287,21 @@ def test_bolsa_con_compras_en_pausa_no_propone_nada() -> None:
     assert any("motivo Y" in a for a in r.avisos)
 
 
+def test_la_pausa_se_dice_una_vez_y_sin_parentesis_dentro_de_parentesis() -> None:
+    """Salía dos veces y como "en pausa (motivo (desde 2026-10-17)): ..."."""
+    r = calcular(
+        _entrada(
+            pausa="motivo Z (desde el 17 oct 2026)",
+            cripto=_cripto({"BTC": 1.0}, {"BTC": "60000"}),
+            bolsa=_bolsa({"SPY": 1.0}),
+        )
+    )
+    de_pausa = [a for a in r.avisos if "pausa" in a]
+    assert len(de_pausa) == 1
+    assert de_pausa[0].startswith("Las compras están en pausa: motivo Z (desde el 17 oct 2026).")
+    assert "))" not in de_pausa[0]
+
+
 def test_resumen_con_las_dos_partes() -> None:
     r = calcular(
         _entrada(

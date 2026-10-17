@@ -12,7 +12,12 @@ from typing import TYPE_CHECKING, Final
 
 from fastapi import APIRouter
 
-from invest_ll.api.modo import almacen_del_modo, cartera_del_modo, modo_efectivo
+from invest_ll.api.modo import (
+    almacen_del_broker,
+    almacen_del_modo,
+    cartera_del_modo,
+    modo_efectivo,
+)
 from invest_ll.api.schemas_v2 import Inicio, MiniMercado, ParteResumen, Patrimonio
 from invest_ll.errors import InvestLLError
 from invest_ll.estrategias import datos
@@ -83,9 +88,12 @@ def inicio() -> Inicio:
     efectivo = modo_efectivo()
     avisos: list[str] = [] if efectivo.aviso is None else [efectivo.aviso]
     actividades: list[Activity] = []
+    del_broker: list[Activity] = []
     cartera: Portfolio | None = None
     try:
         actividades = almacen_del_modo(efectivo.modo).activities()
+        # Lo del bróker se anota siempre en la cartera real (ver `almacen_del_broker`).
+        del_broker = almacen_del_broker().activities()
         cartera = derive_portfolio(actividades)
     except InvestLLError as error:
         avisos.append(f"Tu registro de movimientos tiene un problema: {error}")
@@ -139,7 +147,11 @@ def inicio() -> Inicio:
         partes = _partes(plan, cartera)
         if cartera is not None:
             resultado = servicio.calcular_hoy(
-                plan, actividades, hoy=servicio.hoy_local(), pausa=pausa
+                plan,
+                actividades,
+                hoy=servicio.hoy_local(),
+                pausa=pausa,
+                actividades_bolsa=del_broker,
             )
             pendientes = len(resultado.acciones)
             proxima = resultado.proxima_fecha

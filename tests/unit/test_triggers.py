@@ -142,6 +142,12 @@ class TestLaPausa:
         assert store.halted() is None
         assert store.resume() is False, "reanudar sin pausa no es un exito"
 
+    def test_la_fecha_de_la_pausa_se_lee_en_castellano(self, tmp_path: Path) -> None:
+        """El panel la enseña tal cual: "(desde 2026-10-17)" no es como se escribe una fecha."""
+        store = TriggerStore(tmp_path)
+        store.halt(reason="pensarlo", at=datetime(2026, 10, 17, 9, 30, tzinfo=UTC))
+        assert store.halted() == "pensarlo (desde el 17 oct 2026)"
+
     def test_una_pausa_sin_motivo_se_rechaza(self, tmp_path: Path) -> None:
         with pytest.raises(InvestLLError, match="motivo"):
             TriggerStore(tmp_path).halt(reason="   ", at=AHORA)

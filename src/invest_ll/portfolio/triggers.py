@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from invest_ll.errors import InvestLLError
 from invest_ll.fetch.available import RAIZ_DATOS
+from invest_ll.llano import fecha_corta
 from invest_ll.portfolio.models import CERO, UNO, como_texto
 from invest_ll.portfolio.quotes import maximo_y_ultimo, ultimo_cierre
 from invest_ll.portfolio.store import RAIZ, CorruptLedgerError, anadir_linea, leer_jsonl
@@ -339,7 +340,7 @@ class TriggerStore:
                     armados.pop(str(evento["trigger_id"]), None)
                 elif tipo == "halt":
                     desde = datetime.fromisoformat(evento["at"]).date()
-                    pausa = f"{evento['reason']} (desde {desde})"
+                    pausa = f"{evento['reason']} (desde el {fecha_corta(desde)})"
                 elif tipo == "resume":
                     pausa = None
                 else:

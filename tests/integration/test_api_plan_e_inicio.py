@@ -117,6 +117,39 @@ class TestHoy:
         assert D(mov["precio"]) == D(spy["precio_ref"]), "en unidades del fondo de referencia"
         assert D(mov["comision"]) == D(2)
 
+    def test_lo_del_broker_es_dinero_real_en_cualquier_modo(
+        self, con_plan: Api, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """El modo es de Binance; tu bróker es siempre dinero de verdad.
+
+        Caso real del panel: con la compra del bróker ya anotada, al pasar a modo pruebas volvía a
+        salir como pendiente, y "Ya lo he comprado" la apuntaba en la cartera de dinero ficticio;
+        al volver a simulación, otra vez pendiente: invitaba a comprarla dos veces.
+        """
+        spy = con_plan.get("/api/plan/hoy").json()["acciones"][1]
+        hecha = {"cantidad": "6", "precio": "550", "comision": "2", "fecha": "2026-10-17"}
+        assert con_plan.post(f"/api/plan/hoy/{spy['id']}/hecho", json=hecha).status_code == 201
+
+        monkeypatch.setenv("INVEST_LL_MODE", "testnet")
+        monkeypatch.setenv("INVEST_LL_TESTNET_KEY", "clave")
+        monkeypatch.setenv("INVEST_LL_TESTNET_SECRET", "secreto")
+        en_pruebas = con_plan.get("/api/plan/hoy").json()
+        assert en_pruebas["modo"] == "pruebas"
+        assert [a["simbolo"] for a in en_pruebas["acciones"]] == ["BTC/USDT", "IEF"]
+
+        ief = en_pruebas["acciones"][1]
+        assert con_plan.post(f"/api/plan/hoy/{ief['id']}/hecho", json=hecha).status_code == 201
+        assert not Path("portfolio-pruebas/activities.jsonl").exists(), "nada a la de pruebas"
+        assert [a["simbolo"] for a in con_plan.get("/api/plan/hoy").json()["acciones"]] == [
+            "BTC/USDT"
+        ]
+
+        monkeypatch.delenv("INVEST_LL_MODE")
+        monkeypatch.delenv("INVEST_LL_TESTNET_KEY")
+        monkeypatch.delenv("INVEST_LL_TESTNET_SECRET")
+        quedan = [a["simbolo"] for a in con_plan.get("/api/plan/hoy").json()["acciones"]]
+        assert quedan == ["BTC/USDT"], "de vuelta en simulación, las dos siguen hechas"
+
     def test_las_de_binance_no_se_anotan_a_mano(self, con_plan: Api) -> None:
         btc = con_plan.get("/api/plan/hoy").json()["acciones"][0]
         hecha = {"cantidad": "0.01", "precio": "60000", "comision": "0", "fecha": "2026-10-17"}
