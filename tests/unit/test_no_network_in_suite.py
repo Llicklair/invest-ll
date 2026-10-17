@@ -37,6 +37,7 @@ def test_solo_dos_modulos_pueden_salir_a_la_red() -> None:
     modulos_permitidos = {
         "vivo/red.py",  # la conexion con Hyperliquid (panel v3, precios en vivo)
         "exchanges/red_ccxt.py",  # construir el exchange de ccxt (panel v4, conectores)
+        "mcp/panel.py",  # el conector MCP habla con la API local del panel (solo 127.0.0.1)
     }
     clientes = (
         "anthropic",

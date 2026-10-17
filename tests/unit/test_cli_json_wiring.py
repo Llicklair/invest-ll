@@ -22,8 +22,9 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[2]
 
 # `fetch` descarga, `panel` levanta un servidor y `chat` es una conversacion interactiva:
-# ninguno produce un resultado que otro programa deba consumir.
-SIN_JSON = frozenset({"invest-ll-fetch", "invest-ll-panel", "invest-ll-chat"})
+# ninguno produce un resultado que otro programa deba consumir. `mcp` es un servidor MCP por
+# stdio: su salida ya es un protocolo (JSON-RPC) y un sobre JSON delante lo romperia.
+SIN_JSON = frozenset({"invest-ll-fetch", "invest-ll-panel", "invest-ll-chat", "invest-ll-mcp"})
 
 
 def puntos_de_entrada() -> dict[str, str]:
