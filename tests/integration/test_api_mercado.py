@@ -63,6 +63,9 @@ class TestRendimiento:
         assert [f["activo"] for f in cuerpo["cripto"]] == ["BTC/USDT"]
         fila = cuerpo["bolsa"][0]
         assert fila["que_es"] == "Oro"
+        assert (fila["nombre"], fila["moneda"]) == ("Oro", "USD")
+        btc = cuerpo["cripto"][0]
+        assert (btc["nombre"], btc["moneda"]) == ("Bitcoin", "USDT")
         assert fila["datos_hasta"] == "2026-09-30", "sin fecha, un historico parado parece de hoy"
         # Tres meses naturales (del 1 de julio al 30 de septiembre): 66 sesiones de bolsa.
         assert len(fila["sparkline"]) == 66

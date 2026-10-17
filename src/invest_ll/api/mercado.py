@@ -53,6 +53,7 @@ from invest_ll.dashboard.data import (
 from invest_ll.fetch.available import desde_hace
 from invest_ll.fetch.catalog import EQUITY_CATALOG
 from invest_ll.fetch.live import LiveDataError, crypto_tickers, equity_quotes
+from invest_ll.nombres import moneda_de, nombre_llano
 
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.fetch.live import LiveQuote
@@ -130,7 +131,11 @@ def rendimiento() -> Rendimiento:
     for activo in descargados():
         for fila in market_overview([activo]):
             modelo = FilaRendimiento.model_validate(
-                {campo: fila[columna] for columna, campo in COLUMNAS_RENDIMIENTO.items()}
+                {
+                    **{campo: fila[columna] for columna, campo in COLUMNAS_RENDIMIENTO.items()},
+                    "nombre": nombre_llano(activo.symbol),
+                    "moneda": moneda_de(activo.symbol),
+                }
             )
             (cripto if activo.is_crypto else bolsa).append(modelo)
     return Rendimiento(bolsa=bolsa, cripto=cripto)

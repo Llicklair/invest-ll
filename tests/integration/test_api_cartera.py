@@ -93,6 +93,7 @@ class TestCartera:
         assert cuerpo["vacia"] is True
         assert cuerpo["error"] is None
         assert cuerpo["efectivo"] == "0"
+        assert cuerpo["cartera"] == "real", "en simulación se ve la cartera real"
 
     def test_valorada_con_el_ultimo_cierre_y_su_fecha(self, cliente: Api) -> None:
         guardar("GLD", [105.0, 110.0], hasta=date(2026, 9, 30))
@@ -101,6 +102,8 @@ class TestCartera:
         cuerpo = cliente.get("/api/cartera").json()
 
         (posicion,) = cuerpo["abiertas"]
+        assert (posicion["nombre"], posicion["moneda"]) == ("Oro", "USD")
+        assert posicion["es_referencia"] is False, "anotada a mano: son tus unidades"
         assert posicion["precio_fecha"] == "2026-09-30"
         for campo in ("cantidad", "coste_medio", "invertido", "precio", "valor"):
             assert isinstance(posicion[campo], str), f"{campo} viaja como float"
@@ -123,6 +126,7 @@ class TestCartera:
         cuerpo = cliente.get("/api/cartera").json()
 
         (retirada,) = cuerpo["retiradas"]
+        assert (retirada["nombre"], retirada["moneda"]) == ("Oro", "USD")
         assert retirada["dias"] == 19
         assert D(retirada["pnl_realizado"]) == D("196")  # 1198 cobrado - 1002 pagado
         assert cuerpo["abiertas"] == []
@@ -152,7 +156,7 @@ class TestCartera:
 
     def test_un_ingreso_del_mismo_dia_quita_el_aviso(self, cliente: Api) -> None:
         cliente.post("/api/cartera/movimientos", json=_compra())
-        ingreso = {"tipo": "deposito", "fecha": "2026-09-01", "cantidad": "5000"}
+        ingreso = {"tipo": "ingreso", "fecha": "2026-09-01", "cantidad": "5000"}
         cliente.post("/api/cartera/movimientos", json=ingreso)
 
         assert cliente.get("/api/cartera").json()["avisos"] == []
@@ -173,10 +177,24 @@ class TestRegistrarMovimiento:
         assert not REGISTRO_ORDENES.exists(), "nada sale al registro de ordenes enviadas"
         assert '"source": "panel"' in LEDGER_CARTERA.read_text(encoding="utf-8")
 
-    def test_un_deposito_va_sin_simbolo_y_a_precio_uno(self, cliente: Api) -> None:
-        deposito = {"tipo": "deposito", "fecha": "2026-09-01", "cantidad": "5000"}
-        assert cliente.post("/api/cartera/movimientos", json=deposito).status_code == 201
+    def test_un_ingreso_va_sin_simbolo_y_a_precio_uno(self, cliente: Api) -> None:
+        ingreso = {"tipo": "ingreso", "fecha": "2026-09-01", "cantidad": "5000"}
+        assert cliente.post("/api/cartera/movimientos", json=ingreso).status_code == 201
         assert cliente.get("/api/cartera").json()["efectivo"] == "5000"
+        (mov,) = cliente.get("/api/cartera/movimientos").json()["movimientos"]
+        assert (mov["tipo"], mov["moneda"], mov["es_referencia"], mov["nota"]) == (
+            "ingreso",
+            "EUR",
+            False,
+            None,
+        )
+
+    def test_deposito_ya_no_es_un_tipo(self, cliente: Api) -> None:
+        """Un solo vocabulario: el efectivo que entra es un "ingreso" también al anotarlo."""
+        deposito = {"tipo": "deposito", "fecha": "2026-09-01", "cantidad": "5000"}
+        r = cliente.post("/api/cartera/movimientos", json=deposito)
+        assert r.status_code == 422
+        assert not LEDGER_CARTERA.exists()
 
     def test_una_compra_sin_precio_es_422(self, cliente: Api) -> None:
         sin_precio = {**_compra(), "precio": None}
@@ -220,6 +238,7 @@ class TestOrdenesEnviadas:
         cuerpo = cliente.get("/api/ordenes").json()
 
         assert [f["estado"] for f in cuerpo["filas"]] == ["unknown", "filled"]
+        assert (cuerpo["filas"][1]["nombre"], cuerpo["filas"][1]["moneda"]) == ("Bitcoin", "USDT")
         assert cuerpo["filas"][1]["pedida"] == "0.001"
         assert cuerpo["filas"][1]["precio"] == "90000"
         assert cuerpo["total"] == 2
@@ -296,10 +315,51 @@ class TestEnviar:
         assert r.json() == {
             "estado": "filled",
             "descripcion": "BTC/USDT: ejecutada 0.001 a 90000.",
+            "resumen": "Vendiste 0,001 Bitcoin a 90.000,00 USDT. Ya está en tu cartera.",
             "necesita_atencion": False,
             "modo": "pruebas",
+            "pedida": "0.001",
+            "ejecutada": "0.001",
+            "precio": "90000",
+            "comision": "0.09",
+            "moneda": "USDT",
+            "en_cartera": True,
         }
         (broker,) = brokers
         (enviada,) = broker.enviadas
         assert enviada.side is Side.SELL
         assert ExecutionLedger().entries()[0].mode_name == "pruebas"
+
+
+def _resultado(estado: OrderStatus, ejecutada: str, *, lado: Side = Side.BUY) -> OrderResult:
+    peticion = OrderRequest(
+        symbol="BTC/USDT",
+        side=lado,
+        quantity=D("0.002"),
+        requested_at=datetime(2026, 10, 1, tzinfo=UTC),
+    )
+    return OrderResult(
+        request=peticion,
+        status=estado,
+        filled_quantity=D(ejecutada),
+        fill_price=D("82245.93") if D(ejecutada) > 0 else None,
+        executed_at=peticion.requested_at,
+        commission=D("0.1"),
+    )
+
+
+class TestResumenEnLlano:
+    def test_parcial_dice_cuanto_y_que_el_resto_no(self) -> None:
+        resumen = rutas_cartera.resumen_de_orden(
+            _resultado(OrderStatus.PARTIAL, "0.0005"), en_cartera=True
+        )
+        assert resumen == (
+            "Solo se ejecutó una parte: compraste 0,0005 de 0,002 Bitcoin a 82.245,93 USDT. "
+            "El resto no se ejecutó. Ya está en tu cartera."
+        )
+
+    def test_una_venta_rechazada(self) -> None:
+        resumen = rutas_cartera.resumen_de_orden(
+            _resultado(OrderStatus.REJECTED, "0", lado=Side.SELL), en_cartera=False
+        )
+        assert resumen == "Binance rechazó la orden: no se ha vendido nada y tu cartera no cambia."

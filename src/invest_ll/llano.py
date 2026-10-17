@@ -70,6 +70,30 @@ def euros(valor: Decimal | float) -> str:
     return f"{numero(cuanto, decimales)} €"
 
 
+SIMBOLOS: Final = {"EUR": "€", "USD": "$"}
+
+
+def cantidad(valor: Decimal, max_decimales: int = 8) -> str:
+    """'0,00122', '5,437', '1.234,5': la cifra tal cual, sin ceros de más ni notación científica."""
+    cuanto = Decimal(str(valor)).quantize(Decimal(1).scaleb(-max_decimales), rounding=ROUND_HALF_UP)
+    exponente = cuanto.normalize().as_tuple().exponent
+    decimales = -exponente if isinstance(exponente, int) and exponente < 0 else 0
+    return numero(cuanto, decimales)
+
+
+def dinero(valor: Decimal | float, moneda: str) -> str:
+    """'1.234,56 $', '82.245,93 USDT', '650 €'.
+
+    Con céntimos, salvo en euros redondos (como `euros`); por debajo de 1, con las cifras que
+    hagan falta para que no se lea 0,00 (una moneda que vale 0,0000123).
+    """
+    if moneda == "EUR":
+        return euros(valor)
+    cuanto = Decimal(str(valor))
+    texto = numero(cuanto, 2) if abs(cuanto) >= 1 or cuanto == 0 else cantidad(cuanto)
+    return f"{texto} {SIMBOLOS.get(moneda, moneda)}"
+
+
 def porcentaje(fraccion: float, decimales: int = 0) -> str:
     """'57 %' a partir de 0.57."""
     return f"{numero(fraccion * 100, decimales)} %"

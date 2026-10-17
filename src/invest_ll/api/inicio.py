@@ -17,6 +17,8 @@ from invest_ll.api.modo import (
     almacen_del_modo,
     cartera_del_modo,
     modo_efectivo,
+    moneda_de_la_cartera,
+    nota_de_moneda,
 )
 from invest_ll.api.schemas_v2 import Inicio, MiniMercado, ParteResumen, Patrimonio
 from invest_ll.errors import InvestLLError
@@ -98,6 +100,7 @@ def inicio() -> Inicio:
     except InvestLLError as error:
         avisos.append(f"Tu registro de movimientos tiene un problema: {error}")
 
+    del_modo = cartera_del_modo(efectivo.modo)
     if cartera is not None:
         v = valorar(cartera, _precio)
         sin_precio = [
@@ -116,7 +119,17 @@ def inicio() -> Inicio:
             realizado=v.realizado,
             fecha_precios=v.fecha_precios,
             incompleto=v.incompleto,
-            cartera=cartera_del_modo(efectivo.modo),
+            cartera=del_modo,
+            # Lo mismo que suma `valorar`: el efectivo derivado, si es positivo.
+            efectivo=max(cartera.cash, Decimal(0)),
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=nota_de_moneda(
+                del_modo,
+                [
+                    *(p.symbol for p in cartera.open_positions),
+                    *(t.symbol for t in cartera.closed_trades),
+                ],
+            ),
         )
     else:
         patrimonio = Patrimonio(
@@ -127,7 +140,10 @@ def inicio() -> Inicio:
             realizado=Decimal(0),
             fecha_precios=None,
             incompleto=True,
-            cartera=cartera_del_modo(efectivo.modo),
+            cartera=del_modo,
+            efectivo=Decimal(0),
+            moneda=moneda_de_la_cartera(del_modo),
+            nota_moneda=None,
         )
 
     pausa = TriggerStore().halted()

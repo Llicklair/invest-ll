@@ -34,7 +34,14 @@ from hashlib import sha256
 from typing import TYPE_CHECKING, Final, Literal
 
 from invest_ll import llano
-from invest_ll.nombres import base, equivalente, equivalente_corto, es_cripto, nombre_llano
+from invest_ll.nombres import (
+    base,
+    equivalente,
+    equivalente_corto,
+    es_cripto,
+    moneda_de,
+    nombre_llano,
+)
 from invest_ll.plan import calendario
 from invest_ll.portfolio.models import ActivityType
 
@@ -121,6 +128,8 @@ class Accion:
     importe: Decimal
     moneda: str
     precio_ref: Decimal | None
+    precio_ref_moneda: str | None
+    referencia: str | None
     precio_fecha: date | None
     equivalente: str | None
     periodo: date | None = None
@@ -281,6 +290,8 @@ def _cripto(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
             importe=(cantidad * precio.valor).quantize(CENTIMO, rounding=ROUND_HALF_UP),
             moneda=MONEDA_CRIPTO,
             precio_ref=precio.valor,
+            precio_ref_moneda=MONEDA_CRIPTO,
+            referencia=None,
             precio_fecha=precio.fecha,
             equivalente=None,
         )
@@ -292,6 +303,17 @@ def _cripto(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
 
 
 # -- Bolsa ------------------------------------------------------------------------------------
+
+
+def es_de_referencia(a: Activity) -> bool:
+    """Una compra de tu bróker anotada con el plan: va en unidades del fondo de EE.UU. de
+    referencia (`api.plan.hecho`), así que su cantidad y su precio no son los que pagaste."""
+    return (
+        a.type is ActivityType.BUY
+        and a.source == FUENTE_PLAN
+        and a.symbol is not None
+        and not es_cripto(a.symbol)
+    )
 
 
 def compras_del_plan(
@@ -364,6 +386,8 @@ def _bolsa(e: Entrada, parte: ParteDeHoy, aviso: _Avisos) -> list[Accion]:
                 importe=importe,
                 moneda=MONEDA_BOLSA,
                 precio_ref=precio.valor,
+                precio_ref_moneda=moneda_de(simbolo),
+                referencia=simbolo,
                 precio_fecha=precio.fecha,
                 equivalente=equivalente(simbolo),
                 periodo=periodo,
