@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from invest_ll.estrategias.simulacion import SinDatosDesdeError, simular
+from invest_ll.estrategias.simulacion import Curva, SinDatosDesdeError, simular, simular_reparto
 
 
 def _dias(desde: date, n: int, paso: int = 1) -> list[int]:
@@ -137,4 +137,92 @@ def test_con_cero_no_hay_nada_que_simular() -> None:
     with pytest.raises(ValueError, match="pon una cantidad"):
         simular(
             _dias(date(2018, 1, 1), 10), [1.0] * 10, inicial=0, mensual=0, desde=date(2018, 1, 1)
+        )
+
+
+# -- Tu reparto entero: varias estrategias como una sola cuenta ---------------------------------
+
+
+def test_con_una_sola_curva_el_reparto_es_lo_mismo_que_una_estrategia() -> None:
+    dias = _dias(date(2022, 1, 1), 90)
+    valor = [100.0] * 20 + [40.0] * 30 + [100.0 + i for i in range(40)]
+    sola = simular(dias, valor, inicial=1000, mensual=100, desde=date(2022, 1, 1))
+    repartida = simular_reparto(
+        [Curva(dias, valor, 1.0)], inicial=1000, mensual=100, desde=date(2022, 1, 1)
+    )
+    assert repartida == sola
+
+
+def test_cada_parte_sigue_su_estrategia_con_su_parte_de_cada_aportacion() -> None:
+    dias = _dias(date(2021, 1, 1), 59)  # enero y febrero
+    plana = [100.0] * 59
+    doble = [100.0] * 31 + [200.0] * 28  # se dobla el 1 de febrero, antes de aportar
+    r = simular_reparto(
+        [Curva(dias, plana, 0.75), Curva(dias, doble, 0.25)],
+        inicial=1000,
+        mensual=100,
+        desde=date(2021, 1, 1),
+    )
+    # Enero: 1100 puestos, 825 + 275; la parte que se dobla pasa a 550. Febrero: 75 + 25 más.
+    assert r.aportado == pytest.approx(1200)
+    assert r.valor_final == pytest.approx(825 + 75 + 550 + 25)
+
+
+def test_la_peor_caida_es_la_del_reparto_entero() -> None:
+    dias = _dias(date(2022, 1, 1), 60)
+    plana = [100.0] * 60
+    a_la_mitad = [100.0] * 30 + [50.0] * 30
+    r = simular_reparto(
+        [Curva(dias, plana, 0.5), Curva(dias, a_la_mitad, 0.5)],
+        inicial=1000,
+        mensual=0,
+        desde=date(2022, 1, 1),
+    )
+    assert r.peor_caida == pytest.approx(-0.25)
+    assert r.peor_momento_valor == pytest.approx(750)
+
+
+def test_bolsa_y_cripto_se_juntan_por_fecha_con_el_ultimo_cierre() -> None:
+    """Un fin de semana sin bolsa vale lo del viernes: la cuenta sigue cada día de la cripto."""
+    desde = date(2021, 1, 4)  # lunes
+    diarios = _dias(desde, 60)
+    sesiones = [d for d in diarios if _fecha_de(d).weekday() < 5]
+    sube = [1.0 + 0.01 * i for i in range(len(sesiones))]
+    r = simular_reparto(
+        [Curva(sesiones, sube, 0.5), Curva(diarios, [1.0] * len(diarios), 0.5)],
+        inicial=100,
+        mensual=0,
+        desde=desde,
+    )
+    sola = simular(diarios, [1.0] * len(diarios), inicial=100, mensual=0, desde=desde)
+    assert [p.fecha for p in r.puntos] == [p.fecha for p in sola.puntos], "la misma muestra"
+    assert r.hasta == date(2021, 3, 4)
+    assert r.valor_final == pytest.approx(50 * sube[-1] + 50)
+
+
+def test_el_reparto_empieza_cuando_todas_tienen_datos_y_lo_avisa() -> None:
+    antigua = _dias(date(2018, 1, 1), 1200)
+    nueva = _dias(date(2020, 3, 1), 300)
+    r = simular_reparto(
+        [Curva(antigua, [1.0] * 1200, 0.9), Curva(nueva, [1.0] * 300, 0.1)],
+        inicial=10,
+        mensual=1,
+        desde=date(2018, 1, 1),
+        escribir_fecha=lambda d: f"{d.day}/{d.month}/{d.year}",
+        sujeto="tu reparto",
+    )
+    assert r.desde == date(2020, 3, 1)
+    assert r.aviso == "Los datos de tu reparto empiezan el 1/3/2020: tus números empiezan ahí."
+
+
+def test_sin_datos_desde_ese_anio_en_una_parte_falla() -> None:
+    with pytest.raises(SinDatosDesdeError):
+        simular_reparto(
+            [
+                Curva(_dias(date(2018, 1, 1), 10), [1.0] * 10, 0.5),
+                Curva(_dias(date(2025, 1, 1), 10), [1.0] * 10, 0.5),
+            ],
+            inicial=1,
+            mensual=1,
+            desde=date(2019, 1, 1),
         )

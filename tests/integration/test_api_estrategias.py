@@ -39,6 +39,7 @@ class TestCatalogo:
         assert "uv run invest-ll-quant download" in btc["motivo"]
         assert "--etf" in por_clave["bolsa-equilibrada"]["motivo"]
         assert "pasado no es una promesa" in cuerpo["nota"]
+        assert "10.000 en la moneda de cada estrategia (dólares o USDT)" in cuerpo["nota"]
 
     def test_con_datos_las_cifras_salen_de_ejecutarlas(self, con_datos: Api) -> None:
         cuerpo = con_datos.get("/api/estrategias").json()
@@ -49,7 +50,11 @@ class TestCatalogo:
             assert h["valor_final"] > 0
             assert h["peor_caida"] <= 0
             assert h["desde"] < h["hasta"]
+            assert h["cambios_al_anio"] >= 0
         por_clave = {e["clave"]: e for e in cuerpo["estrategias"]}
+        equilibrada = por_clave["bolsa-equilibrada"]["historico"]
+        assert equilibrada["operaciones_al_anio"] > 0, "el motor reequilibra por deriva"
+        assert equilibrada["cambios_al_anio"] == 0, "pero tú no tienes que hacer nada"
         assert por_clave["cripto-rotacion"]["retirada"] is True
         assert por_clave["cripto-rotacion"]["laboratorio"] is True
         assert por_clave["btc-freno"]["ejecucion"] == "binance"
@@ -136,6 +141,66 @@ class TestSimular:
         }
         r = con_datos.post("/api/estrategias/simular", json=peticion)
         assert r.status_code == 422
+
+    def test_sin_reparto_no_hay_combinado(self, con_datos: Api) -> None:
+        peticion = {
+            "estrategias": ["btc-freno"],
+            "inicial": "1",
+            "mensual": "1",
+            "desde_anio": 2025,
+        }
+        assert con_datos.post("/api/estrategias/simular", json=peticion).json()["combinado"] is None
+
+    def test_tu_reparto_entero_como_una_cuenta(self, con_datos: Api) -> None:
+        peticion = {
+            "estrategias": ["bolsa-equilibrada", "btc-freno"],
+            "reparto": [
+                {"estrategia": "bolsa-equilibrada", "porcentaje": 90},
+                {"estrategia": "btc-freno", "porcentaje": 10},
+            ],
+            "inicial": "1000",
+            "mensual": "100",
+            "desde_anio": 2025,
+        }
+        cuerpo = con_datos.post("/api/estrategias/simular", json=peticion).json()
+
+        equilibrada, freno = cuerpo["resultados"]
+        combinado = cuerpo["combinado"]
+        assert combinado["clave"] == "reparto"
+        assert combinado["nombre"] == "Tu reparto (90 % Equilibrada, 10 % Bitcoin con freno)"
+        assert combinado["aportado"] == pytest.approx(equilibrada["aportado"])
+        assert combinado["puntos"][0]["aportado"] == pytest.approx(1100)
+        # Cada parte en su estrategia: entre lo que habría hecho cada una con todo el dinero.
+        menor, mayor = sorted((equilibrada["valor_final"], freno["valor_final"]))
+        assert menor <= combinado["valor_final"] <= mayor
+        assert combinado["peor_caida"] <= 0
+        assert combinado["peor_momento_aportado"] > 0
+        # La misma muestra semanal: sus fechas son las de la estrategia de cripto (todos los días).
+        fechas = [p["fecha"] for p in combinado["puntos"]]
+        assert fechas[:-1] == [p["fecha"] for p in freno["puntos"]][:-1]
+        assert combinado["aviso"] is None
+
+    @pytest.mark.parametrize(
+        ("reparto", "estado", "texto"),
+        [
+            ([("bolsa-equilibrada", 90), ("btc-freno", 5)], 422, "suma 95 %"),
+            ([("btc-freno", 50), ("btc-freno", 50)], 422, "dos veces"),
+            ([("no-existe", 100)], 404, "no-existe"),
+        ],
+    )
+    def test_un_reparto_que_no_vale(
+        self, con_datos: Api, reparto: list[tuple[str, int]], estado: int, texto: str
+    ) -> None:
+        peticion = {
+            "estrategias": ["btc-freno"],
+            "reparto": [{"estrategia": e, "porcentaje": p} for e, p in reparto],
+            "inicial": "1000",
+            "mensual": "0",
+            "desde_anio": 2025,
+        }
+        r = con_datos.post("/api/estrategias/simular", json=peticion)
+        assert r.status_code == estado
+        assert texto in r.json()["detail"]
 
     def test_sin_datos_422_con_el_comando(self, cliente: Api) -> None:
         peticion = {

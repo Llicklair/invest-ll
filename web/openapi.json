@@ -5464,7 +5464,7 @@
     },
     "/api/estrategias/simular": {
       "post": {
-        "description": "Inicial + mensual desde un año, en 1-4 estrategias. 404 si una clave no existe.",
+        "description": "Inicial + mensual desde un año, en 1-4 estrategias y, si llega `reparto`, tu dinero\nrepartido así (`combinado`). 404 si una clave no existe; 422 si el reparto no suma 100.",
         "operationId": "simular_api_estrategias_simular_post",
         "requestBody": {
           "content": {

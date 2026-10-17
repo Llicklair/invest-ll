@@ -24,7 +24,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 HOLGURA_INICIO: Final = timedelta(days=7)
 """Si los datos empiezan más de una semana después de lo pedido, se avisa."""
@@ -57,6 +57,16 @@ class Simulada:
     aviso: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class Curva:
+    """La curva de una estrategia (una cifra por día de `dias`) y la parte de tu dinero que va a
+    ella (`peso`: 0,9 = el 90 % del inicial y de cada aportación)."""
+
+    dias: Sequence[int]
+    valor: Sequence[float]
+    peso: float = 1.0
+
+
 def _fecha(dia: int) -> date:
     return datetime.fromtimestamp(dia * 86_400, UTC).date()
 
@@ -79,18 +89,67 @@ def simular(
         SinDatosDesdeError: si no hay datos a partir de `desde`.
         ValueError: si no se pone nada (inicial y mensual a cero) o las cifras son negativas.
     """
+    return simular_reparto(
+        [Curva(dias, valor)],
+        inicial=inicial,
+        mensual=mensual,
+        desde=desde,
+        escribir_fecha=None if fecha_texto is None else (lambda _: fecha_texto),
+    )
+
+
+def simular_reparto(
+    curvas: Sequence[Curva],
+    *,
+    inicial: float,
+    mensual: float,
+    desde: date,
+    escribir_fecha: Callable[[date], str] | None = None,
+    sujeto: str = "esta estrategia",
+) -> Simulada:
+    """Tu dinero repartido entre varias estrategias, cada parte en la suya, como una sola cuenta.
+
+    Cada parte recibe su `peso` del inicial y de cada aportación y sigue los rendimientos de su
+    curva. Las curvas se juntan por fecha: un día sin dato en una (la bolsa en fin de semana)
+    vale lo de su último cierre. Empieza el primer día en que todas tienen datos desde `desde`,
+    y la muestra semanal, las aportaciones y el peor momento se miden sobre la suma, igual que con
+    una sola estrategia. La peor caída es la del reparto entero (su rendimiento ponderado por lo
+    que vale cada parte), sin que tus aportaciones la disimulen. Con una sola curva es `simular`.
+
+    `escribir_fecha` da el texto del día de inicio en el aviso (ISO si no se da); `sujeto`, de qué
+    se habla en él ("esta estrategia", "tu reparto").
+
+    Raises:
+        SinDatosDesdeError: si alguna curva no tiene datos a partir de `desde`.
+        ValueError: si no se pone nada (inicial y mensual a cero), las cifras son negativas o no
+            hay ninguna curva con peso.
+    """
     if inicial < 0 or mensual < 0:
         raise ValueError("el inicial y la aportación mensual no pueden ser negativos")
     if inicial == 0 and mensual == 0:
         raise ValueError("pon una cantidad inicial o una aportación mensual: con cero no hay nada")
-    fechas = [_fecha(int(d)) for d in dias]
-    primero = next((i for i, f in enumerate(fechas) if f >= desde), None)
-    if primero is None:
-        raise SinDatosDesdeError(f"no hay datos desde el {desde.isoformat()}")
+    if not curvas or any(c.peso < 0 for c in curvas) or sum(c.peso for c in curvas) <= 0:
+        raise ValueError("hace falta al menos una estrategia con una parte de tu dinero")
 
-    saldo = 0.0
+    fechas_de = [[_fecha(int(d)) for d in c.dias] for c in curvas]
+    primeras: list[date] = []
+    for fechas_k in fechas_de:
+        primera = next((f for f in fechas_k if f >= desde), None)
+        if primera is None:
+            raise SinDatosDesdeError(f"no hay datos desde el {desde.isoformat()}")
+        primeras.append(primera)
+    inicio = max(primeras)
+    fechas = sorted({f for fechas_k in fechas_de for f in fechas_k if f >= inicio})
+    # El valor de cada curva en cada fecha del calendario común: el de su último dato.
+    valores = [
+        _al_calendario(fechas_k, c.valor, fechas)
+        for fechas_k, c in zip(fechas_de, curvas, strict=True)
+    ]
+    total_pesos = sum(c.peso for c in curvas)
+
+    saldos = [0.0] * len(curvas)
     aportado = 0.0
-    indice = 1.0  # rendimiento acumulado de la estrategia, sin tus aportaciones
+    indice = 1.0  # rendimiento acumulado del reparto, sin tus aportaciones
     maximo_indice = 1.0
     peor_caida = 0.0
     mes: tuple[int, int] | None = None
@@ -98,18 +157,27 @@ def simular(
     por_mes: dict[tuple[int, int], tuple[float, float]] = {}
     serie: list[tuple[float, float]] = []
 
-    for i in range(primero, len(fechas)):
-        if i > primero:
-            anterior = float(valor[i - 1])
-            factor = float(valor[i]) / anterior if anterior > 0 else 0.0
-            saldo *= factor
-            indice *= factor
+    for i in range(len(fechas)):
+        if i > 0:
+            previo = sum(saldos)
+            factor_reparto = 0.0
+            for k, curva in enumerate(curvas):
+                anterior = valores[k][i - 1]
+                factor = valores[k][i] / anterior if anterior > 0 else 0.0
+                # Cuánto pesa cada parte en el rendimiento del día: lo que valía al empezarlo.
+                # Con una sola curva es exactamente 1 y el índice es el de la estrategia.
+                parte = saldos[k] / previo if previo > 0 else curva.peso / total_pesos
+                factor_reparto += parte * factor
+                saldos[k] *= factor
+            indice *= factor_reparto
         clave_mes = (fechas[i].year, fechas[i].month)
         if clave_mes != mes:
-            entra = mensual + (inicial if i == primero else 0.0)
-            saldo += entra
+            entra = mensual + (inicial if i == 0 else 0.0)
+            for k, curva in enumerate(curvas):
+                saldos[k] += entra * curva.peso / total_pesos
             aportado += entra
             mes = clave_mes
+        saldo = sum(saldos)
         maximo_indice = max(maximo_indice, indice)
         peor_caida = min(peor_caida, indice / maximo_indice - 1.0)
         if aportado > 0:
@@ -121,20 +189,21 @@ def simular(
 
     assert peor is not None  # aportado > 0 desde el primer día: inicial o mensual no son cero
     aviso = None
-    if fechas[primero] - desde > HOLGURA_INICIO:
-        cuando = fecha_texto or fechas[primero].isoformat()
-        aviso = f"Los datos de esta estrategia empiezan el {cuando}: tus números empiezan ahí."
+    if inicio - desde > HOLGURA_INICIO:
+        cuando = escribir_fecha(inicio) if escribir_fecha is not None else inicio.isoformat()
+        aviso = f"Los datos de {sujeto} empiezan el {cuando}: tus números empiezan ahí."
 
+    saldo_final = serie[-1][0]
     return Simulada(
-        desde=fechas[primero],
+        desde=inicio,
         hasta=fechas[-1],
         puntos=tuple(
             Punto(fecha=etiqueta, valor=serie[j][0], aportado=serie[j][1])
-            for j, etiqueta in _semanales(fechas[primero:])
+            for j, etiqueta in _semanales(fechas)
         ),
         aportado=aportado,
-        valor_final=saldo,
-        ganancia=saldo - aportado,
+        valor_final=saldo_final,
+        ganancia=saldo_final - aportado,
         peor_momento_fecha=fechas[peor[1]],
         peor_momento_valor=peor[2],
         peor_momento_aportado=peor[3],
@@ -142,6 +211,23 @@ def simular(
         meses_por_debajo=sum(1 for s, a in por_mes.values() if s < a - 1e-9),
         aviso=aviso,
     )
+
+
+def _al_calendario(
+    fechas: Sequence[date], valor: Sequence[float], calendario: Sequence[date]
+) -> list[float]:
+    """El valor de la curva en cada fecha del calendario: el de su último dato en o antes.
+
+    Cada fecha del calendario es posterior o igual al primer dato de la curva desde el inicio
+    pedido (el calendario empieza cuando todas tienen datos), así que siempre hay uno.
+    """
+    salida: list[float] = []
+    j = 0
+    for dia in calendario:
+        while j + 1 < len(fechas) and fechas[j + 1] <= dia:
+            j += 1
+        salida.append(float(valor[j]))
+    return salida
 
 
 def _semanales(fechas: Sequence[date]) -> list[tuple[int, date]]:
