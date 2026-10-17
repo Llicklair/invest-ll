@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -150,6 +151,26 @@ def test_se_calcula_una_vez_por_version_de_los_datos(
     escribir_paneles(cripto=False, hasta=date(2026, 10, 15))  # datos nuevos: otra huella
     historico.ejecuciones("bolsa")
     assert len(llamadas) == 2 * sum(1 for f in FICHAS if f.mercado == "bolsa")
+
+
+def test_lo_calculado_no_hace_cola_tras_otra_que_se_esta_calculando(paneles: Path) -> None:
+    """Mientras la cesta de Laboratorio se calcula (el cerrojo de cripto cogido), lo que ya está
+    en memoria se sirve sin esperar: si no, simular Bitcoin con freno tardaba lo que la cesta."""
+    historico.MEMORIA.olvidar()
+    mantener = _ficha("btc-mantener")
+    historico.ejecucion(mantener)
+    servido: list[historico.Ejecucion] = []
+
+    cerrojo = historico.MEMORIA._cerrojos["cripto"]  # pyright: ignore[reportPrivateUsage]
+    with cerrojo:
+        hilo = threading.Thread(target=lambda: servido.append(historico.ejecucion(mantener)))
+        hilo.start()
+        hilo.join(timeout=5)
+        a_tiempo = list(servido)  # antes de soltar el cerrojo
+    hilo.join()
+
+    assert a_tiempo, "se quedó esperando al cerrojo"
+    assert a_tiempo[0].recorrido is not None
 
 
 def test_sin_datos_no_disponible_con_el_comando(

@@ -8,7 +8,8 @@ los datos que se hayan descargado después.
 
 Ejecutar el catálogo entero cuesta unos segundos (la cesta prerregistrada, con siete tramos y un
 universo de cientos de monedas, es lo más caro), así que se guarda en memoria por la huella del
-fichero de datos y se calcula una sola vez aunque lleguen varias peticiones a la vez. Solo se
+fichero de datos y cada estrategia se calcula una sola vez aunque lleguen varias peticiones a la
+vez. Solo se
 guarda lo que el panel usa: la curva y el tiempo invertido de cada día, no la matriz de pesos.
 """
 
@@ -22,7 +23,7 @@ from typing import TYPE_CHECKING, Final
 import numpy as np
 
 from invest_ll.estrategias import datos
-from invest_ll.estrategias.catalogo import CALENTAMIENTO_CRIPTO, del_mercado
+from invest_ll.estrategias.catalogo import CALENTAMIENTO_CRIPTO, FICHAS, del_mercado
 from invest_ll.quant.engine import RunConfig, run
 from invest_ll.quant.metrics import drawdown, longest_drawdown
 from invest_ll.quant.universe import PointInTimeUniverse
@@ -143,30 +144,46 @@ def cifras(recorrido: Recorrido) -> Cifras:
 
 
 class _Memoria:
-    """Las ejecuciones de cada mercado, por huella del fichero. Una sola cuenta a la vez."""
+    """Las ejecuciones de cada mercado, por huella del fichero y estrategia a estrategia.
+
+    Se calcula cada estrategia la primera vez que alguien la pide, y una sola vez aunque lleguen
+    varias peticiones a la vez (un cerrojo por mercado). Ir de una en una deja lista antes lo que
+    se usa en el camino principal: la recomendación no espera a la cesta de Laboratorio.
+    """
 
     def __init__(self) -> None:
-        self._cerrojo = threading.Lock()
+        self._cerrojos: dict[Mercado, threading.Lock] = {
+            "bolsa": threading.Lock(),
+            "cripto": threading.Lock(),
+        }
         self._guardado: dict[Mercado, tuple[datos.Huella, dict[str, Ejecucion]]] = {}
 
-    def de(self, mercado: Mercado) -> dict[str, Ejecucion]:
+    def de(self, ficha: Ficha) -> Ejecucion:
+        mercado = ficha.mercado
         clave = datos.huella(mercado)
         if clave is None:
-            motivo = datos.motivo_sin_datos(mercado)
-            return {f.clave: Ejecucion(None, motivo) for f in del_mercado(mercado)}
-        with self._cerrojo:
+            return Ejecucion(None, datos.motivo_sin_datos(mercado))
+        # Lo ya calculado se sirve sin esperar al cerrojo: mientras se calcula otra estrategia del
+        # mismo mercado (la cesta de Laboratorio tarda), las que ya están no deben hacer cola.
+        previo = self._guardado.get(mercado)
+        if previo is not None and previo[0] == clave and ficha.clave in previo[1]:
+            return previo[1][ficha.clave]
+        with self._cerrojos[mercado]:
             previo = self._guardado.get(mercado)
-            if previo is not None and previo[0] == clave:
-                return previo[1]
-            panel = datos.panel(mercado)
-            assert panel is not None  # hay huella: el fichero existe
-            calculado = {f.clave: _intentar(f, panel) for f in del_mercado(mercado)}
-            self._guardado[mercado] = (clave, calculado)
-            return calculado
+            if previo is None or previo[0] != clave:
+                previo = (clave, dict[str, Ejecucion]())
+                self._guardado[mercado] = previo
+            hechas = previo[1]
+            if ficha.clave not in hechas:
+                panel = datos.panel(mercado)
+                assert panel is not None  # hay huella: el fichero existe
+                hechas[ficha.clave] = _intentar(ficha, panel)
+            return hechas[ficha.clave]
 
     def olvidar(self) -> None:
-        with self._cerrojo:
-            self._guardado.clear()
+        for mercado, cerrojo in self._cerrojos.items():
+            with cerrojo:
+                self._guardado.pop(mercado, None)
 
 
 def _intentar(ficha: Ficha, panel: Panel) -> Ejecucion:
@@ -183,16 +200,21 @@ def _intentar(ficha: Ficha, panel: Panel) -> Ejecucion:
 MEMORIA: Final = _Memoria()
 
 
-def ejecuciones(mercado: Mercado) -> dict[str, Ejecucion]:
-    """Las ejecuciones del mercado: de memoria si los datos no han cambiado."""
-    return MEMORIA.de(mercado)
-
-
 def ejecucion(ficha: Ficha) -> Ejecucion:
-    return ejecuciones(ficha.mercado)[ficha.clave]
+    """La ejecución de una estrategia: de memoria si los datos no han cambiado."""
+    return MEMORIA.de(ficha)
+
+
+def ejecuciones(mercado: Mercado) -> dict[str, Ejecucion]:
+    """Las de todo un mercado, en el orden del catálogo."""
+    return {f.clave: ejecucion(f) for f in del_mercado(mercado)}
 
 
 def precalentar() -> None:
-    """Calcula el catálogo entero antes de que nadie lo pida (al arrancar el panel)."""
-    for mercado in ("bolsa", "cripto"):
-        ejecuciones(mercado)
+    """Calcula el catálogo antes de que nadie lo pida (al arrancar el panel).
+
+    Primero las del camino principal, que son las que necesitan la recomendación y la primera
+    visita a Estrategias; después las de Laboratorio.
+    """
+    for f in sorted(FICHAS, key=lambda f: not f.principal):
+        ejecucion(f)
