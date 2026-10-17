@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from invest_ll import nombres
 from invest_ll.data.bar import Interval
 from invest_ll.data.calendars import Continuous24x7, ExchangeCalendarAdapter, MarketCalendar
 from invest_ll.data.loader import load_series
@@ -153,20 +154,9 @@ VENTANAS: tuple[tuple[str, int], ...] = (
     ("5 años", 1260),
 )
 
-NOMBRES = {
-    "GLD": "Oro",
-    "TLT": "Bonos EE.UU. largo plazo",
-    "SPY": "S&P 500",
-    "QQQ": "Nasdaq 100",
-    "XLK": "Tecnologia",
-    "XLF": "Finanzas",
-    "XLE": "Energia",
-    "XLV": "Salud",
-    "XLP": "Consumo basico",
-    "XLU": "Servicios publicos",
-    "AAPL": "Apple",
-    "BTC/USDT": "Bitcoin",
-}
+# Los nombres llanos viven en un solo sitio (`invest_ll.nombres`); se re-exportan con el nombre de
+# antes para quien ya los importaba de aquí.
+NOMBRES = nombres.NOMBRES
 
 
 def _rendimiento(cierres: list[float], periodos: int) -> float | None:
@@ -226,7 +216,7 @@ def market_overview(assets: Sequence[AvailableAsset]) -> list[dict[str, object]]
         maximo = max(cierres)
         fila: dict[str, object] = {
             "activo": activo.symbol,
-            "que es": NOMBRES.get(activo.symbol, "—"),
+            "que es": nombres.nombre_conocido(activo.symbol) or "—",
             "ultimo": round(cierres[-1], 2),
         }
 
