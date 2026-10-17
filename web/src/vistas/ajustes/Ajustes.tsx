@@ -8,7 +8,7 @@ import { SeccionDatos } from "@/componentes/DatosAlDia";
 import { Encabezado, Nota, Seccion, Tarjeta, clases } from "@/componentes/ui";
 import { useGuardado } from "@/lib/almacen";
 
-import { Conexion } from "./Conexion";
+import { Conexiones } from "./Conexiones";
 
 const TEMAS = [
   { valor: "sistema", texto: "Como el sistema", icono: Monitor },
@@ -87,18 +87,21 @@ function Escenarios() {
   );
 }
 
-/** Ajustes (docs/panel-v2.md, 4.5): la conexion con Binance, el tema, los datos y acerca de. */
+/**
+ * Ajustes (docs/panel-v2.md, 4.5; docs/panel-v4-real.md §4): las conexiones con los exchanges y con
+ * Claude, el tema, los datos y acerca de.
+ */
 export function Ajustes() {
   return (
     <div className="space-y-14">
-      <Encabezado antetitulo="Más" titulo="Ajustes" bajada="La conexión con Binance, cómo se ve el panel y de dónde salen los datos." />
+      <Encabezado antetitulo="Más" titulo="Ajustes" bajada="Tus exchanges y el conector con Claude, cómo se ve el panel y de dónde salen los datos." />
 
       <Seccion
-        titulo="Conexión con Binance"
+        titulo="Conexiones"
         id="conexion"
-        bajada="Tres pasos para pasar de la simulación al dinero real, sin saltarse ninguno."
+        bajada="Cada exchange pasa por tres pasos, de la red de pruebas al dinero real, sin saltarse ninguno. Las claves nunca salen de este ordenador."
       >
-        <Conexion />
+        <Conexiones />
       </Seccion>
 
       <Seccion titulo="Tema" id="tema">

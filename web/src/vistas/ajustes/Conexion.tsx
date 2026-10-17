@@ -16,9 +16,10 @@ import { useAccion } from "@/lib/consulta";
 import { formatoCantidad } from "@/lib/decimal";
 import { enUnaFrase } from "@/lib/formato";
 
-type EstadoEtapa = "hecha" | "actual" | "bloqueada";
+export type EstadoEtapa = "hecha" | "actual" | "bloqueada";
 
-function Etapa({
+/** Una etapa de un camino (pruebas -> orden de prueba -> real), plegable si no es la de ahora. */
+export function Etapa({
   numero,
   titulo,
   estado,
@@ -299,10 +300,38 @@ function HojaDineroReal({ abierta, onCerrar, onActivado }: { abierta: boolean; o
 }
 
 /**
- * Conectar Binance (docs/panel-v2.md, 4.6): un camino de tres etapas con su estado. Los cuatro
- * cerrojos de live/mode.py no se relajan: el panel solo cambia de donde salen el modo y las claves.
+ * El modo del panel (el de Invertir, Cartera e Inicio: tu plan con Binance), con su origen y la
+ * vuelta a simulacion. La pildora de arriba lleva aqui (/ajustes/#conexion). Los bots no lo usan:
+ * cada uno lleva su modo y su exchange (docs/panel-v4-real.md).
  */
-export function Conexion() {
+export function TarjetaModoPlan({ pie }: { pie?: ReactNode }) {
+  const { conexion, error, cargando, modo } = useModo();
+  const { refrescarDatos } = useEstado();
+  if (!conexion) {
+    if (error && !cargando) return <ErrorApiVista error={error} prefijo="No se pudo leer la conexión:" reintentar={refrescarDatos} />;
+    return <Cargando texto="Leyendo la conexión…" />;
+  }
+  return (
+    <Tarjeta className="flex flex-wrap items-center justify-between gap-4 p-5">
+      <div className="min-w-0 max-w-xl">
+        <p className="text-sm text-tinta-suave">Modo de tu plan (Invertir y Cartera)</p>
+        <p className="titular text-2xl font-semibold text-tinta">{modo ? NOMBRE_MODO[modo] : "Desconocido"}</p>
+        {conexion.modo_origen === "entorno" ? (
+          <p className="mt-1 text-sm text-tinta-suave">Lo fija el entorno (INVEST_LL_MODE): para cambiarlo, cámbialo allí.</p>
+        ) : null}
+        {pie ? <div className="mt-1 text-sm leading-relaxed text-tinta-suave">{pie}</div> : null}
+      </div>
+      {modo !== "simulacion" ? <CambiarModo a="simulacion" conexion={conexion} onCambio={refrescarDatos} texto="Volver a simulación" /> : null}
+    </Tarjeta>
+  );
+}
+
+/**
+ * Conectar Binance para tu plan (docs/panel-v2.md, 4.6): un camino de tres etapas con su estado.
+ * Los cuatro cerrojos de live/mode.py no se relajan: el panel solo cambia de donde salen el modo y
+ * las claves. Desde v4 vive dentro de Binance, en Ajustes · Conexiones (pestana "Para tu plan").
+ */
+export function CaminoPlanBinance() {
   const { conexion, error, cargando, modo } = useModo();
   const { refrescarDatos } = useEstado();
   const [hojaReal, setHojaReal] = useState(false);
@@ -324,17 +353,10 @@ export function Conexion() {
 
   return (
     <div className="space-y-6">
-      <Tarjeta className="flex flex-wrap items-center justify-between gap-4 p-5">
-        <div>
-          <p className="text-sm text-tinta-suave">Modo actual</p>
-          <p className="titular text-2xl font-semibold text-tinta">{modo ? NOMBRE_MODO[modo] : "Desconocido"}</p>
-          {conexion.modo_origen === "entorno" ? (
-            <p className="mt-1 text-sm text-tinta-suave">Lo fija el entorno (INVEST_LL_MODE): para cambiarlo, cámbialo allí.</p>
-          ) : null}
-        </div>
-        {modo !== "simulacion" ? <CambiarModo a="simulacion" conexion={conexion} onCambio={refrescarDatos} texto="Volver a simulación" /> : null}
-      </Tarjeta>
-
+      <p className="text-[0.9375rem] leading-relaxed text-tinta">
+        Esto es para lo que toca hoy en Invertir: las órdenes de tu plan, que confirmas tú una a una tecleando la cantidad. Tu plan
+        está ahora en <strong className="font-semibold">{modo ? NOMBRE_MODO[modo].toLowerCase() : "un modo desconocido"}</strong>.
+      </p>
       <ol className="space-y-4">
         <Etapa
           numero={1}
