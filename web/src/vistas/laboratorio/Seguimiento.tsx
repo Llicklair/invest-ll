@@ -16,7 +16,7 @@ export function Seguimiento() {
   const s = consulta.datos;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-tinta">Lo estimado frente a lo que pasó</h1>
+      <h2 className="titular text-2xl font-semibold text-tinta">Lo estimado frente a lo que pasó</h2>
       <Nota>
         Un backtest del LLM sobre el pasado no demuestra nada: el modelo fue entrenado con datos posteriores al periodo
         simulado. Esto sí.

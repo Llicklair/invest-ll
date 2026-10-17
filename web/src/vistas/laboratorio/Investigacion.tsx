@@ -60,7 +60,7 @@ function Objetivo({ datos, capital, setCapital }: { datos: DatosInvestigacion; c
         <tbody>
           {datos.objetivo.map((p) => (
             <tr key={p.moneda}>
-              <Td className={p.moneda === "liquidez" ? "text-tinta-2 italic" : "font-medium"}>{p.moneda}</Td>
+              <Td className={p.moneda === "liquidez" ? "text-tinta-suave italic" : "font-medium"}>{p.moneda}</Td>
               <Td numerica>{fraccion(p.peso, 1, false)}</Td>
               <Td>
                 <BarraPeso peso={p.peso} />
@@ -95,7 +95,7 @@ function Estudio({ datos }: { datos: DatosInvestigacion }) {
       {ejemplo.error ? <ErrorApiVista error={ejemplo.error} /> : null}
       <iframe
         title="Último estudio"
-        className="h-[1400px] w-full rounded-md border border-borde bg-white"
+        className="h-[1400px] w-full rounded-md border border-linea bg-white"
         sandbox="allow-scripts"
         {...(MODO_EJEMPLO ? { srcDoc: ejemplo.datos ?? "" } : { src: urlApi("/api/investigacion/estudio") })}
       />
@@ -114,7 +114,6 @@ export function Investigacion() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-tinta">Investigación</h1>
       <Seccion titulo="Cartera prerregistrada" id="prerregistrada">
         <Nota>
           Momentum diversificado sobre las 20 monedas más líquidas de cada día, con las que luego murieron incluidas. Peso
@@ -146,7 +145,7 @@ export function Investigacion() {
           <div className="space-y-4">
             {d.prueba_adelante.map((p) => (
               <div key={p.clave} className="space-y-2">
-                <h3 className="text-sm font-semibold">{p.etiqueta}</h3>
+                <h3 className="text-[0.9375rem] font-semibold">{p.etiqueta}</h3>
                 {p.nota ? (
                   <Aviso tipo="info">
                     <TextoApi texto={p.nota} />

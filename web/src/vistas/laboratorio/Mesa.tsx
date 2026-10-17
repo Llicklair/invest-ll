@@ -77,8 +77,8 @@ export function Mesa({
 
   return (
     <div className="space-y-1.5">
-      <h3 className="text-sm font-semibold text-tinta">
-        {titulo} <span className="font-normal text-tinta-2">— {filas.length} activo(s)</span>
+      <h3 className="text-[0.9375rem] font-semibold text-tinta">
+        {titulo} <span className="font-normal text-tinta-suave">— {filas.length} activo(s)</span>
       </h3>
       <MarcoTabla etiqueta={`Rendimiento por periodo: ${titulo.toLowerCase()}`}>
         <thead>
@@ -91,7 +91,7 @@ export function Mesa({
                   key={c.clave}
                   numerica={c.tipo === "precio" || c.tipo === "variacion"}
                   aria-sort={activa ? (orden?.ascendente ? "ascending" : "descending") : undefined}
-                  className={clases(c.destacada && "bg-superficie-3 text-tinta")}
+                  className={clases(c.destacada && "bg-superficie-2 text-tinta")}
                 >
                   {ordenable ? (
                     <button
@@ -101,7 +101,7 @@ export function Mesa({
                       title={`Ordenar por ${c.texto}`}
                     >
                       {c.texto}
-                      <span aria-hidden="true" className="w-2 text-tinta-3">
+                      <span aria-hidden="true" className="w-2 text-tinta-suave">
                         {activa ? (orden?.ascendente ? "▲" : "▼") : ""}
                       </span>
                     </button>
@@ -122,7 +122,7 @@ export function Mesa({
               <tr
                 key={f.activo}
                 onClick={() => onElegir(f.activo)}
-                className={clases("cursor-pointer hover:bg-superficie-2", seleccionada && "bg-superficie-3")}
+                className={clases("cursor-pointer hover:bg-superficie-2", seleccionada && "bg-superficie-2")}
               >
                 <Td>
                   <button
@@ -138,7 +138,7 @@ export function Mesa({
                     {f.activo}
                   </button>
                 </Td>
-                <Td className="text-tinta-2">{f.que_es}</Td>
+                <Td className="text-tinta-suave">{f.que_es}</Td>
                 <Td numerica>{numero(f.ultimo, 2)}</Td>
                 <TdVariacion valor={f.var_1d} />
                 <TdVariacion valor={f.var_1s} />
@@ -156,7 +156,7 @@ export function Mesa({
                       : "Sin datos para la minigráfica"}
                   </span>
                 </Td>
-                <Td className="text-tinta-2">{fecha(f.datos_hasta)}</Td>
+                <Td className="text-tinta-suave">{fecha(f.datos_hasta)}</Td>
               </tr>
             );
           })}

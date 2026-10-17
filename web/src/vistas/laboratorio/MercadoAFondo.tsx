@@ -39,7 +39,7 @@ function GraficaActivo({ simbolo, onCerrar }: { simbolo: string; onCerrar: () =>
       nivel={3}
       id="grafica-activo"
       accion={
-        <Boton onClick={onCerrar} className="min-h-7 px-2 py-0.5 text-xs">
+        <Boton onClick={onCerrar} tamano="compacto">
           Cerrar gráfica
         </Boton>
       }
@@ -178,7 +178,7 @@ function Comparacion() {
  * Como va cada cosa, sin recomendar nada. Deliberadamente aburrida: sin "miedo y codicia" ni
  * "temporada de altcoins", que existen para que operes mas.
  */
-export function Panorama({
+export function MercadoAFondo({
   elegido,
   onElegir,
 }: {

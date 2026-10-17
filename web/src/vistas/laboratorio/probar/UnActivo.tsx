@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { api, pedir } from "@/api/cliente";
-import type { Estrategia, PeticionUnActivo } from "@/api/tipos";
+import type { EstrategiaUnActivo, PeticionUnActivo } from "@/api/tipos";
 import { Boton, CampoTexto, Deslizador, ErrorApiVista, Seccion, Selector } from "@/componentes/ui";
 import { useEstado } from "@/contexto/estado";
 import { useAccion } from "@/lib/consulta";
@@ -11,13 +11,13 @@ import { useAccion } from "@/lib/consulta";
 import { AvisoCostes, useFriccion, useOpciones } from "./comun";
 import { Informe } from "./Informe";
 
-const ESTRATEGIAS: Record<Estrategia, string> = {
+const ESTRATEGIAS: Record<EstrategiaUnActivo, string> = {
   "cruce-medias": "Cruce de medias",
   "precio-vs-media": "Precio vs media",
   "ruptura-maximos": "Ruptura de máximos",
 };
 
-function esEstrategia(v: string): v is Estrategia {
+function esEstrategiaUnActivo(v: string): v is EstrategiaUnActivo {
   return v in ESTRATEGIAS;
 }
 
@@ -43,7 +43,7 @@ export function UnActivo() {
   const friccion = useFriccion();
   const activos = estado?.activos ?? [];
   const [activo, setActivo] = useState<string | null>(null);
-  const [estrategia, setEstrategia] = useState<Estrategia>("cruce-medias");
+  const [estrategia, setEstrategiaUnActivo] = useState<EstrategiaUnActivo>("cruce-medias");
   const [fraccion, setFraccion] = useState(1);
   const [corta, setCorta] = useState("10");
   const [larga, setLarga] = useState("30");
@@ -54,7 +54,7 @@ export function UnActivo() {
 
   const id = activo ?? activos[0]?.id ?? "";
   // Solo las estrategias que la API dice tener (si dice alguna); el orden es el del panel viejo.
-  const disponibles = (Object.keys(ESTRATEGIAS) as Estrategia[]).filter(
+  const disponibles = (Object.keys(ESTRATEGIAS) as EstrategiaUnActivo[]).filter(
     (e) => !opciones.datos || opciones.datos.estrategias.length === 0 || opciones.datos.estrategias.includes(e),
   );
 
@@ -91,7 +91,7 @@ export function UnActivo() {
             etiqueta="Estrategia"
             value={estrategia}
             onChange={(e) => {
-              if (esEstrategia(e.target.value)) setEstrategia(e.target.value);
+              if (esEstrategiaUnActivo(e.target.value)) setEstrategiaUnActivo(e.target.value);
             }}
           >
             {disponibles.map((e) => (

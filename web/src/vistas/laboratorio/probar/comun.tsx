@@ -33,7 +33,7 @@ export function AvisoPausa({ pausa }: { pausa: string }) {
   return (
     <Aviso tipo="aviso">
       <strong>Pausa activa:</strong> <TextoApi texto={pausa} />. No se proponen entradas nuevas; las posiciones abiertas no se tocan.
-      Retírala en Vigilar o con <Codigo>invest-ll-triggers resume</Codigo>.
+      Retírala en Cartera · Protección o con <Codigo>invest-ll-triggers resume</Codigo>.
     </Aviso>
   );
 }

@@ -31,8 +31,8 @@ function TablaViva({
 }) {
   return (
     <div className="space-y-1.5">
-      <h3 className="text-sm font-semibold text-tinta">
-        {titulo} <span className="font-normal text-tinta-2">— {filas.length} de {total} (ordenados por volumen)</span>
+      <h3 className="text-[0.9375rem] font-semibold text-tinta">
+        {titulo} <span className="font-normal text-tinta-suave">— {filas.length} de {total} (ordenados por volumen)</span>
       </h3>
       {filas.length ? (
         <MarcoTabla etiqueta={`Cotizaciones de ${titulo.toLowerCase()}`} altoMaximo={360}>
@@ -52,7 +52,7 @@ function TablaViva({
                 <tr
                   key={f.activo}
                   onClick={() => onElegir(f.activo)}
-                  className={clases("cursor-pointer hover:bg-superficie-2", activo && "bg-superficie-3")}
+                  className={clases("cursor-pointer hover:bg-superficie-2", activo && "bg-superficie-2")}
                 >
                   <Td>
                     <button
@@ -70,7 +70,7 @@ function TablaViva({
                   <Td numerica>{precio(f.precio)}</Td>
                   <TdVariacion valor={f.var_24h} texto={porcentaje(f.var_24h, 2)} />
                   <Td numerica>{numero(f.volumen_24h_m, 1)}</Td>
-                  <Td className="text-tinta-2">{f.descargado ? "descargado" : "—"}</Td>
+                  <Td className="text-tinta-suave">{f.descargado ? "descargado" : "—"}</Td>
                 </tr>
               );
             })}
@@ -135,7 +135,7 @@ export function Cotizaciones({ onVerGrafica }: { onVerGrafica: (simbolo: string)
         <div className="space-y-3">
           <p className="text-sm text-tinta">
             <strong>Foto de las {horaUtc(foto.at)} UTC</strong> del {foto.at.slice(0, 10)}.{" "}
-            <span className="text-tinta-2">Vuelve a pulsar para refrescarla.</span>
+            <span className="text-tinta-suave">Vuelve a pulsar para refrescarla.</span>
           </p>
           {foto.errores.map((e) => (
             <Aviso key={e} tipo="critico">
@@ -180,7 +180,7 @@ export function Cotizaciones({ onVerGrafica }: { onVerGrafica: (simbolo: string)
               </button>
             </Aviso>
           ) : (
-            <div className="space-y-2 rounded-md border border-borde bg-superficie p-3">
+            <div className="space-y-2 rounded-tarjeta border border-linea bg-superficie p-4">
               <p className="text-sm">
                 Seleccionado: <strong>{elegido.activo}</strong> (sin histórico descargado)
               </p>
