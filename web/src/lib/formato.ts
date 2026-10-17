@@ -51,17 +51,44 @@ export function fraccion(valor: number | null | undefined, decimales = 1, conSig
   return `${menos(formateador(decimales, decimales, conSigno).format(valor * 100))}${NBSP}%`;
 }
 
+/**
+ * Un porcentaje (fraccion) que acompana a un importe con signo: el signo es SIEMPRE el del
+ * importe ("Pierdes −2,00 € (−0,06 %)"), y si redondeado a un decimal saldria "0,0 %" se dan dos
+ * decimales o "menos del 0,01 %": nunca un cero pelado junto a una perdida.
+ */
+export function fraccionCoherente(valor: number | null | undefined, signoImporte: -1 | 0 | 1): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return SIN_DATO;
+  if (signoImporte === 0) return `0${NBSP}%`;
+  const abs = Math.abs(valor * 100);
+  const marca = signoImporte > 0 ? "+" : "−";
+  for (const decimales of [1, 2]) {
+    const factor = 10 ** decimales;
+    if (Math.round(abs * factor) > 0) return `${marca}${formateador(decimales, decimales, false).format(abs)}${NBSP}%`;
+  }
+  return `menos del 0,01${NBSP}%`;
+}
+
+/** ¿Este texto formateado dice algo distinto de cero? ("+0,0 %" y "0,00" no). */
+export function noEsCero(texto: string): boolean {
+  return /[1-9]/.test(texto);
+}
+
+/** El simbolo de una moneda para ponerlo detras de la cifra: "€", "$" o el codigo ("USDT"). */
+export function simboloMoneda(moneda: string | null | undefined): string {
+  const m = (moneda ?? "").toUpperCase();
+  return m === "EUR" ? "€" : m === "USD" ? "$" : m || "€";
+}
+
 /** Un importe exacto (cadena Decimal) en euros: "1.234,56 €". */
 export function euros(texto: string | null | undefined, opciones: OpcionesFormato = {}): string {
   if (texto === null || texto === undefined) return SIN_DATO;
   return `${menos(formatoImporte(texto, opciones))}${NBSP}€`;
 }
 
-/** Un importe exacto en otra moneda ("100 USDT"). */
+/** Un importe exacto en otra moneda ("100 USDT", "12,50 $"). */
 export function enMoneda(texto: string | null | undefined, moneda: string, opciones: OpcionesFormato = {}): string {
   if (texto === null || texto === undefined) return SIN_DATO;
-  const simbolo = moneda.toUpperCase() === "EUR" ? "€" : moneda.toUpperCase() === "USD" ? "$" : moneda;
-  return `${menos(formatoImporte(texto, opciones))}${NBSP}${simbolo}`;
+  return `${menos(formatoImporte(texto, opciones))}${NBSP}${simboloMoneda(moneda)}`;
 }
 
 /** Un float que solo se dibuja, en euros y sin decimales por defecto: "14.200 €". */
@@ -90,7 +117,10 @@ const FECHA_SIN_ANIO = new Intl.DateTimeFormat("es-ES", { day: "numeric", month:
 const FECHA_LARGA = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", timeZone: "UTC" });
 const MES_ANIO = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
 const MES_ANIO_CORTO = new Intl.DateTimeFormat("es-ES", { month: "short", year: "numeric", timeZone: "UTC" });
-const HORA = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+// Los momentos (cuando se puso un freno, se envio una orden, se leyo un saldo) van en la hora de
+// quien mira: "11:37 UTC" obligaba a hacer la cuenta. Las fechas de cierre siguen siendo dias.
+const FECHA_LOCAL = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" });
+const HORA_LOCAL = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" });
 
 function aFecha(valor: string): Date | null {
   const iso = /^\d{4}-\d{2}-\d{2}$/.test(valor) ? `${valor}T00:00:00Z` : valor;
@@ -138,19 +168,24 @@ export function mesYAnioCorto(valor: string | null | undefined): string {
   return d ? sinPunto(MES_ANIO_CORTO.format(d)) : valor;
 }
 
-/** Momento con hora, siempre en UTC y diciendolo: "16 oct 2026, 11:02 UTC". */
+/** Momento con hora, en la hora local de quien mira: "17 oct 2026, 13:37". */
 export function momento(valor: string | null | undefined): string {
   if (!valor) return SIN_DATO;
   const d = new Date(valor);
   if (Number.isNaN(d.getTime())) return valor;
-  return `${sinPunto(FECHA.format(d))}, ${HORA.format(d)} UTC`;
+  return `${sinPunto(FECHA_LOCAL.format(d))}, ${HORA_LOCAL.format(d)}`;
 }
 
-/** Solo la hora UTC (para la foto de cotizaciones). */
-export function horaUtc(valor: string): string {
+/** Solo la hora local (la foto de cotizaciones, el progreso de una actualizacion): "13:37". */
+export function hora(valor: string): string {
   const d = new Date(valor);
   if (Number.isNaN(d.getTime())) return valor;
-  return d.toISOString().slice(11, 16);
+  return HORA_LOCAL.format(d);
+}
+
+/** Un momento que en realidad es un dia (medianoche UTC): solo la fecha. */
+export function esSoloDia(valor: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}(T00:00:00(\.0+)?(Z|\+00:00)?)?$/.test(valor);
 }
 
 /** Fecha de hoy en la zona del navegador, como AAAA-MM-DD (para los formularios). */
@@ -159,6 +194,27 @@ export function hoyLocal(): string {
   const mes = String(d.getMonth() + 1).padStart(2, "0");
   const dia = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+/**
+ * Varias frases de la API en una sola ("Falta: a; b."): cada una pierde su punto final y la
+ * frase entera lleva uno. Las de la API ya acaban en punto: sin esto salia "HMAC-SHA256)..".
+ */
+export function enUnaFrase(frases: readonly string[]): string {
+  const limpias = frases.map((f) => f.trim().replace(/[.;\s]+$/, "")).filter(Boolean);
+  return limpias.length ? `${limpias.join("; ")}.` : "";
+}
+
+/**
+ * Cada cuanto le toca hacer algo a quien sigue una estrategia, ademas de aportar
+ * (`cambios_al_anio`, contrato v2.1). Las operaciones del motor son otra cosa (Laboratorio).
+ */
+export function frecuenciaCambios(alAnio: number | null | undefined): string {
+  if (alAnio === null || alAnio === undefined || !Number.isFinite(alAnio)) return SIN_DATO;
+  const n = Math.round(alAnio);
+  if (alAnio < 0.5) return "Casi nunca te tocará hacer nada, además de aportar.";
+  if (n === 1) return "Te tocará hacer algo una vez al año, además de aportar.";
+  return `Te tocará hacer algo unas ${n} veces al año, además de aportar.`;
 }
 
 /** Años, en llano: "1,8 años", "8 meses". */

@@ -95,7 +95,7 @@ export function ConfirmacionTecleada({
         spellCheck={false}
         inputMode={mayusculas ? "text" : "decimal"}
         aria-describedby={`${idEstado}${ayuda ? ` ${idAyuda}` : ""}`}
-        placeholder={esperado}
+        // Sin placeholder: con la cifra en gris dentro del campo bastaba con copiarla sin leerla.
         className={clases(
           "tecleo min-h-14 w-full rounded-xl border-2 bg-superficie px-4 text-xl text-tinta placeholder:text-tinta-suave/35",
           tono === "real" ? "border-real/60" : "border-linea-control/70",

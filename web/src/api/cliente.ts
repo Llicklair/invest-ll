@@ -51,8 +51,9 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
 }
 
 /**
- * El texto de un error de la API. Los errores del dominio llegan como `{"detail": "texto"}`;
- * los de validacion de FastAPI, como `{"detail": [{loc, msg}, ...]}`. Se respetan los textos.
+ * El texto de un error de la API. Desde el contrato v2.1 TODOS llegan como
+ * `{"detail": "texto en llano"}`, tambien los de validacion, y se ensena tal cual. La lista de
+ * FastAPI (`{"detail": [{loc, msg}, ...]}`) se sigue leyendo por si una API vieja la manda.
  */
 export function textoDeError(cuerpo: unknown, respuesta?: Response): string {
   if (typeof cuerpo === "string" && cuerpo.trim() !== "") return cuerpo;

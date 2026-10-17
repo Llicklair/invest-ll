@@ -324,12 +324,17 @@ body[data-barra-accion] .boton-pregunta {
   }
 }
 
-/* Espacio para la barra inferior en movil (mas la zona segura del iPhone). */
+/* Espacio para la barra inferior en movil (mas la zona segura del iPhone) Y para el boton de
+   Pregunta, que flota encima (80 px + 56 de alto): sin esto tapaba el final del contenido. */
 .relleno-barra-inferior {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding-bottom: calc(152px + env(safe-area-inset-bottom));
+}
+body[data-barra-accion] .relleno-barra-inferior {
+  padding-bottom: calc(216px + env(safe-area-inset-bottom));
 }
 @media (min-width: 1024px) {
-  .relleno-barra-inferior {
+  .relleno-barra-inferior,
+  body[data-barra-accion] .relleno-barra-inferior {
     padding-bottom: 120px;
   }
 }

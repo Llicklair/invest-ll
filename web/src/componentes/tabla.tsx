@@ -1,7 +1,7 @@
 import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 import type { Celda, Tabla } from "@/api/tipos";
-import { momento, numero, porcentaje, signo, SIN_DATO } from "@/lib/formato";
+import { esSoloDia, fecha, momento, noEsCero, numero, porcentaje, signo, SIN_DATO } from "@/lib/formato";
 
 import { clases } from "./ui";
 
@@ -84,7 +84,9 @@ export function TdVariacion({
   texto?: string;
   className?: string;
 }) {
-  const s = signo(valor);
+  const visible = texto ?? porcentaje(valor, 1);
+  // Lo que se ve manda: un "0,00 %" es neutro aunque el dato fuera 0,0001.
+  const s = signo(valor) === null ? null : noEsCero(visible) ? signo(valor) : 0;
   return (
     <Td
       numerica
@@ -101,7 +103,7 @@ export function TdVariacion({
           <span className="sr-only">sin histórico suficiente</span>
         </>
       ) : (
-        (texto ?? porcentaje(valor, 1))
+        visible
       )}
     </Td>
   );
@@ -111,7 +113,7 @@ function celdaComoTexto(valor: Celda): string {
   if (valor === null) return SIN_DATO;
   if (typeof valor === "boolean") return valor ? "sí" : "no";
   if (typeof valor === "number") return Number.isInteger(valor) ? numero(valor, 0) : numero(valor, Math.abs(valor) < 1 ? 3 : 2);
-  if (/^\d{4}-\d{2}-\d{2}T/.test(valor)) return momento(valor).replace(" 00:00 UTC", "");
+  if (/^\d{4}-\d{2}-\d{2}T/.test(valor)) return esSoloDia(valor) ? fecha(valor) : momento(valor);
   return valor;
 }
 

@@ -2,13 +2,13 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { formatoImporte, signoDecimal } from "@/lib/decimal";
-import { euros, fraccion, menos, SIN_DATO } from "@/lib/formato";
+import { enMoneda, fraccionCoherente, menos, SIN_DATO, simboloMoneda } from "@/lib/formato";
 
 import { clases } from "./ui";
 
 /**
- * La cifra que manda en una pantalla (valor + variacion + fecha). Fraunces, grande y con el "€"
- * mas pequeno para que el numero se lea primero. Una por vista.
+ * La cifra que manda en una pantalla (valor + variacion + fecha). Fraunces, grande y con la
+ * moneda mas pequena para que el numero se lea primero. Una por vista.
  *
  * Las cifras grandes van con figuras proporcionales (la skill dataviz: las tabulares dejan un
  * "121" desgarbado a este tamano); las tabulares, en lo que se alinea en columna.
@@ -16,6 +16,7 @@ import { clases } from "./ui";
 export function CifraGrande({
   etiqueta,
   valor,
+  moneda = "EUR",
   variacion,
   pie,
   marca,
@@ -24,6 +25,8 @@ export function CifraGrande({
   etiqueta: ReactNode;
   /** Importe exacto (Decimal en cadena); `null` = no se puede calcular. */
   valor: string | null;
+  /** La moneda en que viene `valor` (la del contrato: "EUR", "USD", "USDT"). */
+  moneda?: string;
   variacion?: ReactNode;
   /** La fecha de los datos y lo que haga falta saber para leer la cifra. */
   pie?: ReactNode;
@@ -52,7 +55,8 @@ export function CifraGrande({
             {entera}
             <span className="text-[0.55em] text-tinta-suave">
               ,{decimales}
-              {" "}€
+              {" "}
+              {simboloMoneda(moneda)}
             </span>
           </>
         )}
@@ -65,16 +69,19 @@ export function CifraGrande({
 
 /**
  * Lo que se gana o se pierde: siempre con signo, flecha y PALABRA, ademas del color (el color
- * nunca va solo). `importe` es exacto (Decimal); `pct` es una fraccion que solo se pinta.
+ * nunca va solo). `importe` es exacto (Decimal); `pct` es una fraccion que solo se pinta, y su
+ * signo es el del importe: nunca "Pierdes −2,00 € (0,0 %)".
  */
 export function Variacion({
   importe,
   pct,
+  moneda = "EUR",
   coletilla,
   className,
 }: {
   importe: string | null;
   pct?: number | null;
+  moneda?: string;
   /** "si vendieras hoy", "este mes"... */
   coletilla?: ReactNode;
   className?: string;
@@ -95,8 +102,8 @@ export function Variacion({
         {s !== 0 ? (
           <span className="cifras">
             {" "}
-            {euros(importe, { conSigno: true })}
-            {pct !== undefined && pct !== null ? ` (${fraccion(pct, 1)})` : ""}
+            {enMoneda(importe, moneda, { conSigno: true })}
+            {pct !== undefined && pct !== null ? ` (${fraccionCoherente(pct, s)})` : ""}
           </span>
         ) : null}
       </span>
@@ -105,11 +112,16 @@ export function Variacion({
   );
 }
 
-/** Una variacion de mercado en %, en linea ("Bitcoin sube un 2,1 % en un mes"). */
+/**
+ * Una variacion de mercado en %, en linea ("Bitcoin sube un 2,1 % en un mes"). Lo que se ve
+ * manda: si redondeada a un decimal es 0,0 %, es neutra (sin flecha verde ni "sube").
+ */
 export function CambioPct({ pct, className, neutro = false }: { pct: number | null; className?: string; neutro?: boolean }) {
   if (pct === null || !Number.isFinite(pct)) return <span className={clases("text-tinta-suave", className)}>{SIN_DATO}</span>;
-  const s = pct > 0 ? 1 : pct < 0 ? -1 : 0;
+  const redondeado = Math.round(pct * 10) / 10;
+  const s = redondeado > 0 ? 1 : redondeado < 0 ? -1 : 0;
   const Icono = s > 0 ? ArrowUpRight : s < 0 ? ArrowDownRight : Minus;
+  const texto = Math.abs(redondeado).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return (
     <span
       className={clases(
@@ -120,8 +132,9 @@ export function CambioPct({ pct, className, neutro = false }: { pct: number | nu
     >
       <Icono aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
       <span className="sr-only">{s > 0 ? "sube" : s < 0 ? "baja" : "igual"}</span>
-      {menos(`${pct > 0 ? "+" : ""}${pct.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`)}
-      {" "}%
+      {s > 0 ? "+" : s < 0 ? "−" : ""}
+      {texto}
+      {" "}%
     </span>
   );
 }
