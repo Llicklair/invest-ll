@@ -22,6 +22,7 @@ export function CampoImporte({
   className,
   id: idPropio,
   ejemplo,
+  moneda = "€",
 }: {
   etiqueta: ReactNode;
   ayuda?: ReactNode;
@@ -34,6 +35,8 @@ export function CampoImporte({
   id?: string;
   /** Texto de ejemplo dentro del campo vacio ("p. ej. 6.000"); nunca "0", que parece un valor. */
   ejemplo?: string;
+  /** Lo que se pone detras de la cifra: "€" o, en la cuenta de practica, "USDC". */
+  moneda?: string;
 }) {
   const idAuto = useId();
   const id = idPropio ?? idAuto;
@@ -62,13 +65,14 @@ export function CampoImporte({
           aria-describedby={describe}
           placeholder={ejemplo}
           className={clases(
-            "cifras w-full rounded-xl border bg-superficie pr-12 pl-4 text-tinta placeholder:text-tinta-suave/50 hover:border-linea-control aria-[invalid=true]:border-real",
+            "cifras w-full rounded-xl border bg-superficie pl-4 text-tinta placeholder:text-tinta-suave/50 hover:border-linea-control aria-[invalid=true]:border-real",
             grande ? "min-h-14 text-2xl" : "min-h-12 text-lg",
+            moneda.length > 1 ? "pr-20" : "pr-12",
             "border-linea-control/70",
           )}
         />
         <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-lg text-tinta-suave" aria-hidden="true">
-          €
+          {moneda}
         </span>
       </div>
       {error ? (
@@ -91,7 +95,7 @@ export function CampoImporte({
                   elegido ? "border-marca bg-marca-suave font-semibold text-marca" : "border-linea text-tinta hover:bg-superficie-2",
                 )}
               >
-                {formatoImporte(a, { decimales: 0 })} €
+                {formatoImporte(a, { decimales: 0 })} {moneda}
               </button>
             );
           })}

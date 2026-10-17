@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartLine, Compass, HandCoins, House, LayoutGrid, Microscope, Settings, Wallet, type LucideIcon } from "lucide-react";
+import { Bot, ChartCandlestick, ChartLine, Compass, HandCoins, House, LayoutGrid, Microscope, Settings, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -20,12 +20,30 @@ interface Destino {
 }
 
 /** Las cuatro secciones del camino (docs/panel-v2.md, seccion 3), en el orden en que se usan. */
-export const PRINCIPAL: readonly Destino[] = [
-  { ruta: "/", texto: "Inicio", icono: House },
-  { ruta: "/estrategias/", texto: "Estrategias", icono: Compass },
-  { ruta: "/invertir/", texto: "Invertir", icono: HandCoins },
-  { ruta: "/cartera/", texto: "Cartera", icono: Wallet },
+export const PRINCIPAL: readonly (Destino & { bajada: string })[] = [
+  { ruta: "/", texto: "Inicio", icono: House, bajada: "Tu dinero hoy y qué toca hacer" },
+  { ruta: "/estrategias/", texto: "Estrategias", icono: Compass, bajada: "Cómo invertir, sin jerga" },
+  { ruta: "/invertir/", texto: "Invertir", icono: HandCoins, bajada: "Qué toca hoy, en Binance y en tu bróker" },
+  { ruta: "/cartera/", texto: "Cartera", icono: Wallet, bajada: "Lo que tienes, lo que vendiste y tus movimientos" },
 ];
+
+/**
+ * Panel v3 (docs/panel-v3-vivo.md, seccion 4): en vivo y con dinero ficticio. Van DESPUES del
+ * camino de Laura (quien no sabe empieza por Estrategias) y juntas, con su rotulo, para quien ya
+ * juega. Bots antes que Operar: mirar a un bot frente a "solo mantener" es el paso suave;
+ * comprar y vender a mano, el mas activo.
+ */
+export const EN_VIVO: readonly (Destino & { bajada: string })[] = [
+  { ruta: "/bots/", texto: "Bots", icono: Bot, bajada: "Bots que operan solos, en vivo, frente a solo mantener" },
+  { ruta: "/operar/", texto: "Operar", icono: ChartCandlestick, bajada: "Compra y vende a precios en vivo de Hyperliquid" },
+];
+
+/**
+ * La barra inferior del movil tiene 5 huecos: Inicio y Estrategias (la puerta de quien no sabe),
+ * Bots y Operar (la de quien ya juega) y "Más". Invertir y Cartera pasan a "Más" en el movil
+ * porque Inicio ya lleva a los dos ("Qué toca hacer" y "Tu dinero hoy").
+ */
+const BARRA_MOVIL: readonly string[] = ["/", "/estrategias/", "/bots/", "/operar/"];
 
 /** "Más": lo que no es el camino principal. */
 export const MAS: readonly (Destino & { bajada: string })[] = [
@@ -56,8 +74,25 @@ function Logo() {
   );
 }
 
-function EnlaceLateral({ d, activa }: { d: Destino; activa: boolean }) {
+function EnlaceLateral({ d, activa, compacta }: { d: Destino; activa: boolean; compacta: boolean }) {
   const Icono = d.icono;
+  if (compacta) {
+    return (
+      <li>
+        <Link
+          href={d.ruta}
+          aria-current={activa ? "page" : undefined}
+          className={clases(
+            "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[0.6875rem] leading-tight transition-colors",
+            activa ? "bg-superficie font-semibold text-tinta shadow-suave" : "text-tinta-suave hover:bg-superficie-2 hover:text-tinta",
+          )}
+        >
+          <Icono aria-hidden="true" className={clases("h-5 w-5", activa ? "text-marca" : undefined)} strokeWidth={1.75} />
+          {d.texto}
+        </Link>
+      </li>
+    );
+  }
   return (
     <li>
       <Link
@@ -75,32 +110,75 @@ function EnlaceLateral({ d, activa }: { d: Destino; activa: boolean }) {
   );
 }
 
-function BarraLateral({ ruta }: { ruta: string }) {
+function Grupo({ titulo, compacta, children }: { titulo: string; compacta: boolean; children: ReactNode }) {
+  if (compacta) {
+    return (
+      <>
+        <p className="sr-only">{titulo}</p>
+        <hr className="mx-3 my-3 border-0 border-t border-linea" aria-hidden="true" />
+        <ul className="space-y-1">{children}</ul>
+      </>
+    );
+  }
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-linea bg-fondo px-4 pt-7 pb-6 lg:flex">
-      <div className="px-2">
-        <Logo />
-        <div className="mt-4">
-          <PildoraModo />
+    <>
+      <p className="mt-7 mb-2 px-3 text-xs font-semibold tracking-wider text-tinta-suave uppercase">{titulo}</p>
+      <ul className="space-y-1">{children}</ul>
+    </>
+  );
+}
+
+/**
+ * La barra lateral. En Operar se estrecha a un carril de iconos con su palabra debajo: la
+ * pantalla de exchange necesita el ancho para el grafico, el libro y el boleto a la vez.
+ */
+function BarraLateral({ ruta, compacta }: { ruta: string; compacta: boolean }) {
+  return (
+    <aside
+      className={clases(
+        "fixed inset-y-0 left-0 z-20 hidden flex-col border-r border-linea bg-fondo pt-7 pb-6 lg:flex",
+        compacta ? "w-[5.5rem] px-2 pt-5" : "w-64 px-4",
+      )}
+    >
+      <div className={compacta ? "flex flex-col items-center gap-3" : "px-2"}>
+        {compacta ? <LogoCompacto /> : <Logo />}
+        <div className={compacta ? undefined : "mt-4"}>
+          <PildoraModo compacta={compacta} />
         </div>
       </div>
-      <nav aria-label="Secciones" className="mt-8 flex-1 overflow-y-auto">
+      <nav aria-label="Secciones" className={clases("flex-1 overflow-y-auto", compacta ? "mt-4" : "mt-8")}>
         <ul className="space-y-1">
           {PRINCIPAL.map((d) => (
-            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} />
+            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
           ))}
         </ul>
-        <p className="mt-8 mb-2 px-3 text-xs font-semibold tracking-wider text-tinta-suave uppercase">Más</p>
-        <ul className="space-y-1">
+        <Grupo titulo="En vivo · dinero ficticio" compacta={compacta}>
+          {EN_VIVO.map((d) => (
+            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
+          ))}
+        </Grupo>
+        <Grupo titulo="Más" compacta={compacta}>
           {MAS.map((d) => (
-            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} />
+            <EnlaceLateral key={d.ruta} d={d} activa={esActiva(ruta, d.ruta)} compacta={compacta} />
           ))}
-        </ul>
+        </Grupo>
       </nav>
-      <p className="px-3 text-xs leading-relaxed text-tinta-suave">
-        Un sistema que no puede mentirte sobre sus propios resultados.
-      </p>
+      {compacta ? null : (
+        <p className="px-3 text-xs leading-relaxed text-tinta-suave">Un sistema que no puede mentirte sobre sus propios resultados.</p>
+      )}
     </aside>
+  );
+}
+
+function LogoCompacto() {
+  return (
+    <Link href="/" className="inline-flex h-11 w-11 items-center justify-center rounded-lg" aria-label="INVEST LL, ir a Inicio">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect width="30" height="30" rx="9" fill="var(--marca)" />
+        <path d="M7 19.5 12 14l4 3.5 7-8" fill="none" stroke="var(--marca-tinta)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="23" cy="9.5" r="1.8" fill="var(--destaque)" />
+      </svg>
+    </Link>
   );
 }
 
@@ -113,9 +191,16 @@ function CabeceraMovil() {
   );
 }
 
+/** Lo que en el movil vive en "Más": todo lo que no esta en la barra inferior. */
+export const EN_MAS_MOVIL: readonly (Destino & { bajada: string })[] = [...PRINCIPAL, ...EN_VIVO].filter((d) => !BARRA_MOVIL.includes(d.ruta));
+
 function BarraInferior({ ruta }: { ruta: string }) {
-  const destinos: Destino[] = [...PRINCIPAL, { ruta: "/mas/", texto: "Más", icono: LayoutGrid }];
-  const enMas = ["/mas/", ...MAS.map((m) => m.ruta)].some((r) => normalizar(ruta).startsWith(r));
+  const todos = [...PRINCIPAL, ...EN_VIVO];
+  const destinos: Destino[] = [
+    ...BARRA_MOVIL.map((r) => todos.find((d) => d.ruta === r)).filter((d): d is Destino & { bajada: string } => d !== undefined),
+    { ruta: "/mas/", texto: "Más", icono: LayoutGrid },
+  ];
+  const enMas = ["/mas/", ...EN_MAS_MOVIL.map((m) => m.ruta), ...MAS.map((m) => m.ruta)].some((r) => normalizar(ruta).startsWith(r));
   return (
     <nav
       aria-label="Secciones"
@@ -216,6 +301,13 @@ function AvisoSinModo() {
  */
 export function Marco({ children }: { children: ReactNode }) {
   const ruta = usePathname();
+  // Operar es una pantalla de exchange: usa todo el ancho y la barra lateral se estrecha.
+  const ancha = normalizar(ruta).startsWith("/operar/");
+  useEffect(() => {
+    // El boton de Pregunta se recoge en el carril (globals.css): no tapa el boleto ni la cuenta.
+    if (ancha) document.body.dataset.ancha = "";
+    else delete document.body.dataset.ancha;
+  }, [ancha]);
   return (
     <>
       <Tema />
@@ -226,10 +318,16 @@ export function Marco({ children }: { children: ReactNode }) {
       >
         Saltar al contenido
       </a>
-      <BarraLateral ruta={ruta} />
+      <BarraLateral ruta={ruta} compacta={ancha} />
       <CabeceraMovil />
-      <div className="lg:pl-64">
-        <main id="contenido" className="relleno-barra-inferior mx-auto max-w-[1120px] px-4 pt-6 sm:px-6 lg:px-12 lg:pt-12">
+      <div className={ancha ? "lg:pl-[5.5rem]" : "lg:pl-64"}>
+        <main
+          id="contenido"
+          className={clases(
+            "relleno-barra-inferior mx-auto px-4 pt-6 sm:px-6",
+            ancha ? "max-w-[1760px] pt-4 lg:px-5 lg:pt-5" : "max-w-[1120px] lg:px-12 lg:pt-12",
+          )}
+        >
           <BandaEjemplo />
           <AvisoSinModo />
           {children}

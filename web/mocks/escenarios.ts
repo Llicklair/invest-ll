@@ -19,6 +19,13 @@ export const ESCENARIOS = [
   "datos-viejos",
   "datos-actualizando",
   "vender",
+  // Panel v3 (Operar y Bots, en vivo). Los de antes se ven en vivo como "con-bots".
+  "con-bots",
+  "sin-bots",
+  "cuenta-vacia",
+  "desconectado",
+  "intermitente",
+  "sin-stream",
 ] as const;
 export type Escenario = (typeof ESCENARIOS)[number];
 
@@ -39,4 +46,36 @@ export const DESCRIPCION_ESCENARIOS: Record<Escenario, string> = {
   "datos-viejos": "Los precios tienen más de dos semanas; al actualizar, los fondos fallan",
   "datos-actualizando": "Una actualización de los datos en marcha, paso a paso",
   vender: "Prudente con freno: toca vender en tu bróker un fondo que lleva meses bajando (v2.2)",
+  "con-bots": "En vivo: cuenta de práctica con posiciones y órdenes, y cinco bots (uno parado, uno con error)",
+  "sin-bots": "En vivo: cuenta de práctica con historial y ningún bot desplegado",
+  "cuenta-vacia": "En vivo: cuenta de práctica recién empezada (10.000 USDC) y sin bots",
+  desconectado: "En vivo: el panel no recibe datos de Hyperliquid; los precios se quedan quietos",
+  intermitente: "En vivo: el stream se corta cada ~20 s y se reconecta solo",
+  "sin-stream": "En vivo: no hay stream (como la API de antes); el panel pregunta cada pocos segundos",
 };
+
+const CLAVE = "invest-ll.mock.escenario";
+
+function esEscenario(v: string): v is Escenario {
+  return (ESCENARIOS as readonly string[]).includes(v);
+}
+
+/**
+ * El escenario vigente: el de `?escenario=` si viene en la URL (y se recuerda en la pestana), o
+ * el recordado, o `porDefecto`. Lo comparten el simulador REST y el stream simulado.
+ */
+export function escenarioActual(porDefecto: Escenario = "con-plan"): Escenario {
+  try {
+    let pedido = new URLSearchParams(window.location.search).get("escenario");
+    if (pedido === "simulacion") pedido = porDefecto;
+    const guardado = window.sessionStorage.getItem(CLAVE);
+    if (pedido && esEscenario(pedido) && pedido !== guardado) {
+      window.sessionStorage.setItem(CLAVE, pedido);
+      window.dispatchEvent(new CustomEvent("invest-ll-almacen", { detail: CLAVE }));
+    }
+    const vigente = window.sessionStorage.getItem(CLAVE) ?? porDefecto;
+    return esEscenario(vigente) ? vigente : porDefecto;
+  } catch {
+    return porDefecto;
+  }
+}
