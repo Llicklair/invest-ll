@@ -36,6 +36,7 @@ def test_solo_dos_modulos_pueden_salir_a_la_red() -> None:
     # subpaquete (interpretar mensajes, la cuenta de practica) se prueba sin red.
     modulos_permitidos = {
         "vivo/red.py",  # la conexion con Hyperliquid (panel v3, precios en vivo)
+        "exchanges/red_ccxt.py",  # construir el exchange de ccxt (panel v4, conectores)
     }
     clientes = (
         "anthropic",
