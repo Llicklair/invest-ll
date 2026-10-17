@@ -25,13 +25,11 @@ import {
 } from "@/lib/vivo";
 
 /**
- * Lo tecleado, como numero: las reglas de lib/importe.ts ("1.000" es mil, "12,50" doce con
- * cincuenta), salvo que "0.015" es cero coma cero quince (unos miles no empiezan por cero).
- * `null` si no es un numero.
+ * Lo tecleado, como numero, con las reglas de lib/importe.ts ("1.000" es mil, "12,50" doce con
+ * cincuenta, "0.015" cero coma cero quince). `null` si no es un numero.
  */
 export function leerNumero(texto: string): number | null {
-  const t = texto.trim().replace(/\s/g, "");
-  const limpio = /^0\.\d+$/.test(t) ? t : leerImporte(t);
+  const limpio = leerImporte(texto.trim());
   if (limpio === null || limpio === "") return null;
   const n = Number(limpio);
   return Number.isFinite(n) ? n : null;

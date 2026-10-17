@@ -6,6 +6,7 @@
  * - Se quitan espacios y el simbolo "€".
  * - Si hay coma: los puntos son de miles y la coma es la decimal ("1.234,5" -> "1234.5").
  * - Si no hay coma y los puntos agrupan de tres en tres ("1.000", "12.500.000"): son miles.
+ *   Unos miles nunca empiezan por cero: "0.015" es cero coma cero quince, no quince.
  * - Si no: el punto es el decimal ("0.00123", "12.5").
  * Devuelve `null` si no es un numero >= 0. Nunca pasa por float: es manipulacion de texto.
  */
@@ -15,7 +16,7 @@ export function leerImporte(texto: string): string | null {
   if (t.includes(",")) {
     if ((t.match(/,/g) ?? []).length > 1) return null;
     t = t.replace(/\./g, "").replace(",", ".");
-  } else if (/^\d{1,3}(\.\d{3})+$/.test(t)) {
+  } else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(t)) {
     t = t.replace(/\./g, "");
   }
   if (!/^\d+(\.\d+)?$/.test(t) && !/^\d*\.\d+$/.test(t)) return null;
