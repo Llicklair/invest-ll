@@ -44,6 +44,10 @@ class Portfolio:
     total_withdrawn: Decimal
     warnings: tuple[str, ...] = ()
     """Avisos sobre el efectivo: cuándo no se puede fiar de `cash`."""
+    efectivo_minimo: tuple[Decimal, datetime] | None = None
+    """El peor momento del efectivo derivado si bajó de cero (cuánto y cuándo); `None` si no.
+
+    Es lo mismo que el aviso de `warnings`, sin redactar: el panel lo cuenta a su manera."""
 
     @property
     def realized_pnl(self) -> Decimal:
@@ -80,8 +84,11 @@ def derive_portfolio(activities: Iterable[Activity]) -> Portfolio:
     Raises:
         LedgerInconsistencyError: si en algún momento se vende más de lo que el ledger registra.
     """
-    # sorted es estable: ante la misma fecha manda el orden de escritura.
-    ordenadas = sorted(activities, key=lambda a: a.timestamp)
+    # sorted es estable: ante la misma fecha manda el orden de escritura, salvo el efectivo. Lo
+    # que se anota con fecha y sin hora comparte instante, y el dinero entra antes de gastarlo y
+    # sale después de vender: si no, un ingreso del mismo día que las compras dejaba el aviso de
+    # "faltan depósitos" para siempre. Compras y ventas no cambian de orden entre sí.
+    ordenadas = sorted(activities, key=lambda a: (a.timestamp, _ORDEN_EN_EL_DIA[a.type]))
 
     abiertas: dict[str, _Episodio] = {}
     cerradas: list[ClosedTrade] = []
@@ -108,12 +115,7 @@ def derive_portfolio(activities: Iterable[Activity]) -> Portfolio:
 
     avisos: list[str] = []
     if peor_efectivo is not None:
-        cifra, cuando = peor_efectivo
-        avisos.append(
-            f"El efectivo derivado llega a {cifra:,.2f} el {cuando.date()}: faltan depositos por "
-            "registrar (o tienen fecha posterior a las compras). Las posiciones son fiables; "
-            "el efectivo, no. Registralos con: invest-ll-portfolio cash deposit --amount ..."
-        )
+        avisos.append(aviso_de_efectivo(*peor_efectivo))
 
     return Portfolio(
         open_positions=tuple(
@@ -132,7 +134,25 @@ def derive_portfolio(activities: Iterable[Activity]) -> Portfolio:
         total_deposited=depositado,
         total_withdrawn=retirado,
         warnings=tuple(avisos),
+        efectivo_minimo=peor_efectivo,
     )
+
+
+def aviso_de_efectivo(cifra: Decimal, cuando: datetime) -> str:
+    """El aviso de `warnings` cuando el efectivo derivado baja de cero (para la terminal)."""
+    return (
+        f"El efectivo derivado llega a {cifra:,.2f} el {cuando.date()}: faltan depositos por "
+        "registrar (o tienen fecha posterior a las compras). Las posiciones son fiables; "
+        "el efectivo, no. Registralos con: invest-ll-portfolio cash deposit --amount ..."
+    )
+
+
+_ORDEN_EN_EL_DIA: dict[ActivityType, int] = {
+    ActivityType.DEPOSIT: 0,
+    ActivityType.BUY: 1,
+    ActivityType.SELL: 1,
+    ActivityType.WITHDRAWAL: 2,
+}
 
 
 def _simbolo(actividad: Activity) -> str:
@@ -168,9 +188,9 @@ def _vender(abiertas: dict[str, _Episodio], venta: Activity) -> ClosedTrade | No
     disponible = episodio.quantity if episodio is not None else CERO
     if episodio is None or venta.quantity > disponible:
         raise LedgerInconsistencyError(
-            f"venta de {como_texto(venta.quantity)} {simbolo} el {venta.timestamp.date()}, pero el "
-            f"ledger solo registra {como_texto(disponible)} en ese momento. Falta alguna compra, o "
-            "la venta esta mal anotada: no se deriva una cartera con cantidades negativas."
+            f"venta de {como_texto(venta.quantity)} {simbolo} el {venta.timestamp.date()}, pero en "
+            f"tu registro solo constan {como_texto(disponible)} en ese momento. Falta alguna "
+            "compra, o la venta está mal anotada: no se deriva una cartera con cantidades negativas."
         )
 
     episodio.proceeds += venta.gross - venta.fee
