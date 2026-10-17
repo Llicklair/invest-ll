@@ -100,6 +100,28 @@ smaller worst case (−10% to −16% against −32%) at roughly half the return.
 for equities stands: contribute regularly and hold, unless avoiding deep falls matters more to you
 than the return.
 
+### Re-run on 2026-10-17, after downloading the Binance universe again
+
+The same study (same engine, same configurations, same costs) on data downloaded again on
+17 October (713 instruments). Everything that only holds Bitcoin moved by about 1%; everything that
+picks coins from the daily universe moved more, because the universe of each day is not exactly the
+one the first study saw:
+
+| Strategy | 2026-10-16 | 2026-10-17 |
+|---|---:|---:|
+| Hold BTC | 61,324 (Sharpe 0.65, −81%) | 60,854 (0.65, −81%) |
+| BTC 30-day trend | 118,380 (0.89, −65%) | 117,472 (0.88, −65%) |
+| Momentum portfolio, pre-registered | 46,967 (0.60, −80%) | 45,197 (0.59, −80%) |
+| **Stage 2: + market filter + 2% band** | **266,069 (1.06, −47%)** | **190,844 (0.98, −48%)** |
+| Stage 2, tax paid every July | 178,593 | 134,899 |
+| Current policy (top-1 rotation) | 56 | 181 |
+
+The conclusions above stand: the market trend filter is still what works, and stage two is still
+the best line, but by a much thinner margin, and the size of that margin depends on reference data
+that changed between two downloads a day apart. That is one more reason to quote the forward test
+and not these numbers. The panel computes its figures from whatever is downloaded, so it shows the
+second column. Report: `research/runs/20261017-1128-crypto-study/report.html` (not in git).
+
 ## What this means for using INVEST LL
 
 - **Retire the current crypto rotation.** Top-1 rotation does not survive a universe chosen
