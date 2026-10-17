@@ -973,6 +973,11 @@ function activar(m: MundoV4, id: string, o: Objeto): Response {
   }
   if ((texto(o, "confirmacion") ?? "") !== "DINERO REAL") return fallo(422, "Para usar dinero real, escribe exactamente DINERO REAL, en mayúsculas.");
   if (x.redes.real.huella?.startsWith("mal-")) return fallo(422, `No se activó: ${d.nombre} dice que la clave de dinero real no es válida.`);
+  // Activar prueba la conexion por si mismo, y con ello sabe (si el exchange lo dice) si la clave puede retirar.
+  if (x.redes.real.huella !== null) {
+    x.redes.real.comprobado = Date.now();
+    x.redes.real.puede_retirar = id === "coinbase" ? true : id === "kraken" ? null : false;
+  }
   const falta = queFaltaReal(x);
   if (falta.length) return fallo(422, `Todavía no se puede usar dinero real en ${d.nombre}: ${falta.map((f) => f.replace(/\.$/, "")).join("; ")}.`);
   x.activo = "real";
