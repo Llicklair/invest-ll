@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 
+import { fecha } from "@/lib/formato";
+
 import { clases } from "../ui";
 
 /**
@@ -56,7 +58,7 @@ export function ejeRedondo(valores: readonly number[], marcas = 5): { dominio: [
 
 export const EJE = {
   stroke: "var(--eje)",
-  tick: { fill: "var(--tinta-3)", fontSize: 11 },
+  tick: { fill: "var(--tinta-suave)", fontSize: 12 },
   tickLine: false,
 } as const;
 
@@ -121,6 +123,11 @@ export function fechaIso(t: number): string {
   return new Date(t).toISOString().slice(0, 10);
 }
 
+/** La fecha de un punto, para leerla: "16 oct 2026". */
+export function fechaTexto(t: number): string {
+  return fecha(fechaIso(t));
+}
+
 /** Tecla de serie en forma de linea corta (leyendas de lineas y filas del tooltip). */
 export function TeclaLinea({ color }: { color: string }) {
   return (
@@ -133,14 +140,14 @@ export function TeclaLinea({ color }: { color: string }) {
 /** Caja del tooltip: el valor manda (fuerte), la etiqueta acompana. */
 export function CajaTooltip({ titulo, filas }: { titulo: string; filas: { color?: string; nombre: string; valor: string }[] }) {
   return (
-    <div className="rounded-md border border-borde bg-superficie px-2.5 py-2 text-xs shadow-md">
-      <div className="mb-1 text-tinta-2">{titulo}</div>
+    <div className="rounded-xl border border-linea bg-superficie px-3 py-2.5 text-sm shadow-alta">
+      <div className="mb-1 text-tinta-suave">{titulo}</div>
       <ul className="space-y-0.5">
         {filas.map((f) => (
           <li key={f.nombre} className="flex items-center gap-2">
             {f.color ? <TeclaLinea color={f.color} /> : null}
             <span className="cifras font-semibold text-tinta">{f.valor}</span>
-            <span className="text-tinta-2">{f.nombre}</span>
+            <span className="text-tinta-suave">{f.nombre}</span>
           </li>
         ))}
       </ul>
@@ -173,8 +180,8 @@ export function Figura({
 }) {
   const [verTabla, setVerTabla] = useState(false);
   return (
-    <figure className="space-y-2 rounded-md border border-borde bg-superficie p-3">
-      {titulo ? <figcaption className="text-sm font-semibold text-tinta">{titulo}</figcaption> : null}
+    <figure className="space-y-3 rounded-tarjeta border border-linea bg-superficie p-4 shadow-suave sm:p-5">
+      {titulo ? <figcaption className="text-[0.9375rem] font-semibold text-tinta">{titulo}</figcaption> : null}
       <div
         role="img"
         aria-label={resumen}
@@ -182,12 +189,12 @@ export function Figura({
       >
         {children}
       </div>
-      {pie ? <div className="text-xs text-tinta-2">{pie}</div> : null}
+      {pie ? <div className="text-sm leading-relaxed text-tinta-suave">{pie}</div> : null}
       <details onToggle={(e) => setVerTabla(e.currentTarget.open)}>
-        <summary className="cursor-pointer text-xs text-acento underline underline-offset-2">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-marca underline underline-offset-4">
           Ver los datos en tabla ({filasTabla.toLocaleString("es-ES")} filas)
         </summary>
-        {verTabla ? <div className="mt-2 max-h-80 overflow-auto rounded border border-borde">{tabla()}</div> : null}
+        {verTabla ? <div className="relative mt-2 max-h-80 overflow-auto rounded-xl border border-linea">{tabla()}</div> : null}
       </details>
     </figure>
   );

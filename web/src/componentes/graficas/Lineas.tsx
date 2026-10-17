@@ -24,7 +24,7 @@ import {
   TeclaLinea,
   colorSerie,
   ejeRedondo,
-  fechaIso,
+  fechaTexto,
   formatoMarcasY,
   marcasTiempo,
 } from "./comun";
@@ -35,10 +35,10 @@ export interface PuntoLinea {
   v: number;
 }
 
-const CURSOR = { stroke: "var(--tinta-3)", strokeWidth: 1 };
+const CURSOR = { stroke: "var(--tinta-suave)", strokeWidth: 1 };
 
 function etiquetaTiempo(label: unknown): string {
-  return typeof label === "number" ? fechaIso(label) : String(label ?? "");
+  return typeof label === "number" ? fechaTexto(label) : String(label ?? "");
 }
 
 /**
@@ -71,7 +71,7 @@ export function GraficaLinea({
   const fmtY = formatoMarcasY(ejeY.ticks);
   const resumen =
     primero && ultimo
-      ? `${nombreSerie}: ${puntos.length} puntos del ${fechaIso(primero.t)} al ${fechaIso(ultimo.t)}, de ${formatoValor(primero.v)} a ${formatoValor(ultimo.v)}.`
+      ? `${nombreSerie}: ${puntos.length} puntos del ${fechaTexto(primero.t)} al ${fechaTexto(ultimo.t)}, de ${formatoValor(primero.v)} a ${formatoValor(ultimo.v)}.`
       : `${nombreSerie}: sin datos.`;
 
   const tooltip = (p: TooltipContentProps) => {
@@ -95,15 +95,15 @@ export function GraficaLinea({
       tabla={() => (
         <table className="cifras w-full text-xs">
           <thead>
-            <tr className="tabla-densa text-left text-tinta-2">
+            <tr className="tabla-densa text-left text-tinta-suave">
               <th scope="col" className="px-2 py-1">fecha</th>
               <th scope="col" className="px-2 py-1 text-right">{cabeceraValor}</th>
             </tr>
           </thead>
           <tbody>
             {puntos.map((p) => (
-              <tr key={p.t} className="border-t border-rejilla">
-                <td className="px-2 py-0.5">{fechaIso(p.t)}</td>
+              <tr key={p.t} className="border-t border-linea">
+                <td className="px-2 py-0.5">{fechaTexto(p.t)}</td>
                 <td className="px-2 py-0.5 text-right">{formatoValor(p.v)}</td>
               </tr>
             ))}
@@ -250,7 +250,7 @@ export function GraficaComparada({
       tabla={() => (
         <table className="cifras w-full text-xs">
           <thead>
-            <tr className="tabla-densa text-left text-tinta-2">
+            <tr className="tabla-densa text-left text-tinta-suave">
               <th scope="col" className="px-2 py-1">fecha</th>
               {series.map((s) => (
                 <th key={s.nombre} scope="col" className="px-2 py-1 text-right">
@@ -261,8 +261,8 @@ export function GraficaComparada({
           </thead>
           <tbody>
             {tiempos.map((t) => (
-              <tr key={t} className="border-t border-rejilla">
-                <td className="px-2 py-0.5">{fechaIso(t)}</td>
+              <tr key={t} className="border-t border-linea">
+                <td className="px-2 py-0.5">{fechaTexto(t)}</td>
                 {(porFecha.get(t) ?? []).map((v, i) => (
                   <td key={i} className="px-2 py-0.5 text-right">
                     {v === null ? "—" : formatoValor(v)}
@@ -279,7 +279,7 @@ export function GraficaComparada({
           <li key={s.nombre} className="flex items-center gap-1.5">
             <TeclaLinea color={colorSerie(s.hueco)} />
             <span className="text-tinta">{s.nombre}</span>
-            <span className="cifras text-tinta-2">{finales[i] ? formatoValor(finales[i].v) : "—"}</span>
+            <span className="cifras text-tinta-suave">{finales[i] ? formatoValor(finales[i].v) : "—"}</span>
           </li>
         ))}
       </ul>
@@ -327,7 +327,7 @@ export function GraficaComparada({
                 stroke="var(--superficie)"
                 strokeWidth={2}
                 ifOverflow="visible"
-                label={{ value: s.nombre, position: "right", fill: "var(--tinta-2)", fontSize: 11, offset: 8 }}
+                label={{ value: s.nombre, position: "right", fill: "var(--tinta-suave)", fontSize: 11, offset: 8 }}
               />
             );
           })}

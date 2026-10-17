@@ -73,7 +73,20 @@ export function textoDeError(cuerpo: unknown, respuesta?: Response): string {
   return "Error desconocido de la API.";
 }
 
+/**
+ * Un plazo para las rutas lentas en frio (`GET /api/estrategias` tarda ~25 s la primera vez tras
+ * arrancar la API; `recomendar`, ~6 s). Se pasa como `signal` a la peticion.
+ */
+export const PLAZO_LENTO_MS = 60_000;
+
+export function conPlazo(ms = PLAZO_LENTO_MS): { signal: AbortSignal } {
+  return { signal: AbortSignal.timeout(ms) };
+}
+
 function errorDeRed(error: unknown): ErrorApi {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return new ErrorApi(null, `La API no ha respondido en ${Math.round(PLAZO_LENTO_MS / 1000)} s. Puede que siga calculando: vuelve a intentarlo en un momento.`);
+  }
   const motivo = error instanceof Error ? error.message : String(error);
   const donde = API_BASE ? ` en ${API_BASE}` : "";
   return new ErrorApi(null, `No se pudo hablar con la API${donde}: ${motivo}`);

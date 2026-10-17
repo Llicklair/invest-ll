@@ -13,6 +13,8 @@ const config: NextConfig = {
   // `next dev` escribiria AGENTS.md/CLAUDE.md en web/ al detectar un agente: el repo ya tiene
   // sus propias instrucciones y no queremos ficheros generados sin commitear.
   agentRules: false,
+  // El indicador de `next dev` tapa la barra inferior del movil y sale en las capturas.
+  devIndicators: false,
 };
 
 export default config;

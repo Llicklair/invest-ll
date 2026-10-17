@@ -1,6 +1,5 @@
-import { IrAMercado } from "./IrAMercado";
+import { Inicio } from "@/vistas/inicio/Inicio";
 
-/** `/` lleva a Mercado, la primera pestana. Exportado como estatico: se redirige en el cliente. */
-export default function Inicio() {
-  return <IrAMercado />;
+export default function Pagina() {
+  return <Inicio />;
 }
