@@ -21,6 +21,7 @@ from invest_ll.alerts.engine import NADA_QUE_CONTAR, evaluate
 from invest_ll.alerts.models import Nivel, Umbrales
 from invest_ll.api.activos import ILEGIBLE, descargados
 from invest_ll.api.errores import del_dominio, no_encontrado
+from invest_ll.api.modo import almacen_activo
 from invest_ll.api.schemas import (
     Alerta,
     Alertas,
@@ -33,7 +34,6 @@ from invest_ll.api.schemas import (
 )
 from invest_ll.data.series import PriceSeries
 from invest_ll.portfolio.derive import derive_portfolio
-from invest_ll.portfolio.store import ActivityStore
 from invest_ll.portfolio.triggers import (
     Trigger,
     TriggerRule,
@@ -120,9 +120,9 @@ def desarmar(trigger_id: str) -> None:
 
 @router.get("/triggers/comprobar", tags=["vigilar"])
 def comprobar_triggers() -> ComprobacionTriggers:
-    """Evalúa los triggers contra la cartera real; los disparos son texto, nada se envía."""
+    """Evalúa los triggers contra la cartera del modo activo; los disparos son texto, nada se envía."""
     with del_dominio():
-        cartera = derive_portfolio(ActivityStore().activities())
+        cartera = derive_portfolio(almacen_activo().activities())
         comprobacion = check_triggers(TriggerStore().triggers(), cartera.open_positions)
 
     return ComprobacionTriggers(

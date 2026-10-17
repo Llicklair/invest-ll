@@ -8,17 +8,24 @@ Registrar un movimiento es contabilidad: escribe en el ledger y no envía nada. 
 puede mover dinero es `POST /api/ordenes`, con los mismos cerrojos que `invest-ll-execute`
 (`dashboard/ordenes.py`, usado tal cual): en simulación responde 403 sin construir ningún broker,
 y en cualquier otro modo exige la cantidad tecleada.
+
+**Cada modo tiene su cartera** (`api.modo`): la de pruebas (`portfolio-pruebas/`) es dinero
+ficticio con precios que no son los del mercado, y no se mezcla con la real (`portfolio/`, la que
+se ve también en simulación). Mirar, anotar y lo que ejecuta `POST /api/ordenes` van a la cartera
+del modo efectivo; lo ejecutado pasa solo, con las reglas de `portfolio.from_orders` (sin comisión
+conocida no entra, y se dice).
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter
 
 from invest_ll.api.errores import del_dominio, invalido, prohibido
+from invest_ll.api.modo import almacen_activo, almacen_del_modo, cartera_del_modo, modo_efectivo
 from invest_ll.api.schemas import (
     Cartera,
     ComprobacionEnvio,
@@ -32,26 +39,33 @@ from invest_ll.api.schemas import (
     PosicionRetirada,
     ResultadoOrden,
 )
-from invest_ll.api.schemas_v2 import Movimientos
+from invest_ll.api.schemas_v2 import Movimiento, Movimientos
 from invest_ll.dashboard.ordenes import enviar_orden, motivo_para_no_enviar
 from invest_ll.errors import InvestLLError
-from invest_ll.live.broker import Side
+from invest_ll.estrategias.datos import cierre
+from invest_ll.live.broker import OrderStatus, Side
 from invest_ll.live.factory import construir_broker
 from invest_ll.live.ledger import ExecutionLedger
-from invest_ll.live.mode import resolve_mode
+from invest_ll.nombres import nombre_llano
 from invest_ll.portfolio.derive import derive_portfolio
+from invest_ll.portfolio.from_orders import importar_a_cartera
 from invest_ll.portfolio.models import Activity, ActivityType
-from invest_ll.portfolio.quotes import ultimo_cierre
-from invest_ll.portfolio.store import ActivityStore
 
 if TYPE_CHECKING:  # pragma: no cover
-    from invest_ll.live.broker import Broker
+    from invest_ll.live.broker import Broker, OrderResult
     from invest_ll.live.mode import OperatingMode
 
 router = APIRouter()
 
 CERO = Decimal(0)
 FUENTE_PANEL = "panel"
+TipoMovimiento = Literal["compra", "venta", "ingreso", "retirada"]
+TIPO_LLANO: dict[ActivityType, TipoMovimiento] = {
+    ActivityType.BUY: "compra",
+    ActivityType.SELL: "venta",
+    ActivityType.DEPOSIT: "ingreso",
+    ActivityType.WITHDRAWAL: "retirada",
+}
 
 
 def broker_para(modo: OperatingMode) -> Broker:
@@ -66,7 +80,7 @@ def broker_para(modo: OperatingMode) -> Broker:
 def cartera() -> Cartera:
     """La cartera derivada del ledger, valorada con el último cierre y SU fecha."""
     try:
-        derivada = derive_portfolio(ActivityStore().activities())
+        derivada = derive_portfolio(almacen_activo().activities())
     except InvestLLError as error:
         return Cartera(
             vacia=False,
@@ -83,12 +97,12 @@ def cartera() -> Cartera:
     abiertas: list[PosicionAbierta] = []
     valor_total: Decimal | None = CERO
     for p in derivada.open_positions:
-        cierre = ultimo_cierre(p.symbol)
-        if cierre is None:
+        ultimo = cierre(p.symbol)
+        if ultimo is None:
             precio, fecha = None, None
             valor_total = None  # sin el precio de una, el total seria inventado
         else:
-            precio, fecha = cierre
+            precio, fecha = ultimo.precio, ultimo.fecha
             if valor_total is not None:
                 valor_total += p.value_at(precio)
         abiertas.append(
@@ -99,7 +113,7 @@ def cartera() -> Cartera:
                 invertido=p.cost,
                 abierta=p.opened_at,
                 precio=precio,
-                precio_fecha=fecha.date() if fecha is not None else None,
+                precio_fecha=fecha,
                 valor=p.value_at(precio) if precio is not None else None,
                 pnl_no_realizado=p.unrealized_at(precio) if precio is not None else None,
             )
@@ -169,7 +183,7 @@ def registrar_movimiento(movimiento: NuevoMovimiento) -> MovimientoRegistrado:
     """Escribe un movimiento en el ledger (fuente 'panel'). No envía ninguna orden."""
     actividad = _actividad(movimiento)
     with del_dominio("No registrado: "):
-        identificador = ActivityStore().append(actividad)
+        identificador = almacen_activo().append(actividad)
     return MovimientoRegistrado(activity_id=identificador)
 
 
@@ -212,7 +226,7 @@ def ordenes() -> OrdenesEnviadas:
 def comprobar_envio(comprobacion: ComprobacionEnvio) -> EstadoEnvio:
     """Si con el modo actual y lo tecleado se podría enviar (`motivo_para_no_enviar`)."""
     motivo = motivo_para_no_enviar(
-        resolve_mode(), cantidad=comprobacion.cantidad, escrito=comprobacion.escrito
+        modo_efectivo().modo, cantidad=comprobacion.cantidad, escrito=comprobacion.escrito
     )
     return EstadoEnvio(puede=motivo is None, motivo=motivo)
 
@@ -220,7 +234,9 @@ def comprobar_envio(comprobacion: ComprobacionEnvio) -> EstadoEnvio:
 @router.post("/ordenes", tags=["ordenes"])
 def enviar(peticion: PeticionOrden) -> ResultadoOrden:
     """Envía UNA orden con la confirmación tecleada (`enviar_orden`). 403 en simulación."""
-    modo = resolve_mode()
+    # Lo ejecutado pasa solo a la cartera del modo. Si no puede pasar (sin comision conocida, por
+    # ejemplo), la descripcion lo dice: la orden ya salio y eso no se deshace con un error.
+    modo = modo_efectivo().modo
     motivo = motivo_para_no_enviar(modo, cantidad=peticion.cantidad, escrito=peticion.escrito)
     if not modo.sends_real_orders:
         # Ni siquiera se construye un broker: en simulacion no hay nada a lo que enviar.
@@ -228,6 +244,7 @@ def enviar(peticion: PeticionOrden) -> ResultadoOrden:
     if motivo is not None:
         raise invalido(motivo)
 
+    registro = ExecutionLedger()
     with del_dominio():
         resultado = enviar_orden(
             broker_para(modo),
@@ -236,20 +253,66 @@ def enviar(peticion: PeticionOrden) -> ResultadoOrden:
             cantidad=peticion.cantidad,
             escrito=peticion.escrito,
             ahora=datetime.now(UTC),
-            ledger=ExecutionLedger(),
+            ledger=registro,
         )
+    descripcion = resultado.describe()
+    nota = _a_la_cartera(modo, resultado, registro)
     return ResultadoOrden(
         estado=resultado.status.value,
-        descripcion=resultado.describe(),
+        descripcion=descripcion if nota is None else f"{descripcion} {nota}",
         necesita_atencion=resultado.needs_attention,
         modo=modo.name,
     )
 
 
+def _a_la_cartera(
+    modo: OperatingMode, resultado: OrderResult, registro: ExecutionLedger
+) -> str | None:
+    """Pasa lo ejecutado a la cartera del modo. Devuelve una nota si NO pudo pasar.
+
+    Se importa la entrada tal como quedó en el registro (la última que coincide con este
+    resultado), para que `invest-ll-portfolio import-ledger` la reconozca después y no la duplique.
+    Nada de aquí puede lanzar: la orden ya salió, y un 500 haría creer que no.
+    """
+    if resultado.status not in (OrderStatus.FILLED, OrderStatus.PARTIAL):
+        return None  # rechazada o desconocida: `describe()` ya dice que no hay nada que anotar
+    try:
+        entrada = next(e for e in reversed(registro.entries()) if e.result == resultado)
+        importado = importar_a_cartera(
+            [entrada], almacen_del_modo(modo), modos=frozenset({modo.name})
+        )
+    except (StopIteration, InvestLLError, ValueError, OSError) as error:
+        return (
+            f"No se ha podido anotar en tu cartera ({error}): anótala a mano o con "
+            "invest-ll-portfolio import-ledger."
+        )
+    if importado.activities or importado.already_known:
+        return None
+    return f"No ha pasado a tu cartera: {importado.describe()} Anótala a mano con su comisión real."
+
+
 @router.get("/cartera/movimientos", tags=["cartera"])
 def movimientos() -> Movimientos:
-    """El registro de la cartera del modo activo, legible y el más reciente primero.
+    """El registro de la cartera del modo activo, legible y el más reciente primero."""
+    modo = modo_efectivo().modo
+    actividades = almacen_del_modo(modo).activities()
+    return Movimientos(
+        cartera=cartera_del_modo(modo),
+        movimientos=[_movimiento(a) for a in reversed(actividades)],
+    )
 
-    ESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.
-    """
-    raise NotImplementedError("pendiente de implementar")
+
+def _movimiento(a: Activity) -> Movimiento:
+    efectivo = a.type.is_cash
+    return Movimiento(
+        id=a.activity_id,
+        fecha=a.timestamp,
+        tipo=TIPO_LLANO[a.type],
+        activo=None if a.symbol is None else nombre_llano(a.symbol),
+        simbolo=a.symbol,
+        cantidad=a.quantity,
+        precio=None if efectivo else a.unit_price,
+        comision=a.fee,
+        importe=a.quantity if efectivo else a.gross,
+        origen=a.source,
+    )

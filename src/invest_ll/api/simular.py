@@ -26,6 +26,7 @@ from invest_ll.api.activos import (
     series_para_medir,
 )
 from invest_ll.api.errores import ERRORES_DEL_DOMINIO, del_dominio, en_pausa
+from invest_ll.api.modo import almacen_activo
 from invest_ll.api.schemas import (
     AnalisisCartera,
     Celda,
@@ -65,7 +66,6 @@ from invest_ll.engine.dca import run_dca
 from invest_ll.engine.rotation import run_rotation
 from invest_ll.portfolio.models import Activity, ActivityType
 from invest_ll.portfolio.quotes import ultimo_cierre
-from invest_ll.portfolio.store import ActivityStore
 from invest_ll.portfolio.triggers import TriggerStore
 from invest_ll.proposal.builder import FRECUENCIAS, propose_portfolio
 from invest_ll.report.portfolio import analyze_portfolio
@@ -247,7 +247,7 @@ def registrar_propuesta(peticion: PeticionRegistrarPropuesta) -> RegistroPropues
     _pausa_activa()
     registradas = 0
     problemas: list[str] = []
-    almacen = ActivityStore()
+    almacen = almacen_activo()
     for compra in peticion.compras:
         if not compra.cantidad or compra.precio is None:
             problemas.append(f"{compra.symbol}: sin precio descargado, registralo a mano")

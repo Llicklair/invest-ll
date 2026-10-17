@@ -55,6 +55,15 @@ def cuando_arranque(servidor: _Arrancable, accion: Callable[[], None]) -> None:
         time.sleep(0.2)
 
 
+def _precalentar() -> None:
+    from invest_ll.estrategias.historico import precalentar
+
+    try:
+        precalentar()
+    except Exception as error:
+        print(f"[!] No se pudo precalcular el catalogo de estrategias: {error}", file=sys.stderr)
+
+
 def servir(
     app: FastAPI, *, host: str, puerto: int, al_arrancar: Callable[[], None] | None = None
 ) -> None:
@@ -62,6 +71,10 @@ def servir(
     import uvicorn
 
     servidor = uvicorn.Server(uvicorn.Config(app, host=host, port=puerto))
+    # El catalogo de estrategias tarda unos segundos en calcularse la primera vez: se adelanta
+    # en segundo plano para que la primera visita a Estrategias no espere. Si alguien lo pide
+    # antes de que acabe, espera a este mismo calculo (no lo repite).
+    threading.Thread(target=_precalentar, name="precalentar", daemon=True).start()
     if al_arrancar is not None:
         threading.Thread(
             target=cuando_arranque, args=(servidor, al_arrancar), name="al-arrancar", daemon=True

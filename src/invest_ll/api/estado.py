@@ -1,7 +1,8 @@
 """La cabecera del panel: lo primero que hay que saber al mirar cualquier cifra.
 
 El modo va aquí y no escondido en una pestaña. Anunciar "no ejecuta órdenes reales" cuando sí
-puede sería la clase de mentira que este proyecto existe para no contar. La reserva de datos,
+puede sería la clase de mentira que este proyecto existe para no contar. Es el modo **efectivo**
+(`api.modo`): el del entorno si está puesto, si no el elegido en el panel. La reserva de datos,
 también: recorta los backtests, y sin decirlo un resultado de 2024 parece de hoy.
 """
 
@@ -10,16 +11,17 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from invest_ll.api.activos import como_activo, descargados
+from invest_ll.api.modo import modo_efectivo
 from invest_ll.api.schemas import Estado, Modo
 from invest_ll.dashboard.data import aviso_de_reserva
-from invest_ll.live.mode import Real, resolve_mode
+from invest_ll.live.mode import Real
 from invest_ll.portfolio.triggers import TriggerStore
 
 router = APIRouter()
 
 
 def modo_actual() -> Modo:
-    modo = resolve_mode()
+    modo = modo_efectivo().modo
     return Modo(
         nombre=modo.name, envia_ordenes=modo.sends_real_orders, es_real=isinstance(modo, Real)
     )

@@ -52,6 +52,10 @@ class Api:
         respuesta = self._cliente.post(ruta, json=json, headers=headers)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast("httpx.Response", respuesta)
 
+    def put(self, ruta: str, json: object = None) -> httpx.Response:
+        respuesta = self._cliente.put(ruta, json=json)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        return cast("httpx.Response", respuesta)
+
     def delete(self, ruta: str) -> httpx.Response:
         respuesta = self._cliente.delete(ruta)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast("httpx.Response", respuesta)

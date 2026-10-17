@@ -4606,7 +4606,7 @@
     },
     "/api/cartera/movimientos": {
       "get": {
-        "description": "El registro de la cartera del modo activo, legible y el más reciente primero.\n\nESQUELETO DEL CONTRATO v2 (docs/panel-v2.md, 4.4): pendiente de implementar.",
+        "description": "El registro de la cartera del modo activo, legible y el más reciente primero.",
         "operationId": "movimientos_api_cartera_movimientos_get",
         "responses": {
           "200": {
@@ -6100,7 +6100,7 @@
     },
     "/api/triggers/comprobar": {
       "get": {
-        "description": "Evalúa los triggers contra la cartera real; los disparos son texto, nada se envía.",
+        "description": "Evalúa los triggers contra la cartera del modo activo; los disparos son texto, nada se envía.",
         "operationId": "comprobar_triggers_api_triggers_comprobar_get",
         "responses": {
           "200": {
