@@ -42,6 +42,13 @@ def escribir_csv(destino: Path, cierres: list[float]) -> None:
             w.writerow([marca.isoformat(), cierre, cierre * 1.01, cierre * 0.99, cierre, 1000])
 
 
+@pytest.fixture(autouse=True)
+def en_un_directorio_vacio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Comparar apunta cuántas pruebas llevas (`attempts/`, relativo al directorio de trabajo):
+    sin esto, cada pasada de la suite lo dejaba en la raíz del repositorio con AAA y BBB."""
+    monkeypatch.chdir(tmp_path)
+
+
 @pytest.fixture
 def mercado(tmp_path: Path) -> tuple[Path, Path]:
     a = tmp_path / "yfinance" / "AAA" / "DAY_1.csv"
@@ -217,6 +224,12 @@ class TestReproducibilidad:
         ]
         separador = "--- historial de esta sesion de trabajo ---"
 
+        # La primera evaluacion de un universo no tiene historial (y lo que va tras el separador
+        # sale pegado al resultado): se hace una antes para que las dos que se comparan tengan la
+        # misma forma. Este test pasaba solo porque la suite dejaba `attempts/` en la raiz del
+        # repositorio y el contador ya venia de pasadas anteriores.
+        main(argumentos)
+        capsys.readouterr()
         main(argumentos)
         primera = capsys.readouterr().out.split(separador)[0]
         main(argumentos)
