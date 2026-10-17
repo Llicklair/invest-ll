@@ -4,12 +4,15 @@ import type {
   CandlestickData,
   HistogramData,
   IChartApi,
+  IPriceLine,
   ISeriesApi,
+  ISeriesMarkersPluginApi,
   MouseEventParams,
+  SeriesMarker,
   Time,
   UTCTimestamp,
 } from "lightweight-charts";
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { api, pedir } from "@/api/cliente";
 import type { VelaVivo } from "@/api/tipos";
@@ -17,7 +20,7 @@ import { useAlmacenVivo } from "@/api/vivo";
 import { QueEsEsto } from "@/componentes/QueEsEsto";
 import { Segmentado, clases } from "@/componentes/ui";
 import { useConsulta } from "@/lib/consulta";
-import { INTERVALOS, cantidadMoneda, compacto, nombreIntervalo, precioFijo, type Intervalo } from "@/lib/vivo";
+import { INTERVALOS, cantidadMoneda, compacto, msIntervalo, nombreIntervalo, precioFijo, type Intervalo } from "@/lib/vivo";
 
 type Lw = typeof import("lightweight-charts");
 
@@ -30,11 +33,27 @@ interface Barra {
   v: number;
 }
 
+/** Una compra o venta de un bot, sobre su vela (docs/panel-v5.md: los bots en la grafica). */
+export interface MarcaGrafico {
+  at: string;
+  lado: "compra" | "venta";
+  texto: string;
+}
+
+/** Una orden que un bot tiene preparada (un escalon de la rejilla, el liston de Bitcoin con freno). */
+export interface LineaGrafico {
+  precio: number;
+  lado: "compra" | "venta" | "mirar";
+  texto: string;
+}
+
 interface Grafico {
   lw: Lw;
   chart: IChartApi;
   velas: ISeriesApi<"Candlestick">;
   volumen: ISeriesApi<"Histogram">;
+  marcas: ISeriesMarkersPluginApi<Time>;
+  lineas: IPriceLine[];
   /** Segundos de la ultima vela pintada: lightweight-charts no acepta actualizar una anterior. */
   ultimo: number;
   barras: Barra[];
@@ -108,6 +127,9 @@ export function GraficoVelas({
   decimales,
   decimalesCantidad,
   className,
+  marcas,
+  lineas,
+  cabecera,
 }: {
   coin: string;
   nombre: string;
@@ -116,6 +138,12 @@ export function GraficoVelas({
   decimales: number;
   decimalesCantidad: number;
   className?: string;
+  /** Las compras y ventas de los bots en esta moneda, como flechas sobre sus velas. */
+  marcas?: readonly MarcaGrafico[];
+  /** Las órdenes que tienen preparadas, como líneas de precio discontinuas. */
+  lineas?: readonly LineaGrafico[];
+  /** Lo que va entre la cabecera y la leyenda (la lista de bots que se ven, por ejemplo). */
+  cabecera?: ReactNode;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const grafico = useRef<Grafico | null>(null);
@@ -210,7 +238,8 @@ export function GraficoVelas({
         priceLineVisible: false,
       });
       volumen.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-      const g: Grafico = { lw, chart, velas, volumen, ultimo: 0, barras: [] };
+      const marcasBots = lw.createSeriesMarkers(velas, []);
+      const g: Grafico = { lw, chart, velas, volumen, marcas: marcasBots, lineas: [], ultimo: 0, barras: [] };
       grafico.current = g;
 
       const reaplicar = () => {
@@ -296,6 +325,42 @@ export function GraficoVelas({
     if (ultima) programarLeyenda({ barra: ultima, enCurso: true });
   }, [listo, datos, programarLeyenda]);
 
+  // 5) Los bots encima: sus compras y ventas sobre la vela en que pasaron (la hora se lleva al
+  // principio de su vela: la libreria solo admite marcas en una vela que exista) y sus ordenes
+  // preparadas como lineas. Se rehace al cambiar algo; son pocas.
+  useEffect(() => {
+    const g = grafico.current;
+    const el = contenedor.current;
+    if (!listo || !g || !el) return;
+    const c = leerColores(el);
+    const paso = msIntervalo(intervalo) / 1000;
+    const primera = g.barras[0]?.t ?? Infinity;
+    const lista: SeriesMarker<Time>[] = (marcas ?? [])
+      .map((m) => ({ m, t: Math.floor(segundos(m.at) / paso) * paso }))
+      .filter(({ t }) => t >= primera && t <= g.ultimo)
+      .sort((a, b) => a.t - b.t)
+      .map(({ m, t }) => ({
+        time: t as UTCTimestamp,
+        position: m.lado === "compra" ? "belowBar" : "aboveBar",
+        color: m.lado === "compra" ? c.sube : c.baja,
+        shape: m.lado === "compra" ? "arrowUp" : "arrowDown",
+        text: m.texto,
+        size: 1,
+      }));
+    g.marcas.setMarkers(lista);
+    for (const l of g.lineas) g.velas.removePriceLine(l);
+    g.lineas = (lineas ?? []).map((l) =>
+      g.velas.createPriceLine({
+        price: l.precio,
+        color: l.lado === "compra" ? c.sube : l.lado === "venta" ? c.baja : c.texto,
+        lineWidth: 1,
+        lineStyle: g.lw.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: l.texto,
+      }),
+    );
+  }, [listo, marcas, lineas, intervalo, datos]);
+
   // 4) La vela en curso, en vivo: directamente a la grafica, sin pasar por React.
   useEffect(() => {
     return almacen.suscribirVela((v) => {
@@ -335,6 +400,7 @@ export function GraficoVelas({
           className="[&_label]:min-h-11 [&_label]:px-2.5 [&_label]:text-sm"
         />
       </div>
+      {cabecera}
       <Leyenda leyenda={leyenda} decimales={decimales} decimalesCantidad={decimalesCantidad} coin={coin} />
       <div className="relative min-h-0 flex-1 xl:min-h-[clamp(320px,44vh,520px)]">
         <div
@@ -364,6 +430,13 @@ export function GraficoVelas({
           </svg>
           Rellena: acabó más abajo
         </span>
+        {marcas?.length || lineas?.length ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="font-semibold text-sube-texto">▲</span>
+            <span aria-hidden="true" className="font-semibold text-baja-texto">▼</span>
+            Compra o venta de un bot · <span aria-hidden="true">- - -</span> lo que tiene preparado
+          </span>
+        ) : null}
         <QueEsEsto clave="vela" className="[&>button]:text-xs" />
         <span className="ml-auto">
           Gráfico:{" "}

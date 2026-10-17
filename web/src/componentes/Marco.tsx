@@ -254,9 +254,9 @@ function AvisoSinModo() {
  */
 export function Marco({ children }: { children: ReactNode }) {
   const ruta = usePathname();
-  // Operar es una pantalla de exchange: usa todo el ancho y la barra lateral se estrecha (Mercados,
-  // dentro de Operar, es una pantalla normal).
-  const ancha = normalizar(ruta) === "/operar/";
+  // Operar (Hyperliquid y Práctica) es una pantalla de exchange: usa todo el ancho y la barra
+  // lateral se estrecha (Mercados, dentro de Operar, es una pantalla normal).
+  const ancha = ["/operar/", "/operar/practica/"].includes(normalizar(ruta));
   useEffect(() => {
     // El boton de Pregunta se recoge en el carril (globals.css): no tapa el boleto ni la cuenta.
     if (ancha) document.body.dataset.ancha = "";

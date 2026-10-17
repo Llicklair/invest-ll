@@ -79,6 +79,7 @@ export const PESTANAS_ESTRATEGIAS: readonly PestanaSeccion[] = [
 ];
 
 export const PESTANAS_OPERAR: readonly PestanaSeccion[] = [
-  { href: "/operar/", texto: "Operar" },
+  { href: "/operar/", texto: "Hyperliquid" },
+  { href: "/operar/practica/", texto: "Práctica" },
   { href: "/operar/mercados/", texto: "Mercados" },
 ];

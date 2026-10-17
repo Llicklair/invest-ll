@@ -12,12 +12,20 @@ import { useGuardado } from "@/lib/almacen";
 import { compacto, decimalesPrecio, esIntervalo, extremos, precioFijo, type Intervalo } from "@/lib/vivo";
 
 import { Boleto, type PresetBoleto } from "./Boleto";
+import { FranjaBots, useBotsEnGrafica } from "./BotsEnGrafica";
 import { ListasCuenta, ResumenCuenta } from "./Cuenta";
 import { GraficoVelas } from "./GraficoVelas";
+import { PanelHyperliquid } from "./Hyperliquid";
 import { Libro, UltimasOperaciones } from "./Libro";
 import { SelectorMoneda } from "./SelectorMoneda";
 
-const CANALES: readonly CanalVivo[] = ["monedas", "libro", "operaciones", "vela", "cuenta", "estado"];
+/** Hyperliquid (dinero de verdad, docs/panel-v5.md) o Práctica (la cuenta ficticia de v3). */
+export type ModoOperar = "real" | "practica";
+
+const CANALES: Record<ModoOperar, readonly CanalVivo[]> = {
+  real: ["monedas", "libro", "operaciones", "vela", "estado", "bots", "actividad"],
+  practica: ["monedas", "libro", "operaciones", "vela", "cuenta", "estado", "bots", "actividad"],
+};
 
 const MOVIL = "(max-width: 1023.98px)";
 function suscribirMovil(aviso: () => void): () => void {
@@ -35,17 +43,19 @@ function useEsMovil(): boolean {
 }
 
 /**
- * Operar (docs/panel-v3-vivo.md, seccion 2): la pantalla de exchange de la cuenta de practica,
- * al estilo de Hyperliquid. En escritorio, grafico grande, libro al lado y boleto a la derecha,
- * con la cuenta debajo; en el movil, por pestanas (Grafico · Libro · Operar · Cuenta).
+ * Operar (docs/panel-v3-vivo.md, seccion 2; docs/panel-v5.md): la pantalla de exchange al estilo
+ * de Hyperliquid, en dos pestañas separadas: Hyperliquid, para operar de verdad con tu cuenta, y
+ * Práctica, con la cuenta ficticia. Las dos, con tus bots encima de la gráfica. En escritorio,
+ * grafico grande, libro al lado y boleto a la derecha, con la cuenta debajo; en el movil, por
+ * pestanas (Grafico · Libro · Operar · Cuenta).
  */
-export function Operar() {
+export function Operar({ modo }: { modo: ModoOperar }) {
   const [coin, setCoin] = useGuardado("local", "invest-ll.operar.coin", "BTC");
   const [guardado, setIntervalo] = useGuardado("local", "invest-ll.operar.intervalo", "1h");
   const intervalo: Intervalo = esIntervalo(guardado) ? guardado : "1h";
   return (
-    <ProveedorVivo coin={coin} intervalo={intervalo} canales={CANALES}>
-      <PantallaOperar coin={coin} intervalo={intervalo} onCoin={setCoin} onIntervalo={setIntervalo} />
+    <ProveedorVivo coin={coin} intervalo={intervalo} canales={CANALES[modo]}>
+      <PantallaOperar modo={modo} coin={coin} intervalo={intervalo} onCoin={setCoin} onIntervalo={setIntervalo} />
     </ProveedorVivo>
   );
 }
@@ -53,11 +63,13 @@ export function Operar() {
 type PestanaMovil = "grafico" | "libro" | "operar" | "cuenta";
 
 function PantallaOperar({
+  modo,
   coin,
   intervalo,
   onCoin,
   onIntervalo,
 }: {
+  modo: ModoOperar;
   coin: string;
   intervalo: Intervalo;
   onCoin: (c: string) => void;
@@ -73,6 +85,9 @@ function PantallaOperar({
   const [preset, setPreset] = useState<{ n: number; inicial?: PresetBoleto }>({ n: 0 });
   const idPanel = useId();
   const idLibro = useId();
+  const [verBots, setVerBots] = useGuardado("local", "invest-ll.operar.bots", "si");
+  const botsVisibles = verBots !== "no";
+  const encima = useBotsEnGrafica(coin, botsVisibles);
 
   // Una moneda guardada que ya no existe: la primera de la lista.
   useEffect(() => {
@@ -94,7 +109,7 @@ function PantallaOperar({
 
   return (
     <div className="space-y-3">
-      <Cabecera lista={lista} coin={coin} moneda={moneda} onCoin={onCoin} decP={decP} />
+      <Cabecera modo={modo} lista={lista} coin={coin} moneda={moneda} onCoin={onCoin} decP={decP} />
       {monedas && !monedas.estado.conectado && monedas.estado.aviso ? (
         <Aviso tipo="aviso" titulo="No llegan precios de Hyperliquid">
           {monedas.estado.aviso}
@@ -136,6 +151,9 @@ function PantallaOperar({
               decimales={decP}
               decimalesCantidad={dec}
               className="h-full"
+              marcas={encima.marcas}
+              lineas={encima.lineas}
+              cabecera={<FranjaBots bots={encima.bots} visibles={botsVisibles} onVisibles={(v) => setVerBots(v ? "si" : "no")} marcas={encima.marcas.length} />}
             />
           ) : (
             <Esqueleto className="h-[clamp(320px,48vh,560px)]" />
@@ -179,25 +197,37 @@ function PantallaOperar({
         </section>
 
         <div className={clases("flex min-w-0 flex-col gap-3 lg:[grid-area:boleto]", oculto(["operar", "cuenta"]))}>
-          <div className={oculto("operar")}>
-            {moneda ? <Boleto key={`${coin}-${preset.n}`} moneda={moneda} inicial={preset.inicial} /> : <Esqueleto className="h-[30rem]" />}
-          </div>
-          <ResumenCuenta />
+          {modo === "practica" ? (
+            <>
+              <div className={oculto("operar")}>
+                {moneda ? <Boleto key={`${coin}-${preset.n}`} moneda={moneda} inicial={preset.inicial} /> : <Esqueleto className="h-[30rem]" />}
+              </div>
+              <ResumenCuenta />
+            </>
+          ) : (
+            <div className={oculto(["operar", "cuenta"])}>
+              <PanelHyperliquid />
+            </div>
+          )}
         </div>
 
-        <ListasCuenta monedas={porCoin} onVender={vender} compacta={esMovil} className={clases("lg:[grid-area:cuenta]", oculto("cuenta"))} />
+        {modo === "practica" ? (
+          <ListasCuenta monedas={porCoin} onVender={vender} compacta={esMovil} className={clases("lg:[grid-area:cuenta]", oculto("cuenta"))} />
+        ) : null}
       </div>
     </div>
   );
 }
 
 function Cabecera({
+  modo,
   lista,
   coin,
   moneda,
   onCoin,
   decP,
 }: {
+  modo: ModoOperar;
   lista: readonly MonedaVivo[];
   coin: string;
   moneda: MonedaVivo | undefined;
@@ -211,7 +241,7 @@ function Cabecera({
   const precio = medio ?? moneda?.precio ?? null;
   return (
     <header className="flex flex-wrap items-center gap-x-5 gap-y-3">
-      <h1 className="titular text-[1.625rem] leading-none font-semibold text-tinta">Operar</h1>
+      <h1 className="titular text-[1.625rem] leading-none font-semibold text-tinta">{modo === "practica" ? "Práctica" : "Hyperliquid"}</h1>
       <SelectorMoneda monedas={lista} coin={coin} onElegir={onCoin} />
       <dl className="flex flex-wrap items-end gap-x-5 gap-y-1">
         <div>
@@ -232,7 +262,7 @@ function Cabecera({
         </div>
       </dl>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 xl:ml-auto">
-        <RotuloFicticio />
+        {modo === "practica" ? <RotuloFicticio /> : <RotuloFicticio texto="Hyperliquid de verdad: precios y, si lo conectas, tu dinero." className="bg-marca-suave text-marca" />}
         <EstadoEnVivo />
       </div>
     </header>
