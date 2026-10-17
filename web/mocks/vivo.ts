@@ -263,7 +263,7 @@ function elMundo(): MundoVivo {
   if (!SIN_BOTS.includes(e)) m.bots = botsEjemplo(m, ahora);
   // Unas cuantas operaciones de mercado para que la lista no empiece vacia.
   for (const mon of monedas.values()) {
-    for (let i = 0; i < 30; i++) operacionMercado(m, mon, ahora - (30 - i) * 1700, rnd() < 0.5 ? "compra" : "venta");
+    for (let i = 0; i < 30; i++) operacionMercado(m, mon, (m.conectado ? ahora : m.desde) - (30 - i) * 1700, rnd() < 0.5 ? "compra" : "venta");
   }
   return m;
 }
@@ -373,7 +373,8 @@ function velasDe(mundo: MundoVivo, m: EstadoMoneda, intervalo: string): S["VelaV
   // Una tendencia suave que acaba en la variacion de 24 h de la moneda (o algo parecido).
   const deriva = ((m.def.var24 / 100) * ms) / DIA_MS / 3;
   for (let i = n - 2; i >= 0; i--) cierres[i] = (cierres[i + 1] ?? m.precio) / Math.exp(sigma * normal(rnd) + deriva);
-  const ahora = Math.floor(mundo.t / ms) * ms;
+  const hasta = mundo.conectado ? mundo.t : mundo.desde;
+  const ahora = Math.floor(hasta / ms) * ms;
   const velas: S["VelaVivo"][] = [];
   const volBase = (m.def.volumen * ms) / DIA_MS / m.precio;
   for (let i = 0; i < n; i++) {
@@ -390,7 +391,7 @@ function velasDe(mundo: MundoVivo, m: EstadoMoneda, intervalo: string): S["VelaV
       maximo: Math.max(alto, o, c),
       minimo: Math.min(bajo, o, c),
       cierre: c,
-      volumen: Number((volBase * Math.exp(normal(rnd) * 0.5) * (ultima ? (mundo.t - ahora) / ms : 1)).toFixed(m.def.dec)),
+      volumen: Number((volBase * Math.exp(normal(rnd) * 0.5) * (ultima ? (hasta - ahora) / ms : 1)).toFixed(m.def.dec)),
       cerrada: !ultima,
     });
   }
