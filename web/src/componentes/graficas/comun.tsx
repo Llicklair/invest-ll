@@ -105,11 +105,13 @@ export function formatoMarcasY(ticks: readonly number[]): (v: number) => string 
   const paso = ticks.length > 1 ? Math.abs((ticks[1] ?? 0) - (ticks[0] ?? 0)) : max;
   if (max >= 1_000_000) {
     const dec = paso < 1_000_000 ? 1 : 0;
-    return (v) => `${(v / 1_000_000).toLocaleString("es-ES", { maximumFractionDigits: dec, minimumFractionDigits: 0 })} M`;
+    return (v) =>
+      v === 0 ? "0" : `${(v / 1_000_000).toLocaleString("es-ES", { maximumFractionDigits: dec, minimumFractionDigits: 0 })} M`;
   }
   if (max >= 10_000) {
     const dec = paso < 1_000 ? 1 : 0;
-    return (v) => `${(v / 1_000).toLocaleString("es-ES", { maximumFractionDigits: dec, minimumFractionDigits: 0 })} K`;
+    return (v) =>
+      v === 0 ? "0" : `${(v / 1_000).toLocaleString("es-ES", { maximumFractionDigits: dec, minimumFractionDigits: 0 })} K`;
   }
   const dec = paso >= 1 ? 0 : paso >= 0.1 ? 1 : paso >= 0.01 ? 2 : 4;
   return (v) => v.toLocaleString("es-ES", { maximumFractionDigits: dec, minimumFractionDigits: dec, useGrouping: true });
