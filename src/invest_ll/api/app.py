@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +22,12 @@ from invest_ll.errors import InvestLLError
 RAIZ_REPO = Path(__file__).resolve().parents[3]
 FRONTEND = RAIZ_REPO / "web" / "out"
 ORIGENES_DESARROLLO = ("http://localhost:3000", "http://127.0.0.1:3000")
+# Solo se atienden peticiones dirigidas a esta maquina por su nombre local ("testserver" es el
+# del TestClient). Escuchar en 127.0.0.1 no basta: con DNS rebinding, una web cualquiera abierta
+# en el navegador puede hacer que su dominio resuelva a 127.0.0.1 y hablar con el panel como si
+# fuera el mismo origen -- y POST /api/ordenes, en modo real, mueve dinero. Comprobar la cabecera
+# Host corta ese camino: el navegador manda el dominio del atacante, no "localhost".
+HOSTS_PERMITIDOS = ("127.0.0.1", "localhost", "testserver")
 
 
 def crear_app(frontend: Path | None = FRONTEND) -> FastAPI:
@@ -38,6 +45,7 @@ def crear_app(frontend: Path | None = FRONTEND) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(HOSTS_PERMITIDOS))
 
     @app.exception_handler(InvestLLError)
     async def _dominio(_: Request, error: InvestLLError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
