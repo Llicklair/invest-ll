@@ -108,6 +108,24 @@ class TestSimular:
         antes = [p for p in r.curva_mantener if p.at <= tarde]
         assert antes and antes[0].valor < D(1000)
 
+    def test_dice_lo_que_queda_abierto_al_acabar(self) -> None:
+        cierres = [10.0, 9, 8, 7, 6, 5, 9, 12] + [12.0 + i for i in range(60)]
+        velas = {"BTC": serie("BTC", cierres)}
+        r = simular(
+            validar(CRUCE), velas, exchange="falso", capital=D(1000), desde=INICIO, hasta=HASTA
+        )
+        assert r.abiertas == ("BTC",)
+        assert any("Al acabar la prueba aún tenía Bitcoin" in a for a in r.avisos)
+        cerrada = simular(
+            validar(CRUCE),
+            {"BTC": serie("BTC", [*cierres, *[70.0 - 3 * i for i in range(20)]])},
+            exchange="falso",
+            capital=D(1000),
+            desde=INICIO,
+            hasta=HASTA,
+        )
+        assert cerrada.abiertas == ()
+
     def test_sin_velas_en_el_periodo(self) -> None:
         velas = {"BTC": serie("BTC", [1.0] * 10)}
         with pytest.raises(PruebaError, match="No hay velas"):

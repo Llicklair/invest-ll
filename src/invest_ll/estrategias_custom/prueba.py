@@ -120,6 +120,8 @@ class Resultado:
     version: int = 0
     versiones_probadas: int = 1
     aviso_sobreajuste: str | None = None
+    abiertas: tuple[str, ...] = ()
+    """Las monedas que tenía compradas al acabar: esa parte del resultado aún no se ha cerrado."""
 
 
 def aviso_sobreajuste(versiones: int) -> str | None:
@@ -357,6 +359,7 @@ def simular(
         comision=comision,
         deslizamiento=deslizamiento,
         at=ahora or datetime.now(UTC),
+        abiertas=tuple(sorted(st.cuenta.posiciones)),
     )
     return replace(resultado, avisos=tuple(_avisos(resultado, st, avisos_previos, len(pasos))))
 
@@ -395,6 +398,12 @@ def _avisos(r: Resultado, st: _Estado, previos: Sequence[str], velas: int) -> li
     if st.pequenas:
         avisos.append(
             f"{st.pequenas} órdenes no se hicieron por no llegar al mínimo de 10 USDC por orden."
+        )
+    if r.abiertas:
+        cuales = ", ".join(nombre_hyperliquid(c) for c in r.abiertas)
+        avisos.append(
+            f"Al acabar la prueba aún tenía {cuales}: parte del resultado es una ganancia o una "
+            "pérdida sin cerrar, valorada al último cierre."
         )
     return avisos
 
@@ -531,6 +540,7 @@ def resultado_a_json(r: Resultado) -> dict[str, Any]:
         "version": r.version,
         "versiones_probadas": r.versiones_probadas,
         "aviso_sobreajuste": r.aviso_sobreajuste,
+        "abiertas": list(r.abiertas),
     }
 
 
@@ -573,4 +583,5 @@ def resultado_de_json(d: dict[str, Any]) -> Resultado:
         version=int(d.get("version", 0)),
         versiones_probadas=int(d.get("versiones_probadas", 1)),
         aviso_sobreajuste=d.get("aviso_sobreajuste"),
+        abiertas=tuple(str(c) for c in d.get("abiertas", [])),
     )

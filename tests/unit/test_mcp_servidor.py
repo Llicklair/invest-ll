@@ -210,10 +210,19 @@ class TestUnaLlamadaDeCada:
         assert guardada["estado"] == "borrador"
         lista = llamar(servidor, "estrategias")["estrategias"]
         assert [e["id"] for e in lista] == [guardada["id"]]
-        prueba = llamar(servidor, "probar", {"estrategia": guardada["id"], "exchange": "falso"})
+        periodo = {"desde": "2025-01-15", "hasta": "2026-02-01"}
+        prueba = llamar(
+            servidor, "probar", {"estrategia": guardada["id"], "exchange": "falso", **periodo}
+        )
         assert prueba["versiones_probadas"] == 1
         assert prueba["aviso_sobreajuste"] is None
         assert "curva" not in prueba
+        # Muchas operaciones: las primeras y las últimas (la última puede seguir abierta).
+        detalle = prueba["operaciones_detalle"]
+        assert prueba["operaciones"] > 20
+        assert len(detalle) == 21
+        assert "más) …" in detalle[10]
+        assert isinstance(prueba["abiertas_al_final"], list)
         ficha = llamar(servidor, "estrategias", {"estrategia": guardada["id"]})
         assert ficha["estado"] == "probada"
         assert ficha["definicion"]["intervalo"] == "1d"

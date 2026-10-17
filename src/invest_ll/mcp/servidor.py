@@ -57,6 +57,7 @@ INSTRUCCIONES: Final = (
 )
 MAX_PARES: Final = 80
 MAX_VELAS: Final = 300
+MAX_OPERACIONES_RESUMEN: Final = 20
 
 # Los tipos de los parámetros, a nivel de módulo: el SDK los resuelve con los globales del módulo.
 Exchange = Annotated[str, Field(description="Id del exchange: 'binance', 'hyperliquid'…")]
@@ -361,8 +362,24 @@ def _resumen_prueba(r: Resultado) -> dict[str, Any]:
         "versiones_probadas": r.versiones_probadas,
         "aviso_sobreajuste": r.aviso_sobreajuste,
         "avisos": list(r.avisos),
-        "primeras_operaciones": [o.motivo for o in r.lista_operaciones[:8]],
+        "abiertas_al_final": list(r.abiertas),
+        "operaciones_detalle": _operaciones(r),
     }
+
+
+def _operaciones(r: Resultado) -> list[str]:
+    """Todas si son pocas; si no, las primeras y las últimas (en el primer turno real, Claude
+    echó en falta la última, la que seguía abierta)."""
+    lista = [f"{o.at.date().isoformat()} {o.motivo}" for o in r.lista_operaciones]
+    if len(lista) > MAX_OPERACIONES_RESUMEN:
+        mitad = MAX_OPERACIONES_RESUMEN // 2
+        lista = [*lista[:mitad], f"… ({len(lista) - 2 * mitad} más) …", *lista[-mitad:]]
+    if r.operaciones > len(r.lista_operaciones):
+        lista.append(
+            f"(la prueba solo guarda las primeras {len(r.lista_operaciones)} de "
+            f"{r.operaciones} operaciones)"
+        )
+    return lista
 
 
 def _llamar(fn: Callable[[], dict[str, Any]]) -> str:
