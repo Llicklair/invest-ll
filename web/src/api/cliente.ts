@@ -52,24 +52,12 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
 
 /**
  * El texto de un error de la API. Desde el contrato v2.1 TODOS llegan como
- * `{"detail": "texto en llano"}`, tambien los de validacion, y se ensena tal cual. La lista de
- * FastAPI (`{"detail": [{loc, msg}, ...]}`) se sigue leyendo por si una API vieja la manda.
+ * `{"detail": "texto en llano"}` (el modelo `Error` del OpenAPI), tambien los de validacion, y se
+ * ensena tal cual. Si no viene asi (un proxy, una pagina de error), se dice el codigo.
  */
 export function textoDeError(cuerpo: unknown, respuesta?: Response): string {
   if (typeof cuerpo === "string" && cuerpo.trim() !== "") return cuerpo;
-  if (esObjeto(cuerpo)) {
-    const detalle = cuerpo.detail;
-    if (typeof detalle === "string") return detalle;
-    if (Array.isArray(detalle)) {
-      const lineas = detalle.map((d: unknown) => {
-        if (!esObjeto(d)) return String(d);
-        const donde = Array.isArray(d.loc) ? d.loc.filter((x) => x !== "body").join(".") : "";
-        const msg = typeof d.msg === "string" ? d.msg : JSON.stringify(d);
-        return donde ? `${donde}: ${msg}` : msg;
-      });
-      if (lineas.length) return lineas.join("\n");
-    }
-  }
+  if (esObjeto(cuerpo) && typeof cuerpo.detail === "string") return cuerpo.detail;
   if (respuesta) return `La API respondió ${respuesta.status} ${respuesta.statusText} sin explicación.`;
   return "Error desconocido de la API.";
 }
