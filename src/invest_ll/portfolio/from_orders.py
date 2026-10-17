@@ -32,6 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Set as AbstractSet
 
     from invest_ll.live.ledger import LedgerEntry
+    from invest_ll.portfolio.store import ActivityStore
 
 # Los nombres de modo que `ExecutionLedger` guarda en cada entrada (ver live/mode.py).
 MODO_REAL = "REAL"
@@ -151,6 +152,20 @@ def actividades_desde_ordenes(
         without_commission=cuenta[_Descarte.SIN_COMISION],
         already_known=ya_estaban,
     )
+
+
+def importar_a_cartera(
+    entradas: Iterable[LedgerEntry], almacen: ActivityStore, *, modos: AbstractSet[str]
+) -> OrderImportResult:
+    """Convierte las órdenes y las escribe en la cartera, con las mismas reglas de siempre.
+
+    Es lo que hace `invest-ll-portfolio import-ledger`, en una llamada: el panel lo usa justo
+    después de enviar una orden para que lo ejecutado pase solo a la cartera de su modo.
+    """
+    resultado = actividades_desde_ordenes(entradas, modos=modos, conocidos=almacen.known_ids())
+    for actividad in resultado.activities:
+        almacen.append(actividad)
+    return resultado
 
 
 def _convertir(entrada: LedgerEntry) -> Activity | _Descarte:

@@ -21,7 +21,17 @@ from invest_ll.errors import InvestLLError
 from invest_ll.portfolio.models import Activity, ActivityType
 
 RAIZ = Path("portfolio")
+RAIZ_PRUEBAS = Path("portfolio-pruebas")
+"""La cartera de la red de pruebas: sus precios no son los del mercado y no se mezclan."""
 FICHERO = "activities.jsonl"
+
+
+def raiz_del_modo(nombre_modo: str) -> Path:
+    """La carpeta de la cartera de un modo: la de pruebas para "pruebas"; la real para lo demás.
+
+    En simulación se ve la cartera real: es lo que tienes, y simular no la cambia.
+    """
+    return RAIZ_PRUEBAS if nombre_modo == "pruebas" else RAIZ
 
 
 class DuplicateActivityError(InvestLLError):
