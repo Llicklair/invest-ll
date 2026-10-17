@@ -107,7 +107,7 @@ class Plantilla:
     def evidencia_para(self, monedas: Sequence[str]) -> Evidencia:
         """La evidencia de un bot concreto: la regla de Bitcoin con freno se probó con Bitcoin."""
         if self.clave == "btc-freno" and tuple(monedas) != ("BTC",):
-            cuales = ", ".join(nombre_llano(c) for c in monedas)
+            cuales = decisiones.y([nombre_llano(c) for c in monedas])
             return Evidencia(
                 "ninguna",
                 f"La regla de «Bitcoin con freno» se probó con Bitcoin; con {cuales} no hay "
@@ -235,14 +235,14 @@ REJILLA: Final = Plantilla(
         "Ninguna prueba: es un experimento.",
         "Gana si el precio oscila dentro del rango. Si sale por abajo se queda con todo comprado "
         "y pierde; si sale por arriba lo ha vendido todo y no gana con la subida.",
-        "Decide con cada precio: muchas operaciones pequeñas, cada una con su comisión.",
+        "Decide con cada precio, y cada escalón paga comisión al comprarse y al venderse.",
     ),
     evidencia=Evidencia(
         "ninguna",
         "Ninguna: gana si el precio oscila dentro del rango, pierde si sale por abajo.",
     ),
     riesgo=4,
-    operaciones_esperadas="Varias al día si el precio oscila; ninguna si se sale del rango",
+    operaciones_esperadas="Una o dos al día si el precio oscila dentro del rango; ninguna fuera",
     monedas="una",
     monedas_sugeridas=("BTC", "ETH"),
     parametros=(

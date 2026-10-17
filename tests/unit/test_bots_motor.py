@@ -359,8 +359,11 @@ class TestFallosYEstados:
         mercado.precio("BTC", 100)
         mercado.precio("ETH", 10)
         m = nuevo_motor(mercado, tmp_path)
-        m.desplegar("tendencia", "T", ["BTC", "ETH"], D(1000), TENDENCIA)
+        dos = m.desplegar("tendencia", "T", ["BTC", "ETH"], D(1000), TENDENCIA)
         m.desplegar("rejilla", "R", ["BTC"], D(1000), REJILLA)
+        assert m.eventos(dos.id)[0].texto == (
+            "Desplegado con 1.000,00 USDC ficticios en Bitcoin y Ethereum."
+        )
         assert mercado.fuente.seguidas == {
             ("BTC", True, ("1h",)),
             ("ETH", True, ("1h",)),

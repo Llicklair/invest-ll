@@ -262,8 +262,19 @@ class TestRejilla:
 
     def test_al_volver_al_rango_lo_cuenta(self) -> None:
         memoria = {"iniciada": "si", "fuera": "abajo", **{f"escalon_{k}": "1" for k in range(4)}}
-        d = decisiones.rejilla(self.s(91, memoria))
-        assert d.notas == ("El precio volvió al rango (90,00 a 110,00).",)
+        d = decisiones.rejilla(self.s(96, memoria))
+        assert d.notas == ("El precio volvió al rango (90,00 a 110,00): vuelve a operar.",)
+
+    def test_rondar_el_borde_no_entra_y_sale_en_cada_vuelta(self) -> None:
+        """Fuera hasta que vuelva un escalón dentro, que es cuando la rejilla vuelve a operar."""
+        memoria = {"iniciada": "si", "fuera": "abajo", **{f"escalon_{k}": "1" for k in range(4)}}
+        d = decisiones.rejilla(self.s(92, memoria))
+        assert d.notas == ()
+        assert d.memoria is not None
+        assert d.memoria["fuera"] == "abajo"
+        vendido = {"iniciada": "si", "fuera": "arriba"}
+        assert decisiones.rejilla(self.s(106, vendido)).notas == ()
+        assert decisiones.rejilla(self.s(104, vendido)).notas != ()
 
     def test_aplicar_reparte_lo_comprado_entre_sus_escalones(self) -> None:
         orden = Orden("BTC", "compra", "x", importe=D(500), escalones=(2, 3))

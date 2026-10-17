@@ -172,32 +172,33 @@ def _posiciones(bot: Bot) -> list[PosicionPractica]:
 
 
 def _detalle(m: Motor, bot: Bot) -> DetalleBot:
-    resumen = _resumen(m, bot)
-    curva = bot.curva_muestreada(m.ahora())
-    return DetalleBot(
-        **resumen.model_dump(),
-        parametros=dict(bot.definicion.parametros),
-        efectivo=_dinero(bot.cuenta.efectivo) or Decimal(0),
-        posiciones=_posiciones(bot),
-        lista_operaciones=[
-            OperacionBot(
-                at=o.at,
-                coin=o.coin,
-                nombre=nombre_llano(o.coin),
-                lado=o.lado,
-                cantidad=_cantidad(o.cantidad),
-                precio=_cantidad(o.precio),
-                importe=_dinero(o.importe) or Decimal(0),
-                comision=_cantidad(o.comision),
-                motivo=o.motivo,
-            )
-            for o in m.operaciones(bot.id)
-        ],
-        eventos=[EventoBot(at=e.at, tipo=e.tipo, texto=e.texto) for e in m.eventos(bot.id)],
-        curva_mantener=[
-            PuntoBot(at=p.at, valor=float(p.mantener)) for p in curva if p.mantener is not None
-        ],
-    )
+    with m.cerrojo:  # que el bucle no lo cambie a mitad
+        resumen = _resumen(m, bot)
+        curva = bot.curva_muestreada(m.ahora())
+        return DetalleBot(
+            **resumen.model_dump(),
+            parametros=dict(bot.definicion.parametros),
+            efectivo=bot.cuenta.efectivo.quantize(CENTIMO),
+            posiciones=_posiciones(bot),
+            lista_operaciones=[
+                OperacionBot(
+                    at=o.at,
+                    coin=o.coin,
+                    nombre=nombre_llano(o.coin),
+                    lado=o.lado,
+                    cantidad=_cantidad(o.cantidad),
+                    precio=_cantidad(o.precio),
+                    importe=o.importe.quantize(CENTIMO),
+                    comision=_cantidad(o.comision),
+                    motivo=o.motivo,
+                )
+                for o in m.operaciones(bot.id)
+            ],
+            eventos=[EventoBot(at=e.at, tipo=e.tipo, texto=e.texto) for e in m.eventos(bot.id)],
+            curva_mantener=[
+                PuntoBot(at=p.at, valor=float(p.mantener)) for p in curva if p.mantener is not None
+            ],
+        )
 
 
 @router.get("/bots/plantillas", tags=["bots"])
@@ -209,7 +210,8 @@ def plantillas() -> Plantillas:
 def lista() -> Bots:
     """Todos los bots con lo que llevan generado, valorados a precios de ahora."""
     m = _motor()
-    resumenes = [_resumen(m, b) for b in m.bots()]
+    with m.cerrojo:  # que el bucle no cambie un bot a mitad de leerlo
+        resumenes = [_resumen(m, b) for b in m.bots()]
     capital = sum((r.capital for r in resumenes), Decimal(0))
     valores = [r.valor for r in resumenes]
     conocidos = [v for v in valores if v is not None]

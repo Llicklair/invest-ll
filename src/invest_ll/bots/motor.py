@@ -42,7 +42,7 @@ from invest_ll.bots.cuenta import (
     usdc,
     valor_mantener,
 )
-from invest_ll.bots.decisiones import Orden, Situacion, cerradas, precio_txt
+from invest_ll.bots.decisiones import Orden, Situacion, cerradas, precio_txt, y
 from invest_ll.bots.plantillas import Plantilla, plantilla, validar
 from invest_ll.bots.registro import (
     CARPETA,
@@ -115,7 +115,9 @@ class Bot:
         """La última vela cerrada con que decidió, por moneda: no decide dos veces la misma."""
         self.esperando: str | None = None
         """Por qué hay una orden esperando (sin libro): se reintenta en la vuelta siguiente."""
-        self.notas_vistas: set[str] = set()
+        self.notas_previas: tuple[str, ...] = ()
+        """Las notas de la decisión anterior: lo que se repite de una a otra no se vuelve a
+        apuntar ("Esperando historia…" en cada vela hasta que la haya)."""
         self.aviso_plantilla: str | None = None
         self.ultimo_guardado: datetime | None = None
         self.sucio = False
@@ -149,15 +151,18 @@ class Bot:
 
     def curva_muestreada(self, ahora: datetime) -> list[Punto]:
         """Unos 100 puntos desde que arrancó, el último con el valor de ahora."""
-        puntos = list(self.curva)
+        guardados = self.curva
         valor = self.valor()
-        if valor is not None and (not puntos or ahora > puntos[-1].at):
-            puntos.append(Punto(ahora, valor, self.mantener()))
-        if len(puntos) <= PUNTOS_CURVA:
-            return puntos
-        ultimo = len(puntos) - 1
+        vivo: list[Punto] = []
+        if valor is not None and (not guardados or ahora > guardados[-1].at):
+            vivo = [Punto(ahora, valor, self.mantener())]
+        total = len(guardados) + len(vivo)
+        if total <= PUNTOS_CURVA:
+            return [*guardados, *vivo]
+        ultimo = total - 1
         indices = sorted({round(i * ultimo / (PUNTOS_CURVA - 1)) for i in range(PUNTOS_CURVA)})
-        return [puntos[i] for i in indices]
+        # Sin copiar la curva entera (un mes son 43.200 puntos): la lista se pide cada 2 s.
+        return [guardados[i] if i < len(guardados) else vivo[0] for i in indices]
 
     def aviso(
         self, ahora: datetime, sin_precios_desde: datetime | None, zona: tzinfo = ZONA
@@ -203,6 +208,11 @@ class Motor:
 
     def ahora(self) -> datetime:
         return self._reloj()
+
+    @property
+    def cerrojo(self) -> threading.RLock:
+        """Para leer varios bots de una vez sin que el bucle los cambie a mitad (las rutas)."""
+        return self._cerrojo
 
     # -- Cargar y seguir ---------------------------------------------------------------------------
 
@@ -309,7 +319,7 @@ class Motor:
             bot = Bot(definicion, estado, [])
             self._refrescar_precios(bot)
             self.registro.crear(definicion, estado)
-            monedas_txt = ", ".join(nombre_llano(c) for c in v.monedas)
+            monedas_txt = y([nombre_llano(c) for c in v.monedas])
             self._evento(
                 bot,
                 ahora,
@@ -474,9 +484,9 @@ class Motor:
             )
         )
         for nota in decision.notas:
-            if nota not in bot.notas_vistas:
-                bot.notas_vistas.add(nota)
+            if nota not in bot.notas_previas:
                 self._evento(bot, ahora, "info", nota)
+        bot.notas_previas = decision.notas
         bot.aviso_plantilla = decision.aviso
 
         memoria = dict(e.memoria)

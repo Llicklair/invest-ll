@@ -132,6 +132,13 @@ def horas_txt(horas: int) -> str:
     return "hora" if horas == 1 else f"{horas} horas"
 
 
+def y(textos: Sequence[str]) -> str:
+    """'Bitcoin', 'Bitcoin y Ethereum', 'Bitcoin, Ethereum y Solana'."""
+    if len(textos) <= 1:
+        return "".join(textos)
+    return f"{', '.join(textos[:-1])} y {textos[-1]}"
+
+
 def _entero(parametros: Mapping[str, str], clave: str) -> int:
     return int(parametros[clave])
 
@@ -235,7 +242,7 @@ def _escalones_txt(escalones: Sequence[int], total: int) -> str:
     numeros = [str(k + 1) for k in escalones]
     if len(numeros) == 1:
         return f"el escalón {numeros[0]} de {total}"
-    return f"los escalones {', '.join(numeros[:-1])} y {numeros[-1]} de {total}"
+    return f"los escalones {y(numeros)} de {total}"
 
 
 def rejilla(s: Situacion) -> Decision:
@@ -257,21 +264,29 @@ def rejilla(s: Situacion) -> Decision:
     m = s.memoria
     rango = f"{precio_txt(bajo)} a {precio_txt(alto)}"
 
-    fuera = "abajo" if precio < bajo else "arriba" if precio > alto else ""
+    # Fuera del rango hasta que vuelva un escalón dentro (cuando la rejilla vuelve a operar): sin
+    # ese margen, un precio que ronda el borde entraría y saldría en cada vuelta.
+    previo = m.get("fuera", "")
+    if previo == "arriba" and precio > niveles[-2]:
+        fuera = "arriba"
+    elif previo == "abajo" and precio < niveles[1]:
+        fuera = "abajo"
+    else:
+        fuera = "abajo" if precio < bajo else "arriba" if precio > alto else ""
     aviso = None
     if fuera == "abajo":
         aviso = (
-            f"El precio ({precio_txt(precio)}) está por debajo del rango ({rango}): la rejilla lo "
-            "tiene todo comprado y pierde mientras siga bajando."
+            f"El precio cayó por debajo del rango ({rango}): la rejilla lo tiene todo comprado y "
+            "pierde mientras siga bajando."
         )
     elif fuera == "arriba":
         aviso = (
-            f"El precio ({precio_txt(precio)}) está por encima del rango ({rango}): la rejilla lo "
-            "ha vendido todo y espera en USDC a que vuelva."
+            f"El precio superó el rango ({rango}): la rejilla lo ha vendido todo y espera en USDC "
+            "a que vuelva a bajar."
         )
     notas: tuple[str, ...] = ()
-    if fuera != m.get("fuera", "") and m.get("iniciada") == "si":
-        notas = (aviso,) if aviso else (f"El precio volvió al rango ({rango}).",)
+    if fuera != previo and m.get("iniciada") == "si":
+        notas = (aviso,) if aviso else (f"El precio volvió al rango ({rango}): vuelve a operar.",)
     cambios: Memoria = {"fuera": fuera, "iniciada": "si"}
 
     if m.get("iniciada") != "si":
