@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import socket
 import subprocess
+import sys
 from datetime import UTC
 from decimal import Decimal
 from pathlib import Path
@@ -22,6 +23,11 @@ from invest_ll.bots import motor, servicio
 from invest_ll.bots.motor import Motor
 
 from ..unit.bots_apoyo import Mercado
+
+SOLO_WINDOWS = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="pythonw.exe, los jobs y las ventanas de consola son de Windows",
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Iterator
@@ -201,6 +207,7 @@ class TestElPanelPasaLasRutas:
         assert rutas_vivo.actividad_nueva(numero) == (numero, None)
 
 
+@SOLO_WINDOWS
 class TestLanzarlo:
     def test_desligado_y_fuera_del_job(self, monkeypatch: pytest.MonkeyPatch) -> None:
         llamadas: list[tuple[list[str], int]] = []
@@ -299,6 +306,7 @@ def test_la_orden_estado_sin_motor(
     assert "invest-ll-motor arrancar" in capsys.readouterr().out
 
 
+@SOLO_WINDOWS
 def test_lanzar_no_abre_ventana(monkeypatch: pytest.MonkeyPatch) -> None:
     vistas: list[dict[str, Any]] = []
 
