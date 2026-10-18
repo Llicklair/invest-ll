@@ -212,6 +212,8 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # pyright: ignore[reportAttributeAccessIssue]
+    # La consola de git en Windows espera UTF-8: que se vean bien las tildes.
+    reconfigurar: object = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigurar):
+        reconfigurar(encoding="utf-8", errors="replace")
     sys.exit(main(sys.argv[1:]))

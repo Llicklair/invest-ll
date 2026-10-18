@@ -6,11 +6,23 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Cada lunes: una dependencia puede tener una vulnerabilidad nueva sin que cambie el codigo.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: gates
-    runs-on: ubuntu-latest
+    name: gates (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows es donde corre de verdad (motor de bots, credenciales); Ubuntu, que no se rompa
+        # lo portable (scripts/start.sh).
+        os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +37,10 @@ jobs:
       - name: Verificar que las dependencias importan
         # Instalado no significa funcional.
         run: uv run python -c "import numpy, pandas, exchange_calendars, ccxt, yfinance; print('deps OK')"
+
+      - name: Sin secretos en lo versionado
+        # El repositorio es publico: lo mismo que el hook .githooks/pre-commit, sobre todo.
+        run: uv run python scripts/sin_secretos.py --todo
 
       - name: Lint
         run: uv run ruff check .
@@ -45,3 +61,51 @@ jobs:
         # Informativo: no bloquea el merge, pero deja constancia si SC-001 se degrada.
         continue-on-error: true
         run: uv run pytest -q -m perf
+
+  web:
+    name: panel (web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Tipos
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src mocks
+
+      - name: Compila
+        run: npm run build
+
+  dependencias:
+    name: vulnerabilidades conocidas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Python (pip-audit sobre uv.lock)
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project --quiet > requisitos.txt
+          uvx pip-audit -r requisitos.txt --disable-pip --no-deps --progress-spinner off
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Web (lo que se sirve, sin las herramientas de desarrollo)
+        working-directory: web
+        run: npm audit --omit=dev --audit-level=high

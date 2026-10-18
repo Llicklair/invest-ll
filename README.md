@@ -27,10 +27,22 @@ y pruebas de sobreajuste (walk-forward, PBO, Sharpe deflactado). La cartera prin
 de ver resultados y se prueba hacia delante con registros diarios en git. Todo en
 [docs/quant-research.md](docs/quant-research.md) y en la pestaña **Investigación** del panel.
 
+**Instalar en un equipo nuevo** (Windows 10/11): descarga el repositorio (`git clone` o el ZIP de
+GitHub) y haz doble clic en `instalar.cmd`. Comprueba [uv](https://docs.astral.sh/uv/) y Node.js 20.9+
+y, si faltan, ofrece instalarlos con `winget` (preguntando antes). Después prepara Python 3.13 y las
+dependencias, compila el panel, activa el detector de secretos antes de cada commit, ofrece un acceso
+directo en el escritorio y lo comprueba todo. No arranca nada ni toca dinero, y se puede repetir.
+
 **Arrancar**: doble clic en `levantar.cmd`. Cierra paneles viejos, comprueba el entorno, compila el
 frontend si falta y abre el panel en http://localhost:8601. Desde una terminal, Windows bloquea los
 `.ps1` por política de ejecución, así que hace falta el mismo rodeo que usa `levantar.cmd`:
 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1`.
+
+**Seguridad**: el panel y el motor de los bots solo atienden a este equipo (`localhost`, comprobando
+el Host contra el DNS rebinding) y solo aceptan cambios pedidos desde el propio panel (CSRF: una web
+abierta en el navegador no puede parar, reanudar ni activar nada). Las claves de los exchanges y de
+la wallet viven en el Administrador de credenciales de Windows, nunca en ficheros; el repositorio es
+público y `scripts/sin_secretos.py` revisa cada commit (y la suite, todo lo versionado).
 
 ---
 

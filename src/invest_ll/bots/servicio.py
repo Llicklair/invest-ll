@@ -64,6 +64,8 @@ REGISTRO: Final = "motor.log"
 OPCIONES: Final = Path("config") / "motor.json"
 NOMBRE_INICIO: Final = "INVEST LL - motor de bots.vbs"
 PLAZO_SALUD: Final = 1.5
+PLAZO_LARGO: Final = 180.0
+"""Lo que se espera al motor en lo que descarga velas (el examen de un bot sobre el pasado)."""
 CADA_DESPIERTO: Final = 60.0
 RUTAS_DEL_MOTOR: Final = ("/api/bots", "/api/bots-real", "/api/actividad")
 """Lo que el panel pasa al motor (y todo lo que cuelga de ahí)."""
@@ -165,6 +167,19 @@ def _despierto(motor_activo: Any) -> None:
     ctypes_kernel32().SetThreadExecutionState(estado)
 
 
+def _copia_si_toca(motor_activo: Any) -> None:
+    """Una copia de seguridad al día de lo que no está en git (`invest_ll.copias`), con el motor
+    quieto mientras se lee `bots/` para que la copia sea de un momento."""
+    from invest_ll import copias
+
+    if not copias.toca():
+        return
+    cerrojo = motor_activo.cerrojo if motor_activo is not None else contextlib.nullcontext()
+    with cerrojo:
+        hecha = copias.hacer(raiz_del_proyecto())
+    log.info("copia de seguridad hecha: %s", hecha.ruta)
+
+
 def ctypes_kernel32() -> Any:  # pragma: no cover - solo en Windows
     import ctypes
 
@@ -185,6 +200,10 @@ async def _vida(_: FastAPI) -> AsyncGenerator[None]:
         while True:
             with contextlib.suppress(Exception):
                 _despierto(motor.activo())
+            try:
+                await asyncio.to_thread(_copia_si_toca, motor.activo())
+            except Exception:
+                log.exception("no se pudo hacer la copia de seguridad")
             await asyncio.sleep(CADA_DESPIERTO)
 
     tarea = asyncio.get_running_loop().create_task(vigilar_despierto())
@@ -472,10 +491,19 @@ class ProxyMotor:
                     params=list(peticion.query_params.multi_items()),
                     content=cuerpo,
                     headers=cabeceras,
+                    timeout=PLAZO_LARGO if ruta.endswith("/examen") else httpx.USE_CLIENT_DEFAULT,
                 )
+        except httpx.TimeoutException:
+            respuesta: Response = JSONResponse(
+                status_code=504,
+                content={
+                    "detail": "El motor de los bots tardó demasiado en contestar (sigue en marcha). "
+                    "Vuelve a intentarlo en un momento."
+                },
+            )
         except httpx.HTTPError:
             await asyncio.to_thread(arrancar_si_hace_falta)
-            respuesta: Response = JSONResponse(
+            respuesta = JSONResponse(
                 status_code=503,
                 content={
                     "detail": "El motor de los bots no contestaba: se está arrancando. Vuelve a "

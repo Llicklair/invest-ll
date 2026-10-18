@@ -123,12 +123,10 @@ $partes = $activos -split "`n" | ForEach-Object { $_.Trim() }
 $cuantos = [int]$partes[0]
 
 if ($cuantos -eq 0) {
-    Escribir-Aviso "no hay ningun historico descargado"
-    Write-Host ""
-    Write-Host "  Descarga alguno antes de empezar:"
-    Write-Host "    uv run invest-ll-fetch AAPL --market equity --interval DAY_1 ``"
-    Write-Host "        --start 2020-01-01 --end 2026-01-01"
-    Write-Host ""
+    # No es un fallo: el panel, Operar y los bots usan precios en vivo. Los historicos solo hacen
+    # falta para Investigacion y las propuestas de cartera.
+    Escribir-Paso "sin historicos descargados (no hacen falta para el panel ni los bots)"
+    Escribir-Paso "para Investigacion y propuestas: uv run invest-ll-fetch BTC/USDT --market crypto --interval DAY_1 --start 2022-01-01 --end 2026-01-01"
 } else {
     Escribir-Bien "$cuantos historicos: $($partes[1])"
 }
