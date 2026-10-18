@@ -209,7 +209,7 @@ def crear_app_motor(*, con_vida: bool = True) -> FastAPI:
     from fastapi import APIRouter, FastAPI
 
     from invest_ll.api import bots as rutas_bots
-    from invest_ll.api.app import HOSTS_PERMITIDOS, SoloEsteEquipo, instalar_errores
+    from invest_ll.api.app import blindar, instalar_errores
     from invest_ll.api.errores import RESPUESTAS_DE_ERROR
 
     app = FastAPI(
@@ -217,7 +217,8 @@ def crear_app_motor(*, con_vida: bool = True) -> FastAPI:
         title="INVEST LL · motor de bots",
         description="El servicio de los bots: el panel le pasa sus rutas. Solo 127.0.0.1.",
     )
-    app.add_middleware(SoloEsteEquipo, permitidos=HOSTS_PERMITIDOS)
+    # Solo le habla el panel (su proxy) y la terminal: ninguna web, ni la de desarrollo.
+    blindar(app)
     instalar_errores(app)
     router = APIRouter(prefix="/api", responses=RESPUESTAS_DE_ERROR)
     router.include_router(rutas_bots.router)

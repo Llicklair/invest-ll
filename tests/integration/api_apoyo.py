@@ -42,8 +42,13 @@ class Api:
     def __init__(self, cliente: TestClient) -> None:
         self._cliente = cliente
 
-    def get(self, ruta: str, params: Mapping[str, Any] | None = None) -> httpx.Response:
-        respuesta = self._cliente.get(ruta, params=params)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    def get(
+        self,
+        ruta: str,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> httpx.Response:
+        respuesta = self._cliente.get(ruta, params=params, headers=headers)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return cast("httpx.Response", respuesta)
 
     def post(

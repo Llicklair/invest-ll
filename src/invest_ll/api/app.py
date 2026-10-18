@@ -28,7 +28,7 @@ from invest_ll.errors import InvestLLError
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import AsyncGenerator, Sequence
 
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 RAIZ_REPO = Path(__file__).resolve().parents[3]
 FRONTEND = RAIZ_REPO / "web" / "out"
@@ -70,6 +70,91 @@ class SoloEsteEquipo:
                 )
                 return
         await self._app(scope, receive, send)
+
+
+OTRA_WEB: Final = (
+    "El panel solo acepta cambios hechos desde el propio panel: esta petición venía de otra web y "
+    "no se ha atendido."
+)
+METODOS_QUE_CAMBIAN: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+SITIO_PROPIO: Final = frozenset({"same-origin", "none"})
+"""Los valores de `Sec-Fetch-Site` de una petición del propio panel (o tecleada en la barra)."""
+
+
+class SoloMismoOrigen:
+    """Rechaza (403) lo que cambia algo y lo pide otra web (CSRF).
+
+    Comprobar el Host no basta: una página cualquiera abierta en el navegador puede mandar un POST
+    «simple» (sin cuerpo, sin preflight de CORS) a `http://localhost:8601/...`, con el Host bueno, y
+    quitar «Parar todo lo real» o reanudar un bot. El navegador dice de dónde viene: con `Origin`
+    (que tiene que ser el propio panel o un origen de desarrollo permitido) y con `Sec-Fetch-Site`.
+    Lo que no viene de un navegador (la terminal, el proxy del panel al motor, los tests) no trae
+    ninguna de las dos y pasa: no hay web ajena detrás.
+    """
+
+    def __init__(self, app: ASGIApp, permitidos: Sequence[str] = ()) -> None:
+        self._app = app
+        self._permitidos = frozenset(permitidos)
+
+    def _ajena(self, scope: Scope) -> bool:
+        if scope["type"] != "http" or scope.get("method", "GET") not in METODOS_QUE_CAMBIAN:
+            return False
+        cabeceras = Headers(scope=scope)
+        origen = cabeceras.get("origin")
+        if origen is not None:
+            propio = f"{scope.get('scheme', 'http')}://{cabeceras.get('host', '')}"
+            return origen != propio and origen not in self._permitidos
+        sitio = cabeceras.get("sec-fetch-site")
+        return sitio is not None and sitio not in SITIO_PROPIO
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if self._ajena(scope):
+            await JSONResponse(status_code=403, content={"detail": OTRA_WEB})(scope, receive, send)
+            return
+        await self._app(scope, receive, send)
+
+
+CABECERAS_SEGURAS: Final = (
+    (b"x-content-type-options", b"nosniff"),
+    # Que ninguna web meta el panel en un marco (clickjacking sobre «Activar dinero real»).
+    (b"x-frame-options", b"DENY"),
+    (b"content-security-policy", b"frame-ancestors 'none'"),
+    (b"referrer-policy", b"no-referrer"),
+    (b"cross-origin-opener-policy", b"same-origin"),
+    # Que otra web no pueda cargar nada del panel como recurso suyo (<script>, <img>…).
+    (b"cross-origin-resource-policy", b"same-origin"),
+)
+
+
+class CabecerasSeguras:
+    """Añade a cada respuesta las cabeceras de `CABECERAS_SEGURAS` (si no las trae ya)."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self._app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        async def con_cabeceras(mensaje: Message) -> None:
+            if mensaje["type"] == "http.response.start":
+                lista = list(mensaje.get("headers", []))
+                tiene = {nombre.lower() for nombre, _ in lista}
+                lista.extend((n, v) for n, v in CABECERAS_SEGURAS if n not in tiene)
+                mensaje["headers"] = lista
+            await send(mensaje)
+
+        await self._app(scope, receive, con_cabeceras)
+
+
+def blindar(app: FastAPI, *, origenes: Sequence[str] = ()) -> None:
+    """Lo que protege una app que escucha en este equipo (el panel y el motor), por fuera de todo
+    lo demás: solo nombres locales (DNS rebinding), solo cambios pedidos desde el propio panel
+    (CSRF) y las cabeceras de seguridad en cada respuesta."""
+    app.add_middleware(SoloMismoOrigen, permitidos=origenes)
+    app.add_middleware(SoloEsteEquipo, permitidos=HOSTS_PERMITIDOS)
+    app.add_middleware(CabecerasSeguras)
 
 
 @asynccontextmanager
@@ -138,8 +223,8 @@ def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> Fas
         ),
         version="1.0.0",
     )
-    # Lo primero que se añade es lo más interior: el host se comprueba antes de pasar nada al
-    # servicio de los bots.
+    # Lo primero que se añade es lo más interior: el host y el origen se comprueban antes de pasar
+    # nada al servicio de los bots.
     app.add_middleware(ProxyMotor)
     app.add_middleware(
         CORSMiddleware,
@@ -147,7 +232,7 @@ def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> Fas
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(SoloEsteEquipo, permitidos=HOSTS_PERMITIDOS)
+    blindar(app, origenes=ORIGENES_DESARROLLO)
     instalar_errores(app)
     app.include_router(router)
 

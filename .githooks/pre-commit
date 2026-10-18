@@ -1,0 +1,11 @@
+#!/bin/sh
+# Antes de cada commit: que no se cuele ningún secreto (el repositorio es público).
+# Se activa con `git config core.hooksPath .githooks` (lo hace scripts/instalar.ps1).
+raiz=$(git rev-parse --show-toplevel)
+for py in "$raiz/.venv/Scripts/python.exe" "$raiz/.venv/bin/python" python3 python; do
+  if command -v "$py" >/dev/null 2>&1 || [ -x "$py" ]; then
+    exec "$py" "$raiz/scripts/sin_secretos.py" --staged
+  fi
+done
+echo "pre-commit: no encuentro Python para buscar secretos; instala el entorno (instalar.cmd)." >&2
+exit 1

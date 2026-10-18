@@ -338,3 +338,16 @@ class TestUnSoloMotor:
         monkeypatch.setattr(servicio, "_ultimo_arranque", float("-inf"))
         monkeypatch.setattr(servicio, "arrancar_en_segundo_plano", lambda: pytest.fail("no tocaba"))
         assert servicio.arrancar_si_hace_falta() is False
+
+
+class TestSeguridad:
+    def test_ninguna_web_puede_apagar_el_motor(
+        self, cliente_motor: Callable[..., TestClient]
+    ) -> None:
+        """Ni siquiera la de desarrollo: al motor solo le hablan el proxy del panel y la terminal,
+        que no mandan Origin."""
+        c = cliente_motor()
+        for origen in ("https://malo.example", "http://localhost:3000", "http://localhost:8601"):
+            r = c.post("/api/motor/apagar", headers={"origin": origen})
+            assert r.status_code == 403, origen
+        assert c.get("/api/motor/salud").headers["x-frame-options"] == "DENY"
