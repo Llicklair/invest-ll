@@ -284,6 +284,18 @@
             ],
             "description": "Sus límites en real (su capital máximo es su capital); sin ellos, los de pruebas"
           },
+          "sin_examen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si no tiene un examen sobre el pasado aprobado y vigente: 'SIN EXAMEN'",
+            "title": "Sin Examen"
+          },
           "sin_ficticio": {
             "anyOf": [
               {
@@ -293,7 +305,7 @@
                 "type": "null"
               }
             ],
-            "description": "Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'",
+            "description": "Si su estrategia no lleva 30 días en ficticio: 'SIN PRUEBA EN FICTICIO'",
             "title": "Sin Ficticio"
           }
         },
@@ -1778,6 +1790,17 @@
           "evidencia": {
             "$ref": "#/components/schemas/EvidenciaBot"
           },
+          "examen": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExamenBot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Su último examen sobre el pasado (POST /api/bots/{id}/examen)"
+          },
           "exchange": {
             "anyOf": [
               {
@@ -3205,6 +3228,79 @@
           "texto"
         ],
         "title": "EvidenciaBot",
+        "type": "object"
+      },
+      "ExamenBot": {
+        "description": "Su regla sobre 6 tramos del último año, cada uno por separado y frente a mantener.",
+        "properties": {
+          "aprobado": {
+            "title": "Aprobado",
+            "type": "boolean"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "exchange": {
+            "description": "De dónde salieron las velas",
+            "title": "Exchange",
+            "type": "string"
+          },
+          "intervalo": {
+            "title": "Intervalo",
+            "type": "string"
+          },
+          "motivos": {
+            "description": "Por qué no aprueba (vacío si aprueba)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Motivos",
+            "type": "array"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoExamen"
+            },
+            "title": "Tramos",
+            "type": "array"
+          },
+          "veredicto": {
+            "description": "En llano: 'Aprobado: en 5 de 6 tramos…' o por qué no",
+            "title": "Veredicto",
+            "type": "string"
+          },
+          "vigente": {
+            "description": "Vale para activar el dinero real: de su regla de ahora y de hace menos de 30 días",
+            "title": "Vigente",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "aprobado",
+          "vigente",
+          "veredicto",
+          "motivos",
+          "avisos",
+          "exchange",
+          "intervalo",
+          "tramos",
+          "operaciones",
+          "at"
+        ],
+        "title": "ExamenBot",
         "type": "object"
       },
       "ExchangeDisponible": {
@@ -9636,6 +9732,60 @@
         "title": "TrabajoDatos",
         "type": "object"
       },
+      "TramoExamen": {
+        "properties": {
+          "a_favor": {
+            "description": "Le fue al menos como a mantener: ganó más, o cayó menos de la mitad sin quedarse más de 5 puntos por detrás",
+            "title": "A Favor",
+            "type": "boolean"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "ganancia_pct": {
+            "description": "Fracción, empezando de cero en el tramo",
+            "title": "Ganancia Pct",
+            "type": "number"
+          },
+          "hasta": {
+            "format": "date-time",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "mantener_pct": {
+            "description": "Fracción: solo mantener sus monedas en el tramo",
+            "title": "Mantener Pct",
+            "type": "number"
+          },
+          "mantener_peor_caida": {
+            "title": "Mantener Peor Caida",
+            "type": "number"
+          },
+          "operaciones": {
+            "title": "Operaciones",
+            "type": "integer"
+          },
+          "peor_caida": {
+            "description": "Fracción negativa",
+            "title": "Peor Caida",
+            "type": "number"
+          }
+        },
+        "required": [
+          "desde",
+          "hasta",
+          "ganancia_pct",
+          "mantener_pct",
+          "peor_caida",
+          "mantener_peor_caida",
+          "operaciones",
+          "a_favor"
+        ],
+        "title": "TramoExamen",
+        "type": "object"
+      },
       "TriggerArmado": {
         "properties": {
           "armado": {
@@ -10655,7 +10805,7 @@
     },
     "/api/bots/{bot_id}/activar-real": {
       "post": {
-        "description": "Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',\nel exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN\nFICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde\nel panel: el conector MCP no puede.",
+        "description": "Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',\nel exchange activo en real; si su estrategia no lleva 30 días en ficticio, 'SIN PRUEBA EN\nFICTICIO', y si no tiene un examen sobre el pasado aprobado y vigente, 'SIN EXAMEN'. 422 en\nllano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde el panel: el\nconector MCP no puede.",
         "operationId": "activar_real_api_bots__bot_id__activar_real_post",
         "parameters": [
           {
@@ -10731,6 +10881,79 @@
           }
         },
         "summary": "Activar Real",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
+    "/api/bots/{bot_id}/examen": {
+      "post": {
+        "description": "Examina su regla sobre 6 tramos del último año (velas de Binance o, si no tiene sus monedas,\nde Hyperliquid), cada uno frente a mantener, y lo guarda. Tarda unos segundos: descarga velas.\n422 en llano si no hay velas. Solo lee precios públicos: no envía nada.",
+        "operationId": "examinar_api_bots__bot_id__examen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bot_id",
+            "required": true,
+            "schema": {
+              "title": "Bot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamenBot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Examinar",
         "tags": [
           "bots"
         ]

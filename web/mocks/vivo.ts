@@ -1464,6 +1464,40 @@ function detalleBot(m: MundoVivo, b: BotMock): S["DetalleBot"] {
     curva_mantener: curvaConAhora(b.curvaMantener, { t: ahora, v: valorMantener(m, b) }),
     metricas: metricasBot(m, b, r),
     pendientes: pendientesBot(m, b),
+    examen: examenes.get(b.id) ?? null,
+  };
+}
+
+/** Los exámenes sobre el pasado hechos en esta sesión del mock (bots/examen.py en la API). */
+const examenes = new Map<string, S["ExamenBot"]>();
+
+/** Un examen inventado pero coherente: 6 tramos de 60 días; la tendencia falla en la mitad. */
+function examinarMock(m: MundoVivo, b: BotMock): S["ExamenBot"] {
+  const flojo = b.plantilla === "tendencia";
+  const tramos: S["TramoExamen"][] = Array.from({ length: 6 }, (_, i) => {
+    const desde = m.t - (6 - i) * 60 * DIA_MS;
+    const mantener = [0.12, -0.18, 0.05, -0.07, 0.21, -0.03][i] ?? 0;
+    const ganancia = flojo ? mantener - (i % 2 === 0 ? 0.06 : -0.02) : mantener + (mantener < 0 ? 0.09 : -0.02);
+    const peor = flojo ? -0.16 : -0.07;
+    const peorMantener = -0.19;
+    const aFavor = ganancia >= mantener || (peor >= peorMantener / 2 && ganancia >= mantener - 0.05);
+    return { desde: iso(desde), hasta: iso(desde + 60 * DIA_MS), ganancia_pct: ganancia, mantener_pct: mantener, peor_caida: peor, mantener_peor_caida: peorMantener, operaciones: 4 + i, a_favor: aFavor };
+  });
+  const aFavor = tramos.filter((t) => t.a_favor).length;
+  const operaciones = tramos.reduce((s, t) => s + t.operaciones, 0);
+  const aprobado = aFavor >= 4;
+  const motivo = `Solo en ${aFavor} de 6 tramos le fue al menos como a mantener (hacen falta 4).`;
+  return {
+    aprobado,
+    vigente: true,
+    veredicto: aprobado ? `Aprobado: en ${aFavor} de 6 tramos le fue al menos como a mantener, con ${operaciones} operaciones.` : `No aprobado. ${motivo}`,
+    motivos: aprobado ? [] : [motivo],
+    avisos: b.plantilla === "rejilla" ? ["«Rejilla» decide con cada precio: se ha examinado con el cierre de cada hora, que se parece pero no es lo mismo."] : [],
+    exchange: "binance",
+    intervalo: "1h",
+    tramos,
+    operaciones,
+    at: iso(m.t),
   };
 }
 
@@ -1872,9 +1906,14 @@ function activarReal(m: MundoVivo, b: BotMock, o: Objeto): Response {
   if (!x?.ok) return fallo(422, `${x?.nombre ?? b.exchange} no está activado con dinero real: actívalo antes en Conexiones.`);
   const e = b.estrategia ? estrategiaMock(b.estrategia) : null;
   const dias = e ? e.diasFicticio : (b.probadoDias ?? 0);
-  const sinFicticio = dias < 7;
+  const sinFicticio = dias < 30;
   if (sinFicticio && (texto(o, "sin_ficticio") ?? "") !== "SIN PRUEBA EN FICTICIO") {
-    return fallo(422, `Su estrategia lleva ${dias.toLocaleString("es-ES", { maximumFractionDigits: 1 })} días en ficticio (se recomiendan 7). Si aun así quieres usar dinero real, escribe también «SIN PRUEBA EN FICTICIO».`);
+    return fallo(422, `Su estrategia lleva ${dias.toLocaleString("es-ES", { maximumFractionDigits: 1 })} días en ficticio (menos de 30). Para activarlo igualmente, escribe también «SIN PRUEBA EN FICTICIO».`);
+  }
+  const examen = examenes.get(b.id);
+  if (!(examen?.aprobado && examen.vigente) && (texto(o, "sin_examen") ?? "") !== "SIN EXAMEN") {
+    const porQue = examen ? `Su examen sobre el pasado no está aprobado: ${examen.veredicto}` : "No tiene examen sobre el pasado.";
+    return fallo(422, `${porQue} Examínalo desde su ficha o, para activarlo igualmente, escribe también «SIN EXAMEN».`);
   }
   b.modo = "real";
   b.estado = "en_marcha";
@@ -2091,10 +2130,17 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
     return json(cuenta(m) satisfies S["CuentaPractica"]);
   }
 
-  const real = /^\/api\/bots\/([^/]+)\/(activar-real|limites)$/.exec(ruta);
+  const real = /^\/api\/bots\/([^/]+)\/(activar-real|limites|examen)$/.exec(ruta);
   if (real) {
     const b = m.bots.find((x) => x.id === decodeURIComponent(real[1] ?? ""));
     if (!b) return fallo(404, "No hay ningún bot con ese id: puede que lo hayas borrado.");
+    if (real[2] === "examen" && metodo === "POST") {
+      await esperar(1500);
+      const hecho = examinarMock(m, b);
+      examenes.set(b.id, hecho);
+      b.eventos.unshift({ at: iso(m.t), tipo: "info", texto: `Examen sobre el pasado. ${hecho.veredicto}` });
+      return json(hecho);
+    }
     if (real[2] === "activar-real" && metodo === "POST") {
       await esperar(600);
       return activarReal(m, b, await cuerpo(peticion));

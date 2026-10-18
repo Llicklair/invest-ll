@@ -213,5 +213,7 @@ export type Actividad = S["Actividad"];
 export type MovimientoBot = S["MovimientoBot"];
 export type MetricasBot = S["MetricasBot"];
 export type PendienteBot = S["PendienteBot"];
+export type ExamenBot = S["ExamenBot"];
+export type TramoExamen = S["TramoExamen"];
 export type EstadoOperarReal = S["EstadoOperarReal"];
 export type ResultadoOrdenReal = S["ResultadoOrdenReal"];

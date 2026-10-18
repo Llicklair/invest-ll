@@ -304,7 +304,7 @@ export function FichaEstrategia() {
             ))}
           </ul>
         ) : (
-          <p className="text-[0.9375rem] text-tinta-suave">Ningún bot la usa. Despliégala en ficticio para verla en vivo; se recomiendan 7 días antes de usar dinero real.</p>
+          <p className="text-[0.9375rem] text-tinta-suave">Ningún bot la usa. Despliégala en ficticio para verla en vivo; se recomienda un mes, y aprobar su examen sobre el pasado, antes de usar dinero real.</p>
         )}
       </Seccion>
 

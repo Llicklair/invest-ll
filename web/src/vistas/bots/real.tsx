@@ -1,11 +1,11 @@
 "use client";
 
-import { Banknote, CircleDashed, CirclePlay, FlaskConical, OctagonX, ShieldAlert } from "lucide-react";
+import { Banknote, Check, CircleDashed, CirclePlay, FlaskConical, History, LoaderCircle, OctagonX, ShieldAlert, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { api, pedir } from "@/api/cliente";
-import type { Bots, DetalleBot, EstadoReal, LimitesBot, LimitesBotEntrada, ModoBot, ParadaGeneral, ResumenBot } from "@/api/tipos";
+import type { Bots, DetalleBot, EstadoReal, ExamenBot, LimitesBot, LimitesBotEntrada, ModoBot, ParadaGeneral, ResumenBot } from "@/api/tipos";
 import { useAlmacenVivo } from "@/api/vivo";
 import { CampoImporte } from "@/componentes/CampoImporte";
 import { ConfirmacionTecleada } from "@/componentes/ConfirmacionTecleada";
@@ -14,7 +14,7 @@ import { Medidor } from "@/componentes/Medidor";
 import { Aviso, Boton, Chip, ErrorApiVista, clases } from "@/componentes/ui";
 import { useAccion, useConsulta } from "@/lib/consulta";
 import { compararDecimal, formatoCantidad, formatoImporte } from "@/lib/decimal";
-import { hora } from "@/lib/formato";
+import { fechaCorta, fraccion, hora } from "@/lib/formato";
 import { leerImporte } from "@/lib/importe";
 import { nombreExchange } from "@/lib/nombres";
 
@@ -316,10 +316,87 @@ export function HojaLimites({ bot, abierta, onCerrar, onCambio }: { bot: Detalle
 /**
  * Pasar un bot a dinero real (docs/panel-v4-real.md §3): que va a pasar, en una frase y sin
  * jerga; sus limites; cuantos dias lleva su estrategia en ficticio; y escribir `ACTIVAR <nombre>`
- * (y `SIN PRUEBA EN FICTICIO` si no llega a 7 dias). El boton solo se habilita con el texto
+ * (y `SIN PRUEBA EN FICTICIO` si no llega a 30 dias, y `SIN EXAMEN` si no tiene un examen sobre el
+ * pasado aprobado y vigente). El boton solo se habilita con el texto
  * exacto, tecleado (no se puede pegar). Lo que falta (exchange, limites, el exchange en real), se
  * dice antes y el boton no se ofrece.
  */
+const DIAS_EN_FICTICIO = 30;
+
+/**
+ * El examen sobre el pasado (bots/examen.py): su regla en 6 tramos del último año, cada uno por
+ * separado y frente a solo mantener. Aprueba si en 2 de cada 3 le va al menos como a mantener y
+ * opera lo bastante para decir algo.
+ */
+function BloqueExamen({ examen, enCurso, onExaminar }: { examen: ExamenBot | null; enCurso: boolean; onExaminar: () => void }) {
+  const boton = (
+    <Boton tamano="compacto" onClick={onExaminar} disabled={enCurso}>
+      {enCurso ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : <History aria-hidden="true" className="h-4 w-4" />}
+      {enCurso ? "Examinando… (descarga un año de velas)" : examen ? "Repetir el examen" : "Examinar sobre el pasado"}
+    </Boton>
+  );
+  if (!examen) {
+    return (
+      <Aviso tipo="aviso" titulo="Aún no se ha examinado sobre el pasado">
+        <p>
+          Se prueba su regla en 6 tramos del último año, cada uno por separado y frente a solo mantener sus monedas. Una sola prueba buena puede ser suerte; seis, mucho menos.
+          Tarda unos segundos y no envía nada a ningún exchange.
+        </p>
+        <div className="mt-3">{boton}</div>
+      </Aviso>
+    );
+  }
+  const vale = examen.aprobado && examen.vigente;
+  return (
+    <section aria-label="Examen sobre el pasado" className={clases("space-y-3 rounded-tarjeta border p-4", vale ? "border-linea" : "border-pruebas/60 bg-pruebas-suave/40")}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-tinta">Examen sobre el pasado · {fechaCorta(examen.at)}</p>
+          <p className="mt-1 text-[0.9375rem] text-tinta">{examen.veredicto}</p>
+          {!examen.vigente ? <p className="mt-1 text-sm text-pruebas-tinta">Ya no vale: es de otra versión de su regla o de hace más de 30 días. Repítelo.</p> : null}
+        </div>
+        {boton}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="cifras w-full min-w-[22rem] text-sm">
+          <caption className="sr-only">Cada tramo del examen frente a solo mantener</caption>
+          <thead>
+            <tr className="text-left text-tinta-suave">
+              <th scope="col" className="py-1 pr-3 font-medium">Tramo</th>
+              <th scope="col" className="py-1 pr-3 text-right font-medium">El bot</th>
+              <th scope="col" className="py-1 pr-3 text-right font-medium">Mantener</th>
+              <th scope="col" className="py-1 pr-3 text-right font-medium">Peor caída</th>
+              <th scope="col" className="py-1 text-center font-medium">A favor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {examen.tramos.map((t) => (
+              <tr key={t.desde} className="border-t border-linea">
+                <td className="py-1.5 pr-3 whitespace-nowrap text-tinta-suave">
+                  {fechaCorta(t.desde)} – {fechaCorta(t.hasta)}
+                </td>
+                <td className="py-1.5 pr-3 text-right text-tinta">{fraccion(t.ganancia_pct)}</td>
+                <td className="py-1.5 pr-3 text-right text-tinta-suave">{fraccion(t.mantener_pct)}</td>
+                <td className="py-1.5 pr-3 text-right text-tinta-suave">
+                  {fraccion(t.peor_caida)} <span className="text-xs">({fraccion(t.mantener_peor_caida)})</span>
+                </td>
+                <td className="py-1.5 text-center">
+                  {t.a_favor ? <Check aria-label="sí" className="inline h-4 w-4 text-sube-texto" /> : <X aria-label="no" className="inline h-4 w-4 text-baja-texto" />}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs leading-relaxed text-tinta-suave">
+        Velas de {nombreExchange(examen.exchange)} de {examen.intervalo}, {examen.operaciones} operaciones. «A favor»: ganó más que mantener, o cayó menos de la mitad sin quedarse más
+        de 5 puntos por detrás. El pasado no es una promesa: el examen descarta reglas malas, no garantiza las buenas.
+        {examen.avisos.length ? ` ${examen.avisos.join(" ")}` : ""}
+      </p>
+    </section>
+  );
+}
+
 export function HojaActivarReal({
   bot,
   real,
@@ -338,15 +415,26 @@ export function HojaActivarReal({
   const conexiones = useConsulta(abierta ? "conexiones:activar" : null, () => pedir(api.GET("/api/conexiones")));
   const [escrito, setEscrito] = useState("");
   const [sinPrueba, setSinPrueba] = useState("");
+  const [sinExamen, setSinExamen] = useState("");
+  const [examen, setExamen] = useState<ExamenBot | null>(bot.examen ?? null);
+  const examinar = useAccion(async () => {
+    const e = await pedir(api.POST("/api/bots/{bot_id}/examen", { params: { path: { bot_id: bot.id } } }));
+    setExamen(e);
+    return e;
+  });
   const esperado = `ACTIVAR ${bot.nombre}`;
   const dias = bot.probado_en_ficticio_dias;
-  const faltaFicticio = dias === null || dias < 7;
+  const faltaFicticio = dias === null || dias < DIAS_EN_FICTICIO;
+  const faltaExamen = !(examen?.aprobado && examen.vigente);
   const exchange = bot.exchange;
   const nombre = nombreExchange(exchange);
   const estadoExchange = exchange ? conexiones.datos?.exchanges.find((x) => x.id === exchange) : undefined;
   const activar = useAccion(async () => {
     const d = await pedir(
-      api.POST("/api/bots/{bot_id}/activar-real", { params: { path: { bot_id: bot.id } }, body: { confirmacion: escrito, sin_ficticio: faltaFicticio ? sinPrueba : null } }),
+      api.POST("/api/bots/{bot_id}/activar-real", {
+        params: { path: { bot_id: bot.id } },
+        body: { confirmacion: escrito, sin_ficticio: faltaFicticio ? sinPrueba : null, sin_examen: faltaExamen ? sinExamen : null },
+      }),
     );
     onActivado(d);
     return d;
@@ -354,6 +442,7 @@ export function HojaActivarReal({
   const cerrar = () => {
     setEscrito("");
     setSinPrueba("");
+    setSinExamen("");
     activar.limpiar();
     onCerrar();
   };
@@ -366,7 +455,8 @@ export function HojaActivarReal({
 
   const coincide = escrito === esperado;
   const coincideSin = !faltaFicticio || sinPrueba === "SIN PRUEBA EN FICTICIO";
-  const puede = !bloqueos.length && coincide && coincideSin && !activar.enCurso && !conexiones.cargando;
+  const coincideSinExamen = !faltaExamen || sinExamen === "SIN EXAMEN";
+  const puede = !bloqueos.length && coincide && coincideSin && coincideSinExamen && !activar.enCurso && !conexiones.cargando && !examinar.enCurso;
   const l = bot.limites;
   const idMotivo = useId();
 
@@ -439,16 +529,19 @@ export function HojaActivarReal({
             </dl>
           ) : null}
 
-          {dias !== null && dias >= 7 ? (
+          {dias !== null && dias >= DIAS_EN_FICTICIO ? (
             <Aviso tipo="hecho" titulo={`Su estrategia lleva ${Math.floor(dias)} días en ficticio`}>
-              Se recomiendan 7 antes de usar dinero real.
+              Se recomienda un mes antes de usar dinero real.
             </Aviso>
           ) : (
             <Aviso tipo="aviso" titulo={dias === null || dias < 1 ? "Su estrategia no ha pasado por ficticio" : `Su estrategia solo lleva ${dias.toLocaleString("es-ES", { maximumFractionDigits: 1 })} días en ficticio`}>
-              Se recomiendan 7 días con dinero ficticio para ver cómo se porta en vivo antes de usar dinero real. Puedes saltártelo, pero tendrás que escribirlo, y la
+              Se recomienda un mes con dinero ficticio para ver cómo se porta en vivo antes de usar dinero real. Puedes saltártelo, pero tendrás que escribirlo, y la
               decisión queda registrada.
             </Aviso>
           )}
+
+          <BloqueExamen examen={examen} enCurso={examinar.enCurso} onExaminar={() => void examinar.ejecutar()} />
+          {examinar.error ? <ErrorApiVista error={examinar.error} prefijo="No se pudo examinar:" /> : null}
 
           {bloqueos.length ? (
             <div className="space-y-2">
@@ -487,8 +580,19 @@ export function HojaActivarReal({
                   onCambio={setSinPrueba}
                   mayusculas
                   tono="real"
-                  etiqueta="Y, como no ha pasado 7 días en ficticio, escribe también SIN PRUEBA EN FICTICIO"
+                  etiqueta="Y, como no ha pasado un mes en ficticio, escribe también SIN PRUEBA EN FICTICIO"
                   estado={sinPrueba.trim() === "" ? { tipo: "vacio" } : coincideSin ? { tipo: "puede" } : { tipo: "no", motivo: "Escribe exactamente SIN PRUEBA EN FICTICIO, en mayúsculas." }}
+                />
+              ) : null}
+              {faltaExamen ? (
+                <ConfirmacionTecleada
+                  esperado="SIN EXAMEN"
+                  valor={sinExamen}
+                  onCambio={setSinExamen}
+                  mayusculas
+                  tono="real"
+                  etiqueta="Y, como no tiene un examen sobre el pasado aprobado, escribe también SIN EXAMEN"
+                  estado={sinExamen.trim() === "" ? { tipo: "vacio" } : coincideSinExamen ? { tipo: "puede" } : { tipo: "no", motivo: "Escribe exactamente SIN EXAMEN, en mayúsculas." }}
                 />
               ) : null}
             </div>

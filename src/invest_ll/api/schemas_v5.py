@@ -230,3 +230,37 @@ class EstadoMotor(BaseModel):
 class OpcionesMotor(BaseModel):
     arranca_con_windows: bool | None = None
     mantener_despierto: bool | None = None
+
+
+# -- El examen sobre el pasado antes del dinero real (bots.examen) ---------------------------------
+
+
+class TramoExamen(BaseModel):
+    desde: datetime
+    hasta: datetime
+    ganancia_pct: float = Field(description="Fracción, empezando de cero en el tramo")
+    mantener_pct: float = Field(description="Fracción: solo mantener sus monedas en el tramo")
+    peor_caida: float = Field(description="Fracción negativa")
+    mantener_peor_caida: float
+    operaciones: int
+    a_favor: bool = Field(
+        description="Le fue al menos como a mantener: ganó más, o cayó menos de la mitad sin "
+        "quedarse más de 5 puntos por detrás"
+    )
+
+
+class ExamenBot(BaseModel):
+    """Su regla sobre 6 tramos del último año, cada uno por separado y frente a mantener."""
+
+    aprobado: bool
+    vigente: bool = Field(
+        description="Vale para activar el dinero real: de su regla de ahora y de hace menos de 30 días"
+    )
+    veredicto: str = Field(description="En llano: 'Aprobado: en 5 de 6 tramos…' o por qué no")
+    motivos: list[str] = Field(description="Por qué no aprueba (vacío si aprueba)")
+    avisos: list[str]
+    exchange: str = Field(description="De dónde salieron las velas")
+    intervalo: str
+    tramos: list[TramoExamen]
+    operaciones: int
+    at: datetime

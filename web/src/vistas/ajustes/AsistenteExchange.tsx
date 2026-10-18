@@ -464,7 +464,7 @@ function CaminoBots({ exchange, estado, onCambio }: { exchange: ExchangeDisponib
       <div className="space-y-5">
         <Aviso tipo="aviso" titulo={`${exchange.nombre} no tiene red de pruebas`}>
           {exchange.aviso ??
-            `Aquí no hay dinero ficticio con órdenes de verdad. Antes de activar un bot con dinero real en ${exchange.nombre}, su estrategia tiene que haber pasado por ficticio (se recomiendan 7 días).`}{" "}
+            `Aquí no hay dinero ficticio con órdenes de verdad. Antes de activar un bot con dinero real en ${exchange.nombre}, su estrategia tiene que haber pasado por ficticio (se recomienda un mes) y aprobar su examen sobre el pasado.`}{" "}
           Si no, al activarlo tendrás que escribir «SIN PRUEBA EN FICTICIO», y la decisión queda registrada.
         </Aviso>
         <ol className="space-y-4">{etapaReal(1)}</ol>

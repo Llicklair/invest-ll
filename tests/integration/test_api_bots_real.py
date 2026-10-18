@@ -17,15 +17,16 @@ import pytest
 
 from invest_ll.bots import motor
 from invest_ll.bots.motor import Motor
+from invest_ll.exchanges import registro
 from invest_ll.exchanges.conector import ExchangeError
-from invest_ll.exchanges.falso import ConectorFalso
+from invest_ll.exchanges.falso import ConectorFalso, con_velas, mercado_falso
 
-from ..unit.bots_apoyo import Mercado
+from ..unit.bots_apoyo import INICIO, Mercado, onda, serie
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterator
 
-    from invest_ll.exchanges.conector import Conector, Red
+    from invest_ll.exchanges.conector import Conector, OrdenExchange, Red
 
     from .api_apoyo import Api
 
@@ -44,6 +45,10 @@ REJILLA: dict[str, Any] = {
     "capital": "300",
     "parametros": {"precio_bajo": "90", "precio_alto": "110", "escalones": "4"},
 }
+
+
+def sin_anotar(_orden: OrdenExchange, _exchange: str, _red: Red, _bot: str) -> None:
+    """El registro de órdenes no se toca en estas pruebas."""
 
 
 @pytest.fixture
@@ -70,7 +75,7 @@ def mercado(cliente: Api) -> Iterator[Mercado]:
             reloj=m.reloj,
             zona=UTC,
             conector_de=conector,
-            anotar_orden=lambda *_: None,
+            anotar_orden=sin_anotar,
             globales=Path("config") / "bots_real.json",
         )
     )
@@ -92,6 +97,7 @@ def activar(cliente: Api, bot: dict[str, Any], **cambios: Any) -> Any:
     cuerpo = {
         "confirmacion": f"ACTIVAR {bot['nombre']}",
         "sin_ficticio": "SIN PRUEBA EN FICTICIO",
+        "sin_examen": "SIN EXAMEN",
         **cambios,
     }
     return cliente.post(f"/api/bots/{bot['id']}/activar-real", json=cuerpo)
@@ -133,18 +139,18 @@ class TestActivarReal:
             assert "ACTIVAR Rejilla BTC" in r.json()["detail"]
         assert cliente.get(f"/api/bots/{bot['id']}").json()["modo"] == "pruebas"
 
-    def test_sin_siete_dias_en_ficticio_pide_saberlo(self, cliente: Api, mercado: Mercado) -> None:
+    def test_sin_un_mes_en_ficticio_pide_saberlo(self, cliente: Api, mercado: Mercado) -> None:
         bot = de_pruebas(cliente)
         r = activar(cliente, bot, sin_ficticio=None)
         assert r.status_code == 422
         assert "SIN PRUEBA EN FICTICIO" in r.json()["detail"]
-        assert "0,0 días en ficticio" in r.json()["detail"]
+        assert "0,0 días en ficticio (menos de 30)" in r.json()["detail"]
 
-    def test_con_siete_dias_en_ficticio_no_hace_falta(self, cliente: Api, mercado: Mercado) -> None:
+    def test_con_un_mes_en_ficticio_no_hace_falta(self, cliente: Api, mercado: Mercado) -> None:
         desplegar(cliente, nombre="Rejilla ficticia")
-        mercado.reloj.avanzar(timedelta(days=7, minutes=1))
+        mercado.reloj.avanzar(timedelta(days=30, minutes=1))
         bot = de_pruebas(cliente)
-        assert bot["probado_en_ficticio_dias"] >= 7
+        assert bot["probado_en_ficticio_dias"] >= 30
         r = activar(cliente, bot, sin_ficticio=None)
         assert r.status_code == 200, r.text
 
@@ -262,3 +268,48 @@ class TestBorrar:
         assert "Páralo antes" in r.json()["detail"]
         cliente.post(f"/api/bots/{bot['id']}/parar")
         assert cliente.delete(f"/api/bots/{bot['id']}").status_code == 204
+
+
+class TestExamen:
+    """Antes del dinero real, su regla sobre seis tramos del último año (bots.examen)."""
+
+    @staticmethod
+    def binance_con_un_ano() -> ConectorFalso:
+        horas = 400 * 24
+        velas = serie(
+            "BTC/USDT",
+            "1h",
+            onda(horas, centro=100, amplitud=15, periodo=240),
+            INICIO - timedelta(hours=horas),
+        )
+        return con_velas(
+            ConectorFalso(exchange_="binance", mercados_=(mercado_falso("BTC"),)), velas
+        )
+
+    def test_sin_examen_pide_saberlo(self, cliente: Api, mercado: Mercado) -> None:
+        bot = de_pruebas(cliente)
+        r = activar(cliente, bot, sin_examen=None)
+        assert r.status_code == 422
+        assert r.json()["detail"].startswith("No tiene examen sobre el pasado.")
+        assert "SIN EXAMEN" in r.json()["detail"]
+
+    def test_examinado_y_aprobado_no_hace_falta_escribirlo(
+        self, cliente: Api, mercado: Mercado
+    ) -> None:
+        bot = de_pruebas(cliente)
+        with registro.inyectados({"binance": self.binance_con_un_ano()}):
+            r = cliente.post(f"/api/bots/{bot['id']}/examen")
+        assert r.status_code == 200, r.text
+        examen = r.json()
+        assert (examen["exchange"], len(examen["tramos"])) == ("binance", 6)
+        assert examen["aprobado"] is True, examen["veredicto"]
+        assert examen["vigente"] is True
+        assert cliente.get(f"/api/bots/{bot['id']}").json()["examen"] == examen
+        assert activar(cliente, bot, sin_examen=None).status_code == 200
+
+    def test_examinar_no_envia_nada(self, cliente: Api, mercado: Mercado) -> None:
+        bot = de_pruebas(cliente)
+        binance = self.binance_con_un_ano()
+        with registro.inyectados({"binance": binance}):
+            assert cliente.post(f"/api/bots/{bot['id']}/examen").status_code == 200
+        assert binance.creadas == []

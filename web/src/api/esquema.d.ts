@@ -207,11 +207,34 @@ export interface paths {
         /**
          * Activar Real
          * @description Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',
-         *     el exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN
-         *     FICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde
-         *     el panel: el conector MCP no puede.
+         *     el exchange activo en real; si su estrategia no lleva 30 días en ficticio, 'SIN PRUEBA EN
+         *     FICTICIO', y si no tiene un examen sobre el pasado aprobado y vigente, 'SIN EXAMEN'. 422 en
+         *     llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde el panel: el
+         *     conector MCP no puede.
          */
         post: operations["activar_real_api_bots__bot_id__activar_real_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bots/{bot_id}/examen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Examinar
+         * @description Examina su regla sobre 6 tramos del último año (velas de Binance o, si no tiene sus monedas,
+         *     de Hyperliquid), cada uno frente a mantener, y lo guarda. Tarda unos segundos: descarga velas.
+         *     422 en llano si no hay velas. Solo lee precios públicos: no envía nada.
+         */
+        post: operations["examinar_api_bots__bot_id__examen_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2025,8 +2048,13 @@ export interface components {
             /** @description Sus límites en real (su capital máximo es su capital); sin ellos, los de pruebas */
             limites?: components["schemas"]["LimitesBot-Input"] | null;
             /**
+             * Sin Examen
+             * @description Si no tiene un examen sobre el pasado aprobado y vigente: 'SIN EXAMEN'
+             */
+            sin_examen?: string | null;
+            /**
              * Sin Ficticio
-             * @description Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'
+             * @description Si su estrategia no lleva 30 días en ficticio: 'SIN PRUEBA EN FICTICIO'
              */
             sin_ficticio?: string | null;
         };
@@ -2678,6 +2706,8 @@ export interface components {
              */
             eventos: components["schemas"]["EventoBot"][];
             evidencia: components["schemas"]["EvidenciaBot"];
+            /** @description Su último examen sobre el pasado (POST /api/bots/{id}/examen) */
+            examen?: components["schemas"]["ExamenBot"] | null;
             /** Exchange */
             exchange: string | null;
             /** Ganancia */
@@ -3279,6 +3309,47 @@ export interface components {
              * @enum {string}
              */
             tipo: "pasado" | "prueba_real" | "ninguna";
+        };
+        /**
+         * ExamenBot
+         * @description Su regla sobre 6 tramos del último año, cada uno por separado y frente a mantener.
+         */
+        ExamenBot: {
+            /** Aprobado */
+            aprobado: boolean;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Avisos */
+            avisos: string[];
+            /**
+             * Exchange
+             * @description De dónde salieron las velas
+             */
+            exchange: string;
+            /** Intervalo */
+            intervalo: string;
+            /**
+             * Motivos
+             * @description Por qué no aprueba (vacío si aprueba)
+             */
+            motivos: string[];
+            /** Operaciones */
+            operaciones: number;
+            /** Tramos */
+            tramos: components["schemas"]["TramoExamen"][];
+            /**
+             * Veredicto
+             * @description En llano: 'Aprobado: en 5 de 6 tramos…' o por qué no
+             */
+            veredicto: string;
+            /**
+             * Vigente
+             * @description Vale para activar el dinero real: de su regla de ahora y de hace menos de 30 días
+             */
+            vigente: boolean;
         };
         /** ExchangeDisponible */
         ExchangeDisponible: {
@@ -5865,6 +5936,43 @@ export interface components {
             /** Terminado */
             terminado: string | null;
         };
+        /** TramoExamen */
+        TramoExamen: {
+            /**
+             * A Favor
+             * @description Le fue al menos como a mantener: ganó más, o cayó menos de la mitad sin quedarse más de 5 puntos por detrás
+             */
+            a_favor: boolean;
+            /**
+             * Desde
+             * Format: date-time
+             */
+            desde: string;
+            /**
+             * Ganancia Pct
+             * @description Fracción, empezando de cero en el tramo
+             */
+            ganancia_pct: number;
+            /**
+             * Hasta
+             * Format: date-time
+             */
+            hasta: string;
+            /**
+             * Mantener Pct
+             * @description Fracción: solo mantener sus monedas en el tramo
+             */
+            mantener_pct: number;
+            /** Mantener Peor Caida */
+            mantener_peor_caida: number;
+            /** Operaciones */
+            operaciones: number;
+            /**
+             * Peor Caida
+             * @description Fracción negativa
+             */
+            peor_caida: number;
+        };
         /** TriggerArmado */
         TriggerArmado: {
             /**
@@ -6640,6 +6748,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetalleBot"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    examinar_api_bots__bot_id__examen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamenBot"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */

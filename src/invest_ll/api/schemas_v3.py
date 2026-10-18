@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from invest_ll.api.schemas_v5 import MetricasBot, PendienteBot
+from invest_ll.api.schemas_v5 import ExamenBot, MetricasBot, PendienteBot
 
 LadoPractica = Literal["compra", "venta"]
 TipoOrden = Literal["mercado", "limite"]
@@ -388,4 +388,7 @@ class DetalleBot(ResumenBot):
     metricas: MetricasBot = Field(description="v5: sus métricas, sacadas de sus operaciones")
     pendientes: list[PendienteBot] = Field(
         description="v5: qué hará después, lo más cercano primero"
+    )
+    examen: ExamenBot | None = Field(
+        default=None, description="Su último examen sobre el pasado (POST /api/bots/{id}/examen)"
     )

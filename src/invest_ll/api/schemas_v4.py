@@ -218,7 +218,11 @@ class ActivarReal(BaseModel):
     )
     sin_ficticio: str | None = Field(
         default=None,
-        description="Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'",
+        description="Si su estrategia no lleva 30 días en ficticio: 'SIN PRUEBA EN FICTICIO'",
+    )
+    sin_examen: str | None = Field(
+        default=None,
+        description="Si no tiene un examen sobre el pasado aprobado y vigente: 'SIN EXAMEN'",
     )
 
 

@@ -48,7 +48,7 @@ from invest_ll.vivo.fuente import Libro, Nivel
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Mapping, Sequence
 
-    from invest_ll.bots.decisiones import Orden
+    from invest_ll.bots.decisiones import Decision, Memoria, Orden
     from invest_ll.exchanges.conector import Conector, Mercado
     from invest_ll.vivo.fuente import Vela
 
@@ -233,6 +233,33 @@ def _ejecutar(
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class Regla:
+    """Lo que decide en una simulación: una estrategia a medida (`regla_de`) o la plantilla de un
+    bot (`bots.examen`), con lo que el motor le daría en vivo."""
+
+    monedas: tuple[str, ...]
+    intervalo: str
+    """El de sus velas (una plantilla que decide con cada precio se simula con el cierre de cada
+    vela de este intervalo)."""
+    necesarias: int
+    decidir: Callable[[Situacion], Decision]
+    huella: str
+    parametros: Mapping[str, str] = field(default_factory=dict[str, str])
+    aplicar: Callable[[Mapping[str, str], Orden, Decimal], Memoria] | None = None
+    """Como `Plantilla.aplicar`: lo que cambia en la memoria al ejecutarse una orden (la rejilla)."""
+
+
+def regla_de(e: Estrategia) -> Regla:
+    return Regla(
+        monedas=tuple(e.monedas),
+        intervalo=e.intervalo,
+        necesarias=velas_necesarias(e),
+        decidir=lambda s: decidir_estrategia(e, s),
+        huella=huella(e),
+    )
+
+
 def simular(
     estrategia: Estrategia,
     velas: Mapping[str, Sequence[Vela]],
@@ -249,9 +276,37 @@ def simular(
     """La estrategia vela a vela sobre `velas` (por moneda, de la más antigua a la más reciente;
     pueden empezar antes de `desde` para calentar los indicadores). Decide al cierre de cada vela
     con `fin` en (desde, hasta]."""
-    e = estrategia
+    return simular_regla(
+        regla_de(estrategia),
+        velas,
+        exchange=exchange,
+        capital=capital,
+        desde=desde,
+        hasta=hasta,
+        comision=comision,
+        deslizamiento=deslizamiento,
+        ahora=ahora,
+        avisos_previos=avisos_previos,
+    )
+
+
+def simular_regla(
+    regla: Regla,
+    velas: Mapping[str, Sequence[Vela]],
+    *,
+    exchange: str,
+    capital: Decimal,
+    desde: datetime,
+    hasta: datetime,
+    comision: Decimal = COMISION_POR_DEFECTO,
+    deslizamiento: Decimal = DESLIZAMIENTO,
+    ahora: datetime | None = None,
+    avisos_previos: Sequence[str] = (),
+) -> Resultado:
+    """Como `simular`, con cualquier regla (la estrategia a medida o la plantilla de un bot)."""
+    e = regla
     comisiones = Comisiones(tomador=comision, creador=comision)
-    necesarias = velas_necesarias(e)
+    necesarias = e.necesarias
     series = {c: [v for v in velas.get(c, ()) if v.cerrada] for c in e.monedas}
     fines = {c: [v.fin for v in s] for c, s in series.items()}
     pasos = sorted({v.fin for s in series.values() for v in s if desde < v.fin <= hasta})
@@ -285,14 +340,14 @@ def simular(
             ahora=t,
             capital=capital,
             monedas=e.monedas,
-            parametros={},
+            parametros=dict(e.parametros),
             efectivo=st.cuenta.efectivo,
             posiciones=st.cuenta.cantidades(),
             precios=dict(ultimo),
             velas=ventanas,
             memoria=dict(st.memoria),
         )
-        decision = decidir_estrategia(e, situacion)
+        decision = e.decidir(situacion)
         for orden in sorted(decision.ordenes, key=lambda o: o.lado != "venta"):
             precio = ultimo.get(orden.coin)
             if precio is None:  # pragma: no cover - el intérprete solo opera con velas
@@ -301,6 +356,8 @@ def simular(
             if hecha is None:
                 continue
             st.memoria.update(orden.memoria)
+            if e.aplicar is not None:
+                st.memoria = dict(e.aplicar(st.memoria, orden, hecha.cantidad))
             st.comisiones += hecha.comision
             verbo = "Compré" if hecha.lado == "compra" else "Vendí"
             # Diez cifras significativas, como las guarda el motor de bots.
@@ -355,7 +412,7 @@ def simular(
         curva_mantener=_muestra(curva_mantener),
         lista_operaciones=tuple(st.operaciones[:MAX_LISTA]),
         avisos=(),
-        huella=huella(e),
+        huella=e.huella,
         comision=comision,
         deslizamiento=deslizamiento,
         at=ahora or datetime.now(UTC),

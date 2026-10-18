@@ -91,7 +91,7 @@ export function Biblioteca() {
       <div className="space-y-12">
         <Seccion
           titulo="Tu biblioteca"
-          bajada="Borrador → probada sobre el pasado → en ficticio (se recomiendan 7 días) → con dinero real. Pasar a real solo lo haces tú, desde la ficha de un bot."
+          bajada="Borrador → probada sobre el pasado → en ficticio (se recomienda un mes) → examen sobre el pasado → con dinero real. Pasar a real solo lo haces tú, desde la ficha de un bot."
           accion={
             <Boton tamano="compacto" onClick={() => setAMano(true)}>
               <PencilLine aria-hidden="true" className="h-4 w-4" />

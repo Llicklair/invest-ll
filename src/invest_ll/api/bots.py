@@ -48,9 +48,11 @@ from invest_ll.api.schemas_v4 import ActivarReal, CambioLimites, LimiteDiario, P
 from invest_ll.api.schemas_v5 import (
     Actividad,
     ActividadNueva,
+    ExamenBot,
     MetricasBot,
     MovimientoBot,
     PendienteBot,
+    TramoExamen,
 )
 from invest_ll.bots import motor, real
 from invest_ll.bots.metricas import metricas as calcular_metricas
@@ -65,6 +67,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from datetime import datetime
 
     from invest_ll.bots.actividad import Movimiento
+    from invest_ll.bots.examen import Examen
     from invest_ll.bots.motor import Bot
     from invest_ll.bots.plantillas import Evidencia, Plantilla
     from invest_ll.bots.registro import ModoBot, Pausa, Punto
@@ -74,9 +77,11 @@ router = APIRouter()
 
 CENTIMO: Final = Decimal("0.01")
 SEGUNDOS_DIA: Final = 86_400
-DIAS_EN_FICTICIO: Final = 7
-"""Los que una estrategia tiene que llevar en ficticio para activarla sin «SIN PRUEBA EN FICTICIO»."""
+DIAS_EN_FICTICIO: Final = 30
+"""Los que una estrategia tiene que llevar en ficticio para activarla sin «SIN PRUEBA EN FICTICIO»:
+un mes de mercado en vivo, no una semana."""
 SIN_FICTICIO: Final = "SIN PRUEBA EN FICTICIO"
+SIN_EXAMEN: Final = "SIN EXAMEN"
 DINERO_REAL: Final = "DINERO REAL"
 NOTA_CON_EXCHANGE: Final = (
     "Cada bot dice con qué dinero opera: ficticio, de pruebas o real (en rojo). Los bots siguen "
@@ -327,6 +332,38 @@ def _pendientes(m: Motor, bot: Bot) -> list[PendienteBot]:
     return salida
 
 
+def _examen_bot(e: Examen, *, vigente: bool) -> ExamenBot:
+    return ExamenBot(
+        aprobado=e.aprobado,
+        vigente=vigente,
+        veredicto=e.veredicto,
+        motivos=list(e.motivos),
+        avisos=list(e.avisos),
+        exchange=e.exchange,
+        intervalo=e.intervalo,
+        tramos=[
+            TramoExamen(
+                desde=t.desde,
+                hasta=t.hasta,
+                ganancia_pct=t.ganancia_pct,
+                mantener_pct=t.mantener_pct,
+                peor_caida=t.peor_caida,
+                mantener_peor_caida=t.mantener_peor_caida,
+                operaciones=t.operaciones,
+                a_favor=t.a_favor,
+            )
+            for t in e.tramos
+        ],
+        operaciones=e.operaciones,
+        at=e.at,
+    )
+
+
+def _examen(m: Motor, bot: Bot) -> ExamenBot | None:
+    hecho, vigente = m.examen(bot)
+    return _examen_bot(hecho, vigente=vigente) if hecho is not None else None
+
+
 def movimiento(mov: Movimiento) -> MovimientoBot:
     """Del motor al contrato (lo usa también el canal `actividad` del stream)."""
     return MovimientoBot(
@@ -376,6 +413,7 @@ def _detalle(m: Motor, bot: Bot) -> DetalleBot:
             ],
             metricas=_metricas(m, bot, resumen),
             pendientes=_pendientes(m, bot),
+            examen=_examen(m, bot),
         )
 
 
@@ -552,9 +590,10 @@ def borrar(bot_id: str) -> None:
 @router.post("/bots/{bot_id}/activar-real", tags=["bots"])
 def activar_real(bot_id: str, peticion: ActivarReal) -> DetalleBot:
     """Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',
-    el exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN
-    FICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde
-    el panel: el conector MCP no puede."""
+    el exchange activo en real; si su estrategia no lleva 30 días en ficticio, 'SIN PRUEBA EN
+    FICTICIO', y si no tiene un examen sobre el pasado aprobado y vigente, 'SIN EXAMEN'. 422 en
+    llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde el panel: el
+    conector MCP no puede."""
     m = _motor()
     bot = _bot(m, bot_id)
     d = bot.definicion
@@ -579,6 +618,18 @@ def activar_real(bot_id: str, peticion: ActivarReal) -> DetalleBot:
             f"Su estrategia lleva {lleva} días en ficticio (menos de {DIAS_EN_FICTICIO}). Para "
             f"activarlo igualmente, escribe también «{SIN_FICTICIO}»."
         )
+    hecho, vigente = m.examen(bot)
+    if not (hecho is not None and hecho.aprobado and vigente) and peticion.sin_examen != SIN_EXAMEN:
+        if hecho is None:
+            por_que = "No tiene examen sobre el pasado."
+        elif not vigente:
+            por_que = "Su examen sobre el pasado es de otra regla o de hace más de 30 días."
+        else:
+            por_que = f"Su examen sobre el pasado no está aprobado: {hecho.veredicto}"
+        raise invalido(
+            f"{por_que} Examínalo desde su ficha o, para activarlo igualmente, escribe también "
+            f"«{SIN_EXAMEN}»."
+        )
     try:
         with del_dominio():
             activado = m.activar_real(bot_id, exchange, limites)
@@ -587,6 +638,20 @@ def activar_real(bot_id: str, peticion: ActivarReal) -> DetalleBot:
     if d.plantilla == MEDIDA and d.estrategia:
         _marcar_estrategia(d.estrategia, "real")
     return _detalle(m, activado)
+
+
+@router.post("/bots/{bot_id}/examen", tags=["bots"])
+def examinar(bot_id: str) -> ExamenBot:
+    """Examina su regla sobre 6 tramos del último año (velas de Binance o, si no tiene sus monedas,
+    de Hyperliquid), cada uno frente a mantener, y lo guarda. Tarda unos segundos: descarga velas.
+    422 en llano si no hay velas. Solo lee precios públicos: no envía nada."""
+    m = _motor()
+    _bot(m, bot_id)
+    with del_dominio():
+        m.examinar(bot_id)
+    hecho, vigente = m.examen(m.bot(bot_id))
+    assert hecho is not None
+    return _examen_bot(hecho, vigente=vigente)
 
 
 @router.put("/bots/{bot_id}/limites", tags=["bots"])

@@ -60,6 +60,7 @@ ESTADO: Final = "estado.json"
 OPERACIONES: Final = "operaciones.jsonl"
 EVENTOS: Final = "eventos.jsonl"
 CURVA: Final = "curva.jsonl"
+EXAMEN: Final = "examen.json"
 _ID: Final = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
 
 
@@ -421,6 +422,20 @@ class Registro:
 
     def guardar_estado(self, bot_id: str, estado: Estado) -> None:
         self._escribir(self.carpeta(bot_id) / ESTADO, estado_a_json(estado))
+
+    def guardar_examen(self, bot_id: str, datos: dict[str, Any]) -> None:
+        """El último examen sobre el pasado (`bots.examen`), tal cual."""
+        self._escribir(self.carpeta(bot_id) / EXAMEN, datos)
+
+    def examen(self, bot_id: str) -> dict[str, Any] | None:
+        ruta = self.carpeta(bot_id) / EXAMEN
+        if not ruta.is_file():
+            return None
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return cast("dict[str, Any]", datos) if isinstance(datos, dict) else None
 
     def guardar_definicion(self, definicion: Definicion) -> None:
         """Al cambiar de modo (activar el dinero real) o de límites."""

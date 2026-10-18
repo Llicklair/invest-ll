@@ -71,7 +71,7 @@ que los bots de v3) y produce las mismas órdenes que las plantillas.
    y deslizamiento, contra "mantener": resultado, peor caída, operaciones, tiempo dentro. **Se
    cuenta cuántas versiones se han probado** y, a partir de varias, la ficha avisa de que "elegir la
    mejor de muchas pruebas sobre el pasado se parece a hacer trampa" (sobreajuste).
-3. **En ficticio** — un bot ficticio en vivo (v3). Recomendado **7 días** antes de real.
+3. **En ficticio** — un bot ficticio en vivo (v3). Recomendado **un mes** antes de real, y aprobar el examen sobre el pasado (§3).
 4. **Real** — un bot real con límites (§3). Saltarse el paso 3 se puede, pero exige escribir
    "SIN PRUEBA EN FICTICIO" al activar: es tu dinero, y la decisión queda registrada.
 
@@ -141,6 +141,13 @@ medida.
   todo lo real», que para los reales y cancela solo las órdenes que dejaron abiertas los bots
   (nunca las de Marcos). Reanudar todo quita el interruptor; cada bot se reanuda a mano.
 - **Borrar no vende**: un bot de exchange se para antes de borrarlo y lo suyo se queda en la cuenta.
+- **Examen sobre el pasado antes de real** (`bots/examen.py`, octubre 2026): la regla del bot corre
+  en 6 tramos del último año, cada uno desde cero y frente a mantener (velas de Binance o, si no
+  tiene sus monedas, de Hyperliquid). Aprueba si hay al menos 4 tramos, al menos 6 operaciones y en
+  2 de cada 3 tramos le va como mínimo como a mantener (gana más, o cae menos de la mitad sin
+  quedarse más de 5 puntos por detrás). Vale 30 días y para esa misma regla (huella). Activar real
+  sin examen aprobado pide escribir `SIN EXAMEN`; con menos de **30 días** en ficticio (antes 7),
+  `SIN PRUEBA EN FICTICIO`. Una sola prueba buena puede ser suerte del periodo; seis, mucho menos.
 - Todo probado contra `ConectorFalso` (`tests/unit/test_bots_real.py`,
   `tests/integration/test_api_bots_real.py`): las pruebas no envían nada a ningún exchange.
 

@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Final
 from zoneinfo import ZoneInfo
 
 from invest_ll import llano
-from invest_ll.bots import real
+from invest_ll.bots import examen, real
 from invest_ll.bots.actividad import (
     AL_ABRIR_POR_BOT,
     MAX_ACTIVIDAD,
@@ -792,6 +792,35 @@ class Motor:
         with self._cerrojo:
             g = self.globales()
             real.guardar_globales(real.Globales(g.limite_diario), self._ruta_globales)
+
+    # -- El examen sobre el pasado (`bots.examen`) --------------------------------------------------
+
+    def examinar(
+        self, bot_id: str, *, conector_publico: Callable[[str], Conector] | None = None
+    ) -> examen.Examen:
+        """Examina la regla del bot sobre el pasado y lo guarda. Las velas se descargan fuera del
+        cerrojo: los demás bots siguen mientras tanto."""
+        with self._cerrojo:
+            definicion = self.bot(bot_id).definicion
+        hecho = examen.examinar(definicion, ahora=self.ahora(), conector_publico=conector_publico)
+        with self._cerrojo:
+            bot = self.bot(bot_id)
+            self.registro.guardar_examen(bot.id, examen.a_json(hecho))
+            self._evento(bot, self.ahora(), "info", f"Examen sobre el pasado. {hecho.veredicto}")
+            self._guardar(bot, self.ahora())
+        return hecho
+
+    def examen(self, bot: Bot) -> tuple[examen.Examen | None, bool]:
+        """Su último examen y si vale para activar el dinero real (de esta regla y reciente)."""
+        datos = self.registro.examen(bot.id)
+        if datos is None:
+            return None, False
+        try:
+            hecho = examen.de_json(datos)
+            firma = examen.firma_de(bot.definicion, examen.regla_del_bot(bot.definicion)[0])
+        except (KeyError, ValueError, BotInvalidoError):
+            return None, False
+        return hecho, hecho.vigente(firma, self.ahora())
 
     def cambiar_limite_diario(self, limite: Decimal | None) -> None:
         with self._cerrojo:
