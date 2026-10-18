@@ -133,8 +133,15 @@ function TusBots({ datos }: { datos: DatosBots | null }) {
               <Variacion importe={datos.ganancia} pct={datos.ganancia_pct} moneda="USDC" coletilla="desde que los pusiste" className="mt-2" />
               <p className="mt-2 text-sm text-tinta-suave">
                 Puesto {usdc(datos.capital)} · {enMarcha} de {datos.bots.length} en marcha · precios de las {horaSegundos(datos.at)}
-                {mezcla ? " · suma dinero ficticio, de pruebas y real" : ""}
+                {mezcla ? " · solo los ficticios" : ""}
               </p>
+              {datos.por_modo
+                .filter((t) => t.modo !== "ficticio")
+                .map((t) => (
+                  <p key={t.modo} className={clases("mt-1 text-sm font-medium", t.modo === "real" ? "text-real-tinta" : "text-pruebas-tinta")}>
+                    {t.modo === "real" ? "Dinero real" : "Red de pruebas"}: {usdc(t.valor)} de {usdc(t.capital, { decimales: 0 })} puestos ({t.bots} {t.bots === 1 ? "bot" : "bots"})
+                  </p>
+                ))}
             </>
           ) : null}
         </div>

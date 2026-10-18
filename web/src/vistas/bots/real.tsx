@@ -58,9 +58,9 @@ export function bordeModo(modo: ModoBot): string | undefined {
   return undefined;
 }
 
-/** ¿Lo ha pausado el sistema (estado desconocido, conciliacion) y no la persona? */
-export function pausadoSolo(bot: Pick<ResumenBot, "modo" | "estado" | "aviso">): boolean {
-  return bot.modo !== "ficticio" && bot.estado !== "en_marcha" && Boolean(bot.aviso);
+/** ¿Lo ha pausado el sistema (una orden sin confirmar, el saldo que no cuadra) y no la persona? */
+export function pausadoSolo(bot: Pick<ResumenBot, "modo" | "pausa">): boolean {
+  return bot.modo !== "ficticio" && bot.pausa !== null;
 }
 
 // -- Limites ----------------------------------------------------------------------------------------
@@ -73,7 +73,7 @@ export const EXPLICACION_LIMITE = {
   },
   orden_max: {
     nombre: "Tamaño máximo por orden",
-    texto: "Ninguna compra o venta suya puede pasar de esta cantidad. Si su regla pide más, la orden no sale y lo apunta.",
+    texto: "Ninguna compra suya puede pasar de esta cantidad: si su regla pide más, la orden no sale y lo apunta. Vender lo que tiene siempre puede (para no quedarse atrapado).",
   },
   perdida_max_pct: {
     nombre: "Pérdida máxima",
@@ -410,6 +410,12 @@ export function HojaActivarReal({
             <p className="mt-2 pl-8 text-sm text-tinta-suave">
               Sigue «{bot.nombre_plantilla}» con {bot.monedas.join(", ")}.
             </p>
+            {l ? (
+              <p className="mt-2 pl-8 text-sm text-tinta-suave">
+                Empieza de cero: su capital pasa a ser su capital máximo y lo que hizo hasta ahora se guarda aparte. Antes de su primera orden comprueba que en tu cuenta de{" "}
+                {nombre || "su exchange"} hay saldo para él; si no cuadra, no opera y te lo dice.
+              </p>
+            ) : null}
           </div>
 
           {l ? (

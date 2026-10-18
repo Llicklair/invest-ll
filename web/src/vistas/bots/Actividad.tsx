@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, CirclePause, Clock, Info, OctagonAlert, Play } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Banknote, CirclePause, CircleQuestionMark, Clock, Info, OctagonAlert, Play, Scale, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -21,6 +21,10 @@ const ICONO: Record<MovimientoBot["tipo"], typeof Play> = {
   error: OctagonAlert,
   hueco: Clock,
   info: Info,
+  limite: ShieldAlert,
+  desconocido: CircleQuestionMark,
+  conciliacion: Scale,
+  real: Banknote,
 };
 const PALABRA: Record<MovimientoBot["tipo"], string> = {
   compra: "Compra",
@@ -30,6 +34,10 @@ const PALABRA: Record<MovimientoBot["tipo"], string> = {
   error: "Error",
   hueco: "Hueco",
   info: "Aviso",
+  limite: "Límite",
+  desconocido: "Sin confirmar",
+  conciliacion: "No cuadra",
+  real: "Dinero real",
 };
 const TONO: Record<MovimientoBot["tipo"], string> = {
   compra: "bg-sube-suave text-sube-texto",
@@ -39,6 +47,10 @@ const TONO: Record<MovimientoBot["tipo"], string> = {
   error: "bg-real-suave text-real-tinta",
   hueco: "bg-pruebas-suave text-pruebas-tinta",
   info: "bg-superficie-2 text-tinta-suave",
+  limite: "bg-pruebas-suave text-pruebas-tinta",
+  desconocido: "bg-real-suave text-real-tinta",
+  conciliacion: "bg-real-suave text-real-tinta",
+  real: "bg-real-suave text-real-tinta",
 };
 
 /**

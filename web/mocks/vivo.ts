@@ -1447,6 +1447,7 @@ function resumenBot(m: MundoVivo, b: BotMock): S["ResumenBot"] {
       ? { gastado: usd(Math.max(0, invertido)), perdida_pct: Math.max(0, 1 - valor / b.capital), operaciones_hoy: b.operacionesHoy }
       : null,
     probado_en_ficticio_dias: e ? e.diasFicticio : b.modo === "ficticio" ? Math.round(((ahora - b.desde) / DIA_MS) * 10) / 10 : b.probadoDias,
+    pausa: null,
   };
 }
 
@@ -1606,20 +1607,33 @@ function actividad(m: MundoVivo, botId: string | null, limite: number, inicial =
 
 function bots(m: MundoVivo): S["Bots"] {
   const lista = m.bots.map((b) => resumenBot(m, b));
-  const capital = m.bots.reduce((s, b) => s + b.capital, 0);
-  const valor = m.bots.reduce((s, b) => s + valorBot(b, (coin) => precioVivo(m, coin)), 0);
-  const hayReales = m.bots.some((b) => b.modo === "real");
+  const total = (modo: S["ResumenBot"]["modo"]): S["TotalModo"] => {
+    const suyos = m.bots.filter((b) => b.modo === modo);
+    const capital = suyos.reduce((s, b) => s + b.capital, 0);
+    const valor = suyos.reduce((s, b) => s + valorBot(b, (coin) => precioVivo(m, coin)), 0);
+    return {
+      modo,
+      bots: suyos.length,
+      capital: usd(capital),
+      valor: usd(valor),
+      ganancia: usd(valor - capital),
+      ganancia_pct: capital > 0 ? valor / capital - 1 : null,
+    };
+  };
+  const ficticio = total("ficticio");
+  const soloFicticios = m.bots.every((b) => b.modo === "ficticio");
   return {
     bots: lista,
-    capital: usd(capital),
-    valor: usd(valor),
-    ganancia: usd(valor - capital),
-    ganancia_pct: capital > 0 ? valor / capital - 1 : null,
+    capital: ficticio.capital,
+    valor: ficticio.valor,
+    ganancia: ficticio.ganancia,
+    ganancia_pct: ficticio.ganancia_pct,
+    por_modo: (["ficticio", "pruebas", "real"] as const).filter((modo) => m.bots.some((b) => b.modo === modo)).map(total),
     real: estadoReal(m),
     at: at(m),
-    nota: hayReales
-      ? "Hay bots con dinero real: operan solos, dentro de sus límites, aunque cierres el panel (mientras el ordenador esté encendido)."
-      : "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.",
+    nota: soloFicticios
+      ? "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido."
+      : "Cada bot dice con qué dinero opera: ficticio, de pruebas o real (en rojo). Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.",
   };
 }
 
@@ -1655,6 +1669,7 @@ function estadoReal(m: MundoVivo): S["EstadoReal"] {
     perdida_hoy: usd(perdida),
     limite_diario: m.limiteDiario,
     parado_todo: m.paradoTodo !== null,
+    parado_desde: m.paradoTodo !== null ? iso(m.paradoTodo) : null,
     aviso,
   };
 }

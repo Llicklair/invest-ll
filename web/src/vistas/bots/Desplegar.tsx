@@ -44,6 +44,21 @@ function textoValor(p: ParametroBot, v: string): string {
   return v.replace(".", ",");
 }
 
+/** El par de contado de una moneda de Hyperliquid en el exchange (como `exchanges/mercados.py`):
+ * misma base o con la U de los envueltos de Hyperliquid, en USDC antes que en USDT. */
+function parDe(mercados: readonly MercadoExchange[], coin: string): MercadoExchange | null {
+  const nombres = new Set([coin.toUpperCase(), `U${coin.toUpperCase()}`]);
+  const orden = ["USDC", "USDT"];
+  const candidatos = mercados.filter((m) => nombres.has(m.base.toUpperCase()) && orden.includes(m.cotizada));
+  candidatos.sort((a, b) => orden.indexOf(a.cotizada) - orden.indexOf(b.cotizada) || Number(a.base.toUpperCase() !== coin.toUpperCase()) - Number(b.base.toUpperCase() !== coin.toUpperCase()));
+  return candidatos[0] ?? null;
+}
+
+/** Las monedas (con nombre de Hyperliquid) que tienen par en esos mercados. */
+function conPar(mercados: readonly MercadoExchange[]): { has: (coin: string) => boolean } {
+  return { has: (coin: string) => parDe(mercados, coin) !== null };
+}
+
 /** Los exchanges donde se puede desplegar en pruebas: conectados, con claves de pruebas. */
 function enPruebas(e: EstadoExchange): boolean {
   return e.activo !== "sin_conectar" && e.redes.some((r) => r.red === "pruebas" && r.claves_guardadas);
@@ -87,7 +102,9 @@ export function Desplegar() {
   const mercados = useConsulta(modo === "pruebas" && exchange ? `mercados:${exchange}` : null, () =>
     pedir(api.GET("/api/conexiones/{exchange}/mercados", { params: { path: { exchange: exchange ?? "" }, query: { red: "pruebas" } } })),
   );
-  const permitidas = modo === "pruebas" && mercados.datos ? new Set(mercados.datos.mercados.map((m) => m.base)) : null;
+  // Los bots deciden con los precios de Hyperliquid y operan en el exchange: en pruebas valen las
+  // monedas de Hyperliquid con par de contado allí (BTC con BTC/USDT, o con UBTC/USDC).
+  const permitidas = modo === "pruebas" && mercados.datos ? conPar(mercados.datos.mercados) : null;
 
   // En pruebas, las elegidas que no tenga ese exchange no cuentan (las sugeridas son de Hyperliquid).
   const monedasBot = estrategia ? estrategia.monedas : permitidas ? elegidas.filter((c) => permitidas.has(c)) : elegidas;
@@ -252,7 +269,7 @@ export function Desplegar() {
               <PasoMonedas
                 plantilla={plantilla}
                 monedas={monedas.datos?.monedas ?? []}
-                cargando={modo === "pruebas" ? mercados.cargando && !mercados.datos : !monedas.datos}
+                cargando={!monedas.datos || (modo === "pruebas" && mercados.cargando && !mercados.datos)}
                 elegidas={monedasBot}
                 onCambio={setElegidas}
                 mercados={modo === "pruebas" ? (mercados.datos?.mercados ?? null) : null}
@@ -605,11 +622,18 @@ function PasoMonedas({
   const q = normalizar(busqueda);
   const lista = useMemo(() => {
     const base: { coin: string; nombre: string; detalle: ReactNode }[] = mercados
-      ? mercados.map((mk) => ({
-          coin: mk.base,
-          nombre: mk.nombre,
-          detalle: `${mk.par}${mk.minimo_importe ? ` · mínimo ${formatoCantidad(mk.minimo_importe)} ${mk.cotizada} por orden` : ""}`,
-        }))
+      ? monedas.flatMap((m) => {
+          const mk = parDe(mercados, m.coin);
+          return mk
+            ? [
+                {
+                  coin: m.coin,
+                  nombre: m.nombre,
+                  detalle: `${mk.par}${mk.minimo_importe ? ` · mínimo ${formatoCantidad(mk.minimo_importe)} ${mk.cotizada} por orden` : ""}`,
+                },
+              ]
+            : [];
+        })
       : monedas.map((m) => ({
           coin: m.coin,
           nombre: m.nombre,

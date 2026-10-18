@@ -37,7 +37,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.bots.decisiones import Lado
 
 EstadoBot = Literal["en_marcha", "parado", "error"]
-TipoEvento = Literal["arranque", "parada", "error", "hueco", "info"]
+TipoEvento = Literal[
+    "arranque", "parada", "error", "hueco", "info", "limite", "desconocido", "conciliacion", "real"
+]
+TIPOS_EVENTO: Final = (
+    "arranque",
+    "parada",
+    "error",
+    "hueco",
+    "info",
+    "limite",
+    "desconocido",
+    "conciliacion",
+    "real",
+)
+ModoBot = Literal["ficticio", "pruebas", "real"]
 
 CARPETA: Final = Path("bots")
 """Relativa al directorio de trabajo, como las demás carpetas de datos del panel."""
@@ -54,6 +68,18 @@ class BotNoEncontradoError(InvestLLError):
 
 
 @dataclass(frozen=True, slots=True)
+class Limites:
+    """Los de un bot de pruebas o real (docs/panel-v4-real.md §3): se comprueban antes de cada
+    orden y, si no cabe, no sale."""
+
+    capital_max: Decimal
+    orden_max: Decimal
+    perdida_max_pct: float
+    vender_al_parar: bool
+    operaciones_max_dia: int
+
+
+@dataclass(frozen=True, slots=True)
 class Definicion:
     id: str
     nombre: str
@@ -62,6 +88,30 @@ class Definicion:
     capital: Decimal
     parametros: dict[str, str]
     creado: datetime
+    modo: ModoBot = "ficticio"
+    exchange: str | None = None
+    """En pruebas y real, el exchange donde opera; en ficticio, None (precios de Hyperliquid)."""
+    estrategia: str | None = None
+    """Con la plantilla `medida`, el id de la estrategia a medida."""
+    limites: Limites | None = None
+    activado: datetime | None = None
+    """Cuándo empezó en su modo de ahora (al activar el dinero real, empieza de cero)."""
+
+
+@dataclass(frozen=True, slots=True)
+class Pausa:
+    """Un bot de exchange que se ha parado solo y necesita que lo mires antes de reanudarlo."""
+
+    motivo: str
+    """`desconocido` (una orden que no se sabe si salió) o `conciliacion` (no cuadra el saldo)."""
+    texto: str
+    diferencia: str | None = None
+    id_cliente: str | None = None
+    """La orden de la que no se sabe nada (para resolverla al reanudar)."""
+    at: datetime | None = None
+    coin: str | None = None
+    """La moneda y el lado de esa orden: con ellos se busca y, si salió, se apunta."""
+    lado: Lado | None = None
 
 
 @dataclass(slots=True)
@@ -83,6 +133,10 @@ class Estado:
     aviso: str | None = None
     """El último hueco ("Panel cerrado de 14:02 a 18:30: no pudo operar"), hasta `aviso_hasta`."""
     aviso_hasta: datetime | None = None
+    pausa: Pausa | None = None
+    dia: str | None = None
+    """El día (en la hora de Marcos) al que se refiere `operaciones_hoy`."""
+    operaciones_hoy: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +180,31 @@ def _decimales(datos: object) -> dict[str, Decimal]:
     return {str(k): Decimal(str(v)) for k, v in cast("dict[str, object]", datos or {}).items()}
 
 
+def limites_a_json(lim: Limites | None) -> dict[str, Any] | None:
+    if lim is None:
+        return None
+    return {
+        "capital_max": _txt(lim.capital_max),
+        "orden_max": _txt(lim.orden_max),
+        "perdida_max_pct": lim.perdida_max_pct,
+        "vender_al_parar": lim.vender_al_parar,
+        "operaciones_max_dia": lim.operaciones_max_dia,
+    }
+
+
+def limites_de_json(datos: object) -> Limites | None:
+    if not isinstance(datos, dict):
+        return None
+    d = cast("dict[str, object]", datos)
+    return Limites(
+        capital_max=Decimal(str(d["capital_max"])),
+        orden_max=Decimal(str(d["orden_max"])),
+        perdida_max_pct=float(str(d["perdida_max_pct"])),
+        vender_al_parar=bool(d.get("vender_al_parar", False)),
+        operaciones_max_dia=int(str(d["operaciones_max_dia"])),
+    )
+
+
 def definicion_a_json(d: Definicion) -> dict[str, Any]:
     return {
         "id": d.id,
@@ -135,6 +214,11 @@ def definicion_a_json(d: Definicion) -> dict[str, Any]:
         "capital": _txt(d.capital),
         "parametros": d.parametros,
         "creado": d.creado.isoformat(),
+        "modo": d.modo,
+        "exchange": d.exchange,
+        "estrategia": d.estrategia,
+        "limites": limites_a_json(d.limites),
+        "activado": d.activado.isoformat() if d.activado else None,
     }
 
 
@@ -149,6 +233,49 @@ def definicion_de_json(datos: dict[str, Any]) -> Definicion:
         capital=Decimal(str(datos["capital"])),
         parametros={str(k): str(v) for k, v in dict(datos["parametros"]).items()},
         creado=creado,
+        modo=_modo(datos.get("modo")),
+        exchange=str(datos["exchange"]) if datos.get("exchange") else None,
+        estrategia=str(datos["estrategia"]) if datos.get("estrategia") else None,
+        limites=limites_de_json(datos.get("limites")),
+        activado=_fecha(datos.get("activado")),
+    )
+
+
+def _modo(valor: object) -> ModoBot:
+    """Los bots de antes de v4 no tienen modo: son ficticios."""
+    if valor == "pruebas":
+        return "pruebas"
+    if valor == "real":
+        return "real"
+    return "ficticio"
+
+
+def _pausa_a_json(p: Pausa | None) -> dict[str, Any] | None:
+    if p is None:
+        return None
+    return {
+        "motivo": p.motivo,
+        "texto": p.texto,
+        "diferencia": p.diferencia,
+        "id_cliente": p.id_cliente,
+        "at": p.at.isoformat() if p.at else None,
+        "coin": p.coin,
+        "lado": p.lado,
+    }
+
+
+def _pausa_de_json(datos: object) -> Pausa | None:
+    if not isinstance(datos, dict):
+        return None
+    d = cast("dict[str, object]", datos)
+    return Pausa(
+        motivo=str(d.get("motivo") or ""),
+        texto=str(d.get("texto") or ""),
+        diferencia=str(d["diferencia"]) if d.get("diferencia") else None,
+        id_cliente=str(d["id_cliente"]) if d.get("id_cliente") else None,
+        at=_fecha(d.get("at")),
+        coin=str(d["coin"]) if d.get("coin") else None,
+        lado="venta" if d.get("lado") == "venta" else "compra" if d.get("lado") else None,
     )
 
 
@@ -171,6 +298,9 @@ def estado_a_json(e: Estado) -> dict[str, Any]:
         "ultima_operacion": e.ultima_operacion.isoformat() if e.ultima_operacion else None,
         "aviso": e.aviso,
         "aviso_hasta": e.aviso_hasta.isoformat() if e.aviso_hasta else None,
+        "pausa": _pausa_a_json(e.pausa),
+        "dia": e.dia,
+        "operaciones_hoy": e.operaciones_hoy,
     }
 
 
@@ -197,6 +327,9 @@ def estado_de_json(datos: dict[str, Any]) -> Estado:
         ultima_operacion=_fecha(datos.get("ultima_operacion")),
         aviso=datos.get("aviso"),
         aviso_hasta=_fecha(datos.get("aviso_hasta")),
+        pausa=_pausa_de_json(datos.get("pausa")),
+        dia=str(datos["dia"]) if datos.get("dia") else None,
+        operaciones_hoy=int(datos.get("operaciones_hoy") or 0),
     )
 
 
@@ -221,7 +354,7 @@ def _evento_de_json(d: dict[str, Any]) -> Evento:
     at = _fecha(d["at"])
     assert at is not None
     tipo = str(d["tipo"])
-    assert tipo in ("arranque", "parada", "error", "hueco", "info"), tipo
+    assert tipo in TIPOS_EVENTO, tipo
     return Evento(at=at, tipo=tipo, texto=str(d["texto"]))
 
 
@@ -288,6 +421,19 @@ class Registro:
 
     def guardar_estado(self, bot_id: str, estado: Estado) -> None:
         self._escribir(self.carpeta(bot_id) / ESTADO, estado_a_json(estado))
+
+    def guardar_definicion(self, definicion: Definicion) -> None:
+        """Al cambiar de modo (activar el dinero real) o de límites."""
+        self._escribir(self.carpeta(definicion.id) / DEFINICION, definicion_a_json(definicion))
+
+    def archivar_historia(self, bot_id: str, etiqueta: str) -> None:
+        """Al empezar de cero en otro modo: su curva y sus operaciones de antes se guardan aparte
+        (`curva-<etiqueta>.jsonl`, `operaciones-<etiqueta>.jsonl`) y no se mezclan con las nuevas."""
+        carpeta = self.carpeta(bot_id)
+        for fichero in (CURVA, OPERACIONES):
+            ruta = carpeta / fichero
+            if ruta.is_file():
+                ruta.replace(carpeta / fichero.replace(".jsonl", f"-{etiqueta}.jsonl"))
 
     def operacion(self, bot_id: str, o: Operacion) -> None:
         self._anadir(

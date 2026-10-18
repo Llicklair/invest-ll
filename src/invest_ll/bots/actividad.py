@@ -20,9 +20,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from datetime import datetime
     from decimal import Decimal
 
-    from invest_ll.bots.registro import Evento, Operacion
+    from invest_ll.bots.registro import Evento, ModoBot, Operacion
 
-TipoMovimiento = Literal["compra", "venta", "arranque", "parada", "error", "hueco", "info"]
+TipoMovimiento = Literal[
+    "compra",
+    "venta",
+    "arranque",
+    "parada",
+    "error",
+    "hueco",
+    "info",
+    "limite",
+    "desconocido",
+    "conciliacion",
+    "real",
+]
 
 MAX_ACTIVIDAD: Final = 500
 """Los que se guardan en memoria, de todos los bots."""
@@ -45,10 +57,16 @@ class Movimiento:
     comision: Decimal | None = None
     resultado: Decimal | None = None
     """Lo que ganó o perdió una venta (`metricas.resultado_venta`); None en lo demás."""
+    modo: ModoBot = "ficticio"
+    """El del bot cuando pasó: al activar el dinero real, lo de antes sigue siendo ficticio."""
 
 
 def de_operacion(
-    bot_id: str, bot_nombre: str, o: Operacion, resultado: Decimal | None
+    bot_id: str,
+    bot_nombre: str,
+    o: Operacion,
+    resultado: Decimal | None,
+    modo: ModoBot = "ficticio",
 ) -> Movimiento:
     return Movimiento(
         id=f"op:{bot_id}:{o.at.isoformat()}:{o.coin}:{o.lado}",
@@ -63,10 +81,11 @@ def de_operacion(
         importe=o.importe,
         comision=o.comision,
         resultado=resultado,
+        modo=modo,
     )
 
 
-def de_evento(bot_id: str, bot_nombre: str, e: Evento) -> Movimiento:
+def de_evento(bot_id: str, bot_nombre: str, e: Evento, modo: ModoBot = "ficticio") -> Movimiento:
     huella = hashlib.sha1(e.texto.encode(), usedforsecurity=False).hexdigest()[:8]
     return Movimiento(
         id=f"ev:{bot_id}:{e.at.isoformat()}:{e.tipo}:{huella}",
@@ -75,4 +94,5 @@ def de_evento(bot_id: str, bot_nombre: str, e: Evento) -> Movimiento:
         bot_nombre=bot_nombre,
         tipo=e.tipo,
         texto=e.texto,
+        modo=modo,
     )

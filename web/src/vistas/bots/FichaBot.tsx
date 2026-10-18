@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, CirclePause, CirclePlay, Clock, Info, OctagonAlert, Play, ShieldAlert, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ArrowLeft, Banknote, CircleAlert, CirclePause, CirclePlay, CircleQuestionMark, Clock, Info, OctagonAlert, Play, Scale, ShieldAlert, SlidersHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -421,6 +421,17 @@ function Cabecera({ bot, onCambio, onActivarReal }: { bot: DetalleBot; onCambio:
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
+        {bot.pausa ? (
+          <Boton
+            variante="primario"
+            onClick={() => void accion.ejecutar("reanudar")}
+            disabled={accion.enCurso}
+            title={bot.pausa.motivo === "desconocido" ? "Consulta esa orden en el exchange y, si salió, la apunta" : "Vuelve a comprobar el saldo del exchange"}
+          >
+            <CirclePlay aria-hidden="true" className="h-5 w-5" />
+            {accion.enCurso ? "Comprobando…" : bot.pausa.motivo === "desconocido" ? "Consultar la orden y seguir" : "Comprobar el saldo y seguir"}
+          </Boton>
+        ) : null}
         {bot.estado === "en_marcha" ? (
           <Boton onClick={() => void accion.ejecutar("parar")} disabled={accion.enCurso}>
             <CirclePause aria-hidden="true" className="h-5 w-5" />
@@ -472,7 +483,15 @@ function Cabecera({ bot, onCambio, onActivarReal }: { bot: DetalleBot; onCambio:
           <p>
             Ahora vale <strong className="cifras font-semibold">{usdc(bot.valor)}</strong> ({bot.operaciones} {bot.operaciones === 1 ? "operación" : "operaciones"} en {diasTexto(bot.dias)}).
           </p>
-          {bot.estado === "en_marcha" ? <p>Si solo quieres que deje de operar, mejor <strong>pararlo</strong>: conserva lo que tiene y su historia.</p> : null}
+          {bot.modo !== "ficticio" && bot.estado === "en_marcha" ? (
+            <p>
+              Antes hay que <strong>pararlo</strong>: está operando en {nombreExchange(bot.exchange)}.
+            </p>
+          ) : bot.estado === "en_marcha" ? (
+            <p>
+              Si solo quieres que deje de operar, mejor <strong>pararlo</strong>: conserva lo que tiene y su historia.
+            </p>
+          ) : null}
           {borrado.error ? <ErrorApiVista error={borrado.error} /> : null}
         </div>
       </Hoja>
@@ -480,8 +499,29 @@ function Cabecera({ bot, onCambio, onActivarReal }: { bot: DetalleBot; onCambio:
   );
 }
 
-const ICONO_EVENTO: Record<EventoBot["tipo"], typeof Play> = { arranque: Play, parada: CirclePause, error: OctagonAlert, hueco: Clock, info: Info };
-const NOMBRE_EVENTO: Record<EventoBot["tipo"], string> = { arranque: "Arranque", parada: "Parada", error: "Error", hueco: "Hueco", info: "Aviso" };
+const ICONO_EVENTO: Record<EventoBot["tipo"], typeof Play> = {
+  arranque: Play,
+  parada: CirclePause,
+  error: OctagonAlert,
+  hueco: Clock,
+  info: Info,
+  limite: ShieldAlert,
+  desconocido: CircleQuestionMark,
+  conciliacion: Scale,
+  real: Banknote,
+};
+const NOMBRE_EVENTO: Record<EventoBot["tipo"], string> = {
+  arranque: "Arranque",
+  parada: "Parada",
+  error: "Error",
+  hueco: "Hueco",
+  info: "Aviso",
+  limite: "Límite",
+  desconocido: "Orden sin confirmar",
+  conciliacion: "No cuadra el saldo",
+  real: "Dinero real",
+};
+const ROJOS: ReadonlySet<EventoBot["tipo"]> = new Set(["error", "desconocido", "conciliacion", "real"]);
 
 function FilaEvento({ evento }: { evento: EventoBot }) {
   const Icono = ICONO_EVENTO[evento.tipo];
@@ -490,7 +530,7 @@ function FilaEvento({ evento }: { evento: EventoBot }) {
       <span
         className={clases(
           "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          evento.tipo === "error" ? "bg-real-suave text-real-tinta" : evento.tipo === "hueco" ? "bg-pruebas-suave text-pruebas-tinta" : "bg-superficie-2 text-tinta-suave",
+          ROJOS.has(evento.tipo) ? "bg-real-suave text-real-tinta" : evento.tipo === "hueco" || evento.tipo === "limite" ? "bg-pruebas-suave text-pruebas-tinta" : "bg-superficie-2 text-tinta-suave",
         )}
         aria-hidden="true"
       >

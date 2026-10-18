@@ -1,11 +1,16 @@
-"""Bots con dinero ficticio, al estilo de los vaults de Hyperliquid (docs/panel-v3-vivo.md §3).
+"""Bots al estilo de los vaults de Hyperliquid (docs/panel-v3-vivo.md §3): con dinero ficticio,
+en la red de pruebas de un exchange o con dinero real (docs/panel-v4-real.md §3).
 
 Las rutas solo traducen: qué es cada plantilla vive en `bots.plantillas`, lo que decide cada una en
 `bots.decisiones` y el bucle que los hace correr, su cuenta y su registro en disco en `bots.motor`.
 En el servicio de los bots (`bots.servicio`, que el panel arranca y al que le pasa estas rutas) hablan
 con el motor en marcha; sin él
 (los tests, la generación del contrato) leen y escriben `bots/` directamente, sin hacer operar a
-nadie. Nada sale al exterior.
+nadie.
+
+**Dinero real.** Activarlo, subir límites y subir el límite diario piden una confirmación tecleada
+que se comprueba aquí, antes de llegar al motor. Son rutas del panel: el conector MCP no tiene
+ninguna herramienta que las llame (docs/panel-v4-real.md §0.5). Parar todo no pide nada.
 
 `lista()` se pide cada ~2 s desde el stream (`GET /api/vivo/stream`, evento `bots`): sale de
 memoria, sin leer el disco.
@@ -13,26 +18,31 @@ memoria, sin leer el disco.
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Final, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 from fastapi import APIRouter, Query
 
-from invest_ll.api.errores import del_dominio, no_encontrado
+from invest_ll.api.errores import conflicto, del_dominio, invalido, no_encontrado
 from invest_ll.api.schemas_v3 import (
     Bots,
+    ConsumoLimites,
     DetalleBot,
     EstadoReal,
     EventoBot,
     EvidenciaBot,
+    LimitesBot,
     NuevoBot,
     OperacionBot,
     ParametroBot,
+    PausaBot,
     PlantillaBot,
     Plantillas,
     PosicionPractica,
     PuntoBot,
     ResumenBot,
+    TotalModo,
 )
 from invest_ll.api.schemas_v4 import ActivarReal, CambioLimites, LimiteDiario, ParadaGeneral
 from invest_ll.api.schemas_v5 import (
@@ -42,24 +52,37 @@ from invest_ll.api.schemas_v5 import (
     MovimientoBot,
     PendienteBot,
 )
-from invest_ll.bots import motor
+from invest_ll.bots import motor, real
 from invest_ll.bots.metricas import metricas as calcular_metricas
-from invest_ll.bots.motor import NOTA, ZONA, Motor
+from invest_ll.bots.motor import NOTA, ZONA, Motor, limites_suben
 from invest_ll.bots.pendientes import pendientes as calcular_pendientes
-from invest_ll.bots.plantillas import PLANTILLAS
-from invest_ll.bots.registro import CARPETA, BotNoEncontradoError
+from invest_ll.bots.plantillas import MEDIDA, PLANTILLAS
+from invest_ll.bots.registro import CARPETA, BotNoEncontradoError, Limites
 from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Iterable, Mapping
+    from datetime import datetime
+
     from invest_ll.bots.actividad import Movimiento
     from invest_ll.bots.motor import Bot
     from invest_ll.bots.plantillas import Evidencia, Plantilla
-    from invest_ll.bots.registro import Punto
+    from invest_ll.bots.registro import ModoBot, Pausa, Punto
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 CENTIMO: Final = Decimal("0.01")
 SEGUNDOS_DIA: Final = 86_400
+DIAS_EN_FICTICIO: Final = 7
+"""Los que una estrategia tiene que llevar en ficticio para activarla sin «SIN PRUEBA EN FICTICIO»."""
+SIN_FICTICIO: Final = "SIN PRUEBA EN FICTICIO"
+DINERO_REAL: Final = "DINERO REAL"
+NOTA_CON_EXCHANGE: Final = (
+    "Cada bot dice con qué dinero opera: ficticio, de pruebas o real (en rojo). Los bots siguen "
+    "aunque cierres el panel, mientras el ordenador esté encendido."
+)
+MODOS: Final[tuple[ModoBot, ...]] = ("ficticio", "pruebas", "real")
 
 
 def _motor() -> Motor:
@@ -92,6 +115,57 @@ def _fraccion(parte: Decimal | None, total: Decimal | None) -> float | None:
     if parte is None or total is None or total == 0:
         return None
     return float(parte / total)
+
+
+def _activacion(nombre: str) -> str:
+    return f"ACTIVAR {nombre}"
+
+
+def _limites(lim: Limites | None) -> LimitesBot | None:
+    if lim is None:
+        return None
+    return LimitesBot(
+        capital_max=lim.capital_max,
+        orden_max=lim.orden_max,
+        perdida_max_pct=lim.perdida_max_pct,
+        vender_al_parar=lim.vender_al_parar,
+        operaciones_max_dia=lim.operaciones_max_dia,
+    )
+
+
+def _limites_de(lim: LimitesBot) -> Limites:
+    return Limites(
+        capital_max=lim.capital_max,
+        orden_max=lim.orden_max,
+        perdida_max_pct=lim.perdida_max_pct,
+        vender_al_parar=lim.vender_al_parar,
+        operaciones_max_dia=lim.operaciones_max_dia,
+    )
+
+
+def _pausa(p: Pausa | None) -> PausaBot | None:
+    if p is None:
+        return None
+    motivo = "conciliacion" if p.motivo == "conciliacion" else "desconocido"
+    return PausaBot(motivo=motivo, texto=p.texto, diferencia=p.diferencia, at=p.at)
+
+
+def _inicio(bot: Bot) -> datetime:
+    """Desde cuándo cuenta: al activar el dinero real, empieza de cero."""
+    return bot.definicion.activado or bot.definicion.creado
+
+
+def _dias_en_ficticio(bots: Iterable[Bot], ahora: datetime) -> dict[tuple[str, str | None], float]:
+    """Por plantilla (y estrategia a medida): los días del bot ficticio que más lleva con ella."""
+    dias: dict[tuple[str, str | None], float] = {}
+    for b in bots:
+        d = b.definicion
+        if d.modo != "ficticio":
+            continue
+        clave = (d.plantilla, d.estrategia)
+        lleva = (ahora - _inicio(b)).total_seconds() / SEGUNDOS_DIA
+        dias[clave] = max(dias.get(clave, 0.0), lleva)
+    return dias
 
 
 def _evidencia(e: Evidencia) -> EvidenciaBot:
@@ -131,9 +205,12 @@ def _puntos(puntos: list[Punto]) -> list[PuntoBot]:
     return [PuntoBot(at=p.at, valor=float(p.valor)) for p in puntos]
 
 
-def _resumen(m: Motor, bot: Bot) -> ResumenBot:
+def _resumen(
+    m: Motor, bot: Bot, dias_ficticio: Mapping[tuple[str, str | None], float]
+) -> ResumenBot:
     d, e = bot.definicion, bot.estado
     ahora = m.ahora()
+    inicio = _inicio(bot)
     valor = bot.valor()
     ganancia = valor - d.capital if valor is not None else None
     mantener = bot.mantener()
@@ -145,8 +222,8 @@ def _resumen(m: Motor, bot: Bot) -> ResumenBot:
         monedas=list(d.monedas),
         estado=e.estado,
         motivo_error=e.motivo_error,
-        desde=d.creado,
-        dias=round((ahora - d.creado).total_seconds() / SEGUNDOS_DIA, 3),
+        desde=inicio,
+        dias=round((ahora - inicio).total_seconds() / SEGUNDOS_DIA, 3),
         capital=d.capital,
         valor=_dinero(valor),
         ganancia=_dinero(ganancia),
@@ -160,13 +237,19 @@ def _resumen(m: Motor, bot: Bot) -> ResumenBot:
         curva=_puntos(bot.curva_muestreada(ahora)),
         ultima_actividad=e.ultima_operacion,
         aviso=m.aviso(bot),
-        # Puente hasta los bots reales (v4): hoy todos son ficticios, sin exchange ni limites.
-        modo="ficticio",
-        exchange=None,
-        estrategia=None,
-        limites=None,
-        consumo=None,
-        probado_en_ficticio_dias=None,
+        modo=d.modo,
+        exchange=d.exchange,
+        estrategia=d.estrategia,
+        limites=_limites(d.limites),
+        consumo=ConsumoLimites(
+            gastado=real.gastado(bot.cuenta).quantize(CENTIMO),
+            perdida_pct=real.perdida_pct(valor, d.capital),
+            operaciones_hoy=e.operaciones_hoy,
+        )
+        if d.limites is not None
+        else None,
+        probado_en_ficticio_dias=round(dias_ficticio.get((d.plantilla, d.estrategia), 0.0), 3),
+        pausa=_pausa(e.pausa),
     )
 
 
@@ -194,7 +277,7 @@ def _posiciones(bot: Bot) -> list[PosicionPractica]:
 def _metricas(m: Motor, bot: Bot, resumen: ResumenBot) -> MetricasBot:
     r = calcular_metricas(
         m.todas_las_operaciones(bot.id),
-        desde=bot.definicion.creado,
+        desde=_inicio(bot),
         ahora=m.ahora(),
         posiciones=bot.cuenta.posiciones,
         precios=bot.estado.ultimos_precios,
@@ -251,8 +334,7 @@ def movimiento(mov: Movimiento) -> MovimientoBot:
         at=mov.at,
         bot_id=mov.bot_id,
         bot_nombre=mov.bot_nombre,
-        # Puente hasta los bots reales (v4): hoy todos son ficticios.
-        modo="ficticio",
+        modo=mov.modo,
         tipo=mov.tipo,
         texto=mov.texto,
         coin=mov.coin,
@@ -267,7 +349,7 @@ def movimiento(mov: Movimiento) -> MovimientoBot:
 
 def _detalle(m: Motor, bot: Bot) -> DetalleBot:
     with m.cerrojo:  # que el bucle no lo cambie a mitad
-        resumen = _resumen(m, bot)
+        resumen = _resumen(m, bot, _dias_en_ficticio(m.bots(), m.ahora()))
         curva = bot.curva_muestreada(m.ahora())
         return DetalleBot(
             **resumen.model_dump(),
@@ -307,29 +389,64 @@ def lista() -> Bots:
     """Todos los bots con lo que llevan generado, valorados a precios de ahora."""
     m = _motor()
     with m.cerrojo:  # que el bucle no cambie un bot a mitad de leerlo
-        resumenes = [_resumen(m, b) for b in m.bots()]
-    capital = sum((r.capital for r in resumenes), Decimal(0))
-    valores = [r.valor for r in resumenes]
+        bots = m.bots()
+        dias = _dias_en_ficticio(bots, m.ahora())
+        resumenes = [_resumen(m, b, dias) for b in bots]
+        estado = _estado_real(m)
+    por_modo = [_total(modo, resumenes) for modo in MODOS if any(r.modo == modo for r in resumenes)]
+    ficticio = _total("ficticio", resumenes)
+    return Bots(
+        bots=resumenes,
+        capital=ficticio.capital,
+        valor=ficticio.valor,
+        ganancia=ficticio.ganancia,
+        ganancia_pct=ficticio.ganancia_pct,
+        por_modo=por_modo,
+        real=estado,
+        at=m.ahora(),
+        nota=NOTA if all(r.modo == "ficticio" for r in resumenes) else NOTA_CON_EXCHANGE,
+    )
+
+
+def _total(modo: ModoBot, resumenes: Iterable[ResumenBot]) -> TotalModo:
+    suyos = [r for r in resumenes if r.modo == modo]
+    capital = sum((r.capital for r in suyos), Decimal(0))
+    valores = [r.valor for r in suyos]
     conocidos = [v for v in valores if v is not None]
     valor = sum(conocidos, Decimal(0)) if len(conocidos) == len(valores) else None
     ganancia = valor - capital if valor is not None else None
-    return Bots(
-        bots=resumenes,
+    return TotalModo(
+        modo=modo,
+        bots=len(suyos),
         capital=capital,
         valor=_dinero(valor),
         ganancia=_dinero(ganancia),
         ganancia_pct=_fraccion(ganancia, capital),
-        # Puente hasta los bots reales (v4): todavia no hay ninguno.
-        real=EstadoReal(
-            bots_reales=0,
-            en_marcha=0,
-            perdida_hoy=Decimal(0),
-            limite_diario=None,
-            parado_todo=False,
-            aviso=None,
-        ),
-        at=m.ahora(),
-        nota=NOTA,
+    )
+
+
+def _estado_real(m: Motor) -> EstadoReal:
+    reales = [b for b in m.bots() if b.definicion.modo == "real"]
+    g = m.globales()
+    en_pausa = [b for b in reales if b.estado.pausa is not None]
+    if g.parado_todo:
+        aviso = f"Todo lo real está parado. {g.motivo or ''}".strip()
+    elif en_pausa:
+        aviso = (
+            "1 bot real en pausa: míralo."
+            if len(en_pausa) == 1
+            else f"{len(en_pausa)} bots reales en pausa: míralos."
+        )
+    else:
+        aviso = None
+    return EstadoReal(
+        bots_reales=len(reales),
+        en_marcha=sum(1 for b in reales if b.estado.estado == "en_marcha"),
+        perdida_hoy=m.perdida_hoy().quantize(CENTIMO),
+        limite_diario=g.limite_diario,
+        parado_todo=g.parado_todo,
+        parado_desde=g.parado_desde,
+        aviso=aviso,
     )
 
 
@@ -360,13 +477,34 @@ def actividad_nueva(vista: int | None = None) -> ActividadNueva:
 @router.post("/bots", tags=["bots"], status_code=201)
 def desplegar(nuevo: NuevoBot) -> DetalleBot:
     """Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los
-    parámetros no valen."""
+    parámetros no valen. En pruebas, también si su exchange no está conectado en pruebas, faltan
+    sus límites o no hay saldo; en real no se crea (se activa desde su ficha)."""
     m = _motor()
     with del_dominio():
         bot = m.desplegar(
-            nuevo.plantilla, nuevo.nombre, nuevo.monedas, nuevo.capital, nuevo.parametros
+            nuevo.plantilla,
+            nuevo.nombre,
+            nuevo.monedas,
+            nuevo.capital,
+            nuevo.parametros,
+            modo=nuevo.modo,
+            exchange=nuevo.exchange,
+            estrategia=nuevo.estrategia,
+            limites=_limites_de(nuevo.limites) if nuevo.limites is not None else None,
         )
+    if bot.definicion.plantilla == MEDIDA and bot.definicion.estrategia:
+        _marcar_estrategia(bot.definicion.estrategia, "ficticio")
     return _detalle(m, bot)
+
+
+def _marcar_estrategia(estrategia_id: str, estado: Literal["ficticio", "real"]) -> None:
+    """La biblioteca de estrategias apunta hasta dónde llegó cada una (solo sube)."""
+    from invest_ll.estrategias_custom import biblioteca
+
+    try:
+        biblioteca.marcar_estado(estrategia_id, estado)
+    except Exception:  # el bot ya está desplegado: que la ficha no se actualice no lo deshace
+        log.exception("no se pudo marcar la estrategia %s como %s", estrategia_id, estado)
 
 
 @router.get("/bots/{bot_id}", tags=["bots"])
@@ -386,55 +524,123 @@ def parar(bot_id: str) -> DetalleBot:
 
 @router.post("/bots/{bot_id}/reanudar", tags=["bots"])
 def reanudar(bot_id: str) -> DetalleBot:
+    """Vuelve a operar. Uno de exchange en pausa la resuelve antes; 409 en llano si no se puede
+    (sigue sin cuadrar, no se pudo consultar el exchange, «Parar todo lo real» puesto)."""
     m = _motor()
     _bot(m, bot_id)
-    return _detalle(m, m.reanudar_bot(bot_id))
+    try:
+        return _detalle(m, m.reanudar_bot(bot_id))
+    except real.NoSePuedeError as error:
+        raise conflicto(str(error)) from error
 
 
 @router.delete("/bots/{bot_id}", tags=["bots"], status_code=204)
 def borrar(bot_id: str) -> None:
-    """Borra el bot y su registro. 404 si no existe."""
+    """Borra el bot y su registro. 404 si no existe. Uno de exchange tiene que estar parado (409);
+    lo que tenga se queda en el exchange: borrar no vende nada."""
     m = _motor()
     _bot(m, bot_id)
-    m.borrar_bot(bot_id)
+    try:
+        m.borrar_bot(bot_id)
+    except real.NoSePuedeError as error:
+        raise conflicto(str(error)) from error
 
 
-# -- Dinero real (docs/panel-v4-real.md §3). ESQUELETO DEL CONTRATO v4: cuerpos pendientes. --------
+# -- Dinero real (docs/panel-v4-real.md §3) -------------------------------------------------------
 
 
 @router.post("/bots/{bot_id}/activar-real", tags=["bots"])
 def activar_real(bot_id: str, peticion: ActivarReal) -> DetalleBot:
     """Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',
     el exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN
-    FICTICIO'. 422 en llano con lo que falte. Solo desde el panel: el conector MCP no puede."""
-    raise NotImplementedError("pendiente de implementar")
+    FICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde
+    el panel: el conector MCP no puede."""
+    m = _motor()
+    bot = _bot(m, bot_id)
+    d = bot.definicion
+    if peticion.confirmacion != _activacion(d.nombre):
+        raise invalido(
+            f"Para activar el dinero real escribe exactamente «{_activacion(d.nombre)}»."
+        )
+    exchange = peticion.exchange or d.exchange
+    if exchange is None:
+        raise invalido("Elige en qué exchange opera con dinero real.")
+    limites = _limites_de(peticion.limites) if peticion.limites is not None else d.limites
+    if limites is None:
+        raise invalido(
+            "Pon sus límites antes de activarlo: capital máximo, máximo por orden, pérdida máxima "
+            "y operaciones por día."
+        )
+    with m.cerrojo:
+        dias = _dias_en_ficticio(m.bots(), m.ahora()).get((d.plantilla, d.estrategia), 0.0)
+    if dias < DIAS_EN_FICTICIO and peticion.sin_ficticio != SIN_FICTICIO:
+        lleva = f"{dias:.1f}".replace(".", ",")
+        raise invalido(
+            f"Su estrategia lleva {lleva} días en ficticio (menos de {DIAS_EN_FICTICIO}). Para "
+            f"activarlo igualmente, escribe también «{SIN_FICTICIO}»."
+        )
+    try:
+        with del_dominio():
+            activado = m.activar_real(bot_id, exchange, limites)
+    except real.NoSePuedeError as error:
+        raise conflicto(str(error)) from error
+    if d.plantilla == MEDIDA and d.estrategia:
+        _marcar_estrategia(d.estrategia, "real")
+    return _detalle(m, activado)
 
 
 @router.put("/bots/{bot_id}/limites", tags=["bots"])
 def cambiar_limites(bot_id: str, cambio: CambioLimites) -> DetalleBot:
     """Bajar límites, siempre; subirlos en un bot real exige 'ACTIVAR <nombre>'."""
-    raise NotImplementedError("pendiente de implementar")
+    m = _motor()
+    bot = _bot(m, bot_id)
+    d = bot.definicion
+    nuevos = _limites_de(cambio.limites)
+    if (
+        d.modo == "real"
+        and limites_suben(d.limites, nuevos)
+        and cambio.confirmacion != _activacion(d.nombre)
+    ):
+        raise invalido(
+            "Subir los límites de un bot real pide la misma confirmación que activarlo: escribe "
+            f"exactamente «{_activacion(d.nombre)}»."
+        )
+    with del_dominio():
+        return _detalle(m, m.cambiar_limites(bot_id, nuevos))
 
 
 @router.get("/bots-real", tags=["bots"])
 def estado_real() -> EstadoReal:
-    raise NotImplementedError("pendiente de implementar")
+    """El interruptor general, la pérdida de hoy de los bots reales y su límite diario."""
+    m = _motor()
+    with m.cerrojo:
+        return _estado_real(m)
 
 
 @router.post("/bots-real/parar-todo", tags=["bots"])
 def parar_todo_real() -> ParadaGeneral:
     """El interruptor: para todos los bots reales y cancela sus órdenes abiertas. Sin confirmación:
     parar tiene que ser fácil."""
-    raise NotImplementedError("pendiente de implementar")
+    parados, canceladas, avisos = _motor().parar_todo_real()
+    return ParadaGeneral(parados=parados, ordenes_canceladas=canceladas, avisos=avisos)
 
 
 @router.post("/bots-real/reanudar-todo", tags=["bots"])
 def reanudar_todo_real() -> EstadoReal:
     """Quita el interruptor general (cada bot sigue parado hasta reanudarlo uno a uno)."""
-    raise NotImplementedError("pendiente de implementar")
+    m = _motor()
+    m.reanudar_todo_real()
+    with m.cerrojo:
+        return _estado_real(m)
 
 
 @router.put("/bots-real/limite-diario", tags=["bots"])
 def limite_diario(peticion: LimiteDiario) -> EstadoReal:
     """Bajarlo, siempre; subirlo exige 'DINERO REAL'."""
-    raise NotImplementedError("pendiente de implementar")
+    m = _motor()
+    antes = m.globales().limite_diario
+    if antes is not None and peticion.limite > antes and peticion.confirmacion != DINERO_REAL:
+        raise invalido(f"Subir el límite diario pide escribir exactamente «{DINERO_REAL}».")
+    m.cambiar_limite_diario(peticion.limite)
+    with m.cerrojo:
+        return _estado_real(m)

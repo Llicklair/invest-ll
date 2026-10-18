@@ -209,6 +209,13 @@ class RespuestaDiseno(BaseModel):
 
 class ActivarReal(BaseModel):
     confirmacion: str = Field(description="Exactamente 'ACTIVAR <nombre del bot>'")
+    exchange: str | None = Field(
+        default=None, description="Dónde opera con dinero real; sin él, el de su modo de pruebas"
+    )
+    limites: LimitesBot | None = Field(
+        default=None,
+        description="Sus límites en real (su capital máximo es su capital); sin ellos, los de pruebas",
+    )
     sin_ficticio: str | None = Field(
         default=None,
         description="Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'",

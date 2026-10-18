@@ -211,7 +211,9 @@ class LimitesBot(BaseModel):
     """Los límites de un bot de pruebas o real (docs/panel-v4-real.md §3). Obligatorios en esos modos."""
 
     capital_max: Decimal = Field(gt=0, description="No gasta más que esto, aunque haya saldo")
-    orden_max: Decimal = Field(gt=0, description="Ninguna orden mayor que esto")
+    orden_max: Decimal = Field(
+        gt=0, description="Ninguna compra mayor que esto (vender lo suyo siempre se puede)"
+    )
     perdida_max_pct: float = Field(
         gt=0, lt=1, description="Fracción: si cae esto desde su capital, se para"
     )
@@ -253,6 +255,20 @@ class PuntoBot(BaseModel):
     valor: float
 
 
+class PausaBot(BaseModel):
+    """Un bot de exchange que se ha parado solo y necesita que lo mires: reanudarlo la resuelve."""
+
+    motivo: Literal["desconocido", "conciliacion"] = Field(
+        description=(
+            "'desconocido': una orden que no se sabe si salió (al reanudar se consulta); "
+            "'conciliacion': lo que cree tener no cuadra con el saldo del exchange"
+        )
+    )
+    texto: str
+    diferencia: str | None = Field(description="Lo que no cuadra, en llano (conciliación)")
+    at: datetime | None
+
+
 class ResumenBot(BaseModel):
     """Lo que enseña la tarjeta del bot (como un vault)."""
 
@@ -288,6 +304,7 @@ class ResumenBot(BaseModel):
     probado_en_ficticio_dias: float | None = Field(
         description="Días que su estrategia lleva en ficticio (para activar real)"
     )
+    pausa: PausaBot | None = Field(description="Solo bots de exchange; None si no está en pausa")
 
 
 class EstadoReal(BaseModel):
@@ -298,15 +315,30 @@ class EstadoReal(BaseModel):
     perdida_hoy: Decimal
     limite_diario: Decimal | None = Field(description="Pérdida máxima diaria de todos los reales")
     parado_todo: bool = Field(description="True si se pulsó 'Parar todo lo real' y no se reanudó")
-    aviso: str | None
+    parado_desde: datetime | None
+    aviso: str | None = Field(
+        description="Por qué se paró todo, o lo que hay que mirar (bots reales en pausa)"
+    )
 
 
-class Bots(BaseModel):
-    bots: list[ResumenBot]
+class TotalModo(BaseModel):
+    """Los totales de los bots de un modo: el dinero ficticio, el de pruebas y el real no se suman."""
+
+    modo: ModoBot
+    bots: int
     capital: Decimal
     valor: Decimal | None
     ganancia: Decimal | None
     ganancia_pct: float | None
+
+
+class Bots(BaseModel):
+    bots: list[ResumenBot]
+    capital: Decimal = Field(description="De los bots ficticios (los demás, en `por_modo`)")
+    valor: Decimal | None = Field(description="De los bots ficticios")
+    ganancia: Decimal | None = Field(description="De los bots ficticios")
+    ganancia_pct: float | None = Field(description="De los bots ficticios")
+    por_modo: list[TotalModo] = Field(description="Uno por cada modo que tenga algún bot")
     real: EstadoReal
     at: datetime
     nota: str = Field(
@@ -328,7 +360,21 @@ class OperacionBot(BaseModel):
 
 class EventoBot(BaseModel):
     at: datetime
-    tipo: Literal["arranque", "parada", "error", "hueco", "info"]
+    tipo: Literal[
+        "arranque",
+        "parada",
+        "error",
+        "hueco",
+        "info",
+        "limite",
+        "desconocido",
+        "conciliacion",
+        "real",
+    ] = Field(
+        description="limite: una orden que no cabía y no salió; desconocido: una orden que no se "
+        "sabe si salió (el bot se pausa); conciliacion: lo que el bot cree tener no cuadra con el "
+        "exchange; real: lo del dinero real (activarlo, parar todo)"
+    )
     texto: str
 
 

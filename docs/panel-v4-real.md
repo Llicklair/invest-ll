@@ -117,6 +117,33 @@ medida.
 - Activar real: con límites puestos, desde el panel, escribiendo `ACTIVAR <nombre del bot>`
   (y "SIN PRUEBA EN FICTICIO" si no pasó por ficticio). Subir límites pide lo mismo.
 
+### Cómo quedó (`bots/real.py` + `bots/motor.py`, octubre 2026)
+- **Decide con Hyperliquid, opera en su exchange.** Las velas y la señal son las de Hyperliquid
+  (las de todos los bots); la orden sale a mercado al exchange del bot, al paso de su par (misma
+  base o con la U de los envueltos de Hyperliquid, en USDC antes que en USDT). Se valora con el
+  precio de su exchange, leído cada 15 s.
+- **Los límites frenan lo que gasta.** Operaciones del día (desde las 00:00 de Madrid), máximo por
+  orden y capital máximo se comprueban antes de cada **compra**. Vender lo suyo siempre se puede:
+  un límite no lo deja atrapado en una posición. El «no sale» se apunta una vez, no en cada vuelta.
+- **El id se guarda antes de enviar.** Antes de cada orden el bot queda en disco en pausa
+  «desconocido» con su id de cliente; al volver la respuesta, se quita. Si el motor muere a mitad,
+  al cargar está en pausa y al reanudarlo se consulta esa orden (si salió, se apunta).
+- **Conciliación** al cargar (ningún bot de exchange opera antes de cuadrar) y cada 5 minutos, por
+  exchange y red: se suman los bots que comparten cuenta. El exchange puede tener más (lo de
+  Marcos fuera de los bots), nunca menos (con una tolerancia del 0,5 % o un paso). Si no cuadra,
+  se pausan todos los de esa cuenta; reanudar vuelve a comprobarlo.
+- **Activar real empieza de cero**: su capital pasa a ser su capital máximo, su historia de antes
+  se archiva aparte (`curva-<modo>-<fecha>.jsonl`) y antes de activarlo se comprueba que en la
+  cuenta real hay saldo para él y para los reales que ya operan allí. Un bot de pruebas con
+  monedas no se activa (que las venda antes).
+- **Pérdida máxima** (desde su capital): se para y, si así se eligió, vende todo. **Límite
+  diario** (de todos los reales, lo que ganan unos compensa lo que pierden otros): al llegar, «Parar
+  todo lo real», que para los reales y cancela solo las órdenes que dejaron abiertas los bots
+  (nunca las de Marcos). Reanudar todo quita el interruptor; cada bot se reanuda a mano.
+- **Borrar no vende**: un bot de exchange se para antes de borrarlo y lo suyo se queda en la cuenta.
+- Todo probado contra `ConectorFalso` (`tests/unit/test_bots_real.py`,
+  `tests/integration/test_api_bots_real.py`): las pruebas no envían nada a ningún exchange.
+
 ## 4. Pantallas
 
 - **Ajustes → Conexiones**: la lista de exchanges con su estado (sin conectar · pruebas · real),

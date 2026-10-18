@@ -166,9 +166,40 @@ function ListaBots() {
   );
 }
 
+export const ETIQUETA_MODO = { ficticio: "Dinero ficticio", pruebas: "Red de pruebas", real: "Dinero real" } as const;
+
 function Resumen({ datos }: { datos: DatosBots }) {
-  // El total de la API junta todos los modos: si hay bots que no son ficticios, se dice.
-  const mezcla = datos.bots.some((b) => b.modo !== "ficticio");
+  // El dinero ficticio, el de pruebas y el real no se suman: con más de un modo, un bloque por modo.
+  const mezcla = datos.por_modo.some((t) => t.modo !== "ficticio");
+  if (mezcla) {
+    return (
+      <Tarjeta como="section" aria-label="El total de tus bots, por modo" className="p-5 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {datos.por_modo.map((t) => (
+            <div
+              key={t.modo}
+              className={clases(
+                "min-w-0 rounded-xl p-4",
+                t.modo === "real" ? "border-2 border-real/60 bg-real-suave/40" : t.modo === "pruebas" ? "bg-pruebas-suave/60" : "bg-superficie-2",
+              )}
+            >
+              <p className={clases("text-sm font-semibold", t.modo === "real" ? "text-real-tinta" : t.modo === "pruebas" ? "text-pruebas-tinta" : "text-tinta-suave")}>
+                {ETIQUETA_MODO[t.modo]} · {t.bots} {t.bots === 1 ? "bot" : "bots"}
+              </p>
+              <p className="titular mt-1 text-[1.75rem] leading-none font-medium tracking-tight text-tinta">
+                {formatoImporte(t.valor).replace(/^-/, "−")} <span className="text-[0.5em] text-tinta-suave">USDC</span>
+              </p>
+              <Variacion importe={t.ganancia} pct={t.ganancia_pct} moneda="USDC" coletilla={`de ${usdc(t.capital, { decimales: 0 })} puestos`} className="mt-2" />
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-tinta-suave">
+          Valorado a precios de las {horaSegundos(datos.at)} · {datos.bots.filter((b) => b.estado === "en_marcha").length} de {datos.bots.length} en marcha. Cada modo va aparte: el dinero
+          ficticio, el de pruebas y el real no se suman.
+        </p>
+      </Tarjeta>
+    );
+  }
   return (
     <Tarjeta como="section" aria-label="El total de tus bots" className="p-5 sm:p-6">
       <div className="grid gap-5 sm:grid-cols-[1.3fr_1fr_1fr]">
@@ -180,7 +211,7 @@ function Resumen({ datos }: { datos: DatosBots }) {
           <Variacion importe={datos.ganancia} pct={datos.ganancia_pct} moneda="USDC" coletilla="entre todos" className="mt-3" />
         </div>
         <dl className="cifras grid content-start gap-1 text-[0.9375rem]">
-          <dt className="text-sm text-tinta-suave">{mezcla ? "Capital puesto, todos los modos juntos" : "Capital ficticio puesto"}</dt>
+          <dt className="text-sm text-tinta-suave">Capital ficticio puesto</dt>
           <dd className="font-semibold text-tinta">{usdc(datos.capital)}</dd>
           <dt className="mt-2 text-sm text-tinta-suave">En marcha</dt>
           <dd className="font-semibold text-tinta">
@@ -189,7 +220,6 @@ function Resumen({ datos }: { datos: DatosBots }) {
         </dl>
         <p className="self-end text-sm leading-relaxed text-tinta-suave">
           Valorado a precios de las {horaSegundos(datos.at)}. Cada bot se compara con solo mantener sus monedas desde que arrancó.
-          {mezcla ? " Estas cifras suman dinero ficticio, de pruebas y real: lo real, en su tarjeta y arriba." : ""}
         </p>
       </div>
     </Tarjeta>

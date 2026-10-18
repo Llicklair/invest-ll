@@ -119,6 +119,30 @@ class Cuenta:
             actual.cantidad -= vende
         return Hecha(libro.coin, "venta", vende, e.precio_medio, importe, comision)
 
+    def anotar(self, hecha: Hecha) -> None:
+        """Lo que ejecutó un exchange de verdad (bots de pruebas y reales): se apunta tal cual, con
+        su cantidad, su precio medio y su comisión (en la moneda cotizada), sin simular nada. Una
+        venta de más de lo que hay se apunta hasta lo que hay."""
+        if hecha.lado == "compra":
+            coste = usdc(hecha.importe + hecha.comision)
+            self.efectivo -= coste
+            actual = self.posiciones.get(hecha.coin)
+            if actual is None:
+                self.posiciones[hecha.coin] = Posicion(hecha.cantidad, coste)
+            else:
+                actual.cantidad += hecha.cantidad
+                actual.coste += coste
+            return
+        self.efectivo += usdc(hecha.importe - hecha.comision)
+        actual = self.posiciones.get(hecha.coin)
+        if actual is None:
+            return
+        if hecha.cantidad >= actual.cantidad:
+            del self.posiciones[hecha.coin]
+        else:
+            actual.coste -= usdc(actual.coste * hecha.cantidad / actual.cantidad)
+            actual.cantidad -= hecha.cantidad
+
     def valor(self, precios: Mapping[str, Decimal]) -> Decimal | None:
         """Efectivo más posiciones a esos precios; None si falta el de alguna posición."""
         total = self.efectivo

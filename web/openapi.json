@@ -261,6 +261,29 @@
             "title": "Confirmacion",
             "type": "string"
           },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Dónde opera con dinero real; sin él, el de su modo de pruebas",
+            "title": "Exchange"
+          },
+          "limites": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LimitesBot-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sus límites en real (su capital máximo es su capital); sin ellos, los de pruebas"
+          },
           "sin_ficticio": {
             "anyOf": [
               {
@@ -601,6 +624,7 @@
             "type": "array"
           },
           "capital": {
+            "description": "De los bots ficticios (los demás, en `por_modo`)",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Capital",
             "type": "string"
@@ -615,6 +639,7 @@
                 "type": "null"
               }
             ],
+            "description": "De los bots ficticios",
             "title": "Ganancia"
           },
           "ganancia_pct": {
@@ -626,12 +651,21 @@
                 "type": "null"
               }
             ],
+            "description": "De los bots ficticios",
             "title": "Ganancia Pct"
           },
           "nota": {
             "description": "'Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.'",
             "title": "Nota",
             "type": "string"
+          },
+          "por_modo": {
+            "description": "Uno por cada modo que tenga algún bot",
+            "items": {
+              "$ref": "#/components/schemas/TotalModo"
+            },
+            "title": "Por Modo",
+            "type": "array"
           },
           "real": {
             "$ref": "#/components/schemas/EstadoReal"
@@ -646,6 +680,7 @@
                 "type": "null"
               }
             ],
+            "description": "De los bots ficticios",
             "title": "Valor"
           }
         },
@@ -655,6 +690,7 @@
           "valor",
           "ganancia",
           "ganancia_pct",
+          "por_modo",
           "real",
           "at",
           "nota"
@@ -1873,6 +1909,17 @@
             "title": "Parametros",
             "type": "object"
           },
+          "pausa": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PausaBot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo bots de exchange; None si no está en pausa"
+          },
           "pendientes": {
             "description": "v5: qué hará después, lo más cercano primero",
             "items": {
@@ -1975,6 +2022,7 @@
           "limites",
           "consumo",
           "probado_en_ficticio_dias",
+          "pausa",
           "parametros",
           "efectivo",
           "posiciones",
@@ -2687,6 +2735,7 @@
                 "type": "null"
               }
             ],
+            "description": "Por qué se paró todo, o lo que hay que mirar (bots reales en pausa)",
             "title": "Aviso"
           },
           "bots_reales": {
@@ -2710,6 +2759,18 @@
             "description": "Pérdida máxima diaria de todos los reales",
             "title": "Limite Diario"
           },
+          "parado_desde": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parado Desde"
+          },
           "parado_todo": {
             "description": "True si se pulsó 'Parar todo lo real' y no se reanudó",
             "title": "Parado Todo",
@@ -2727,6 +2788,7 @@
           "perdida_hoy",
           "limite_diario",
           "parado_todo",
+          "parado_desde",
           "aviso"
         ],
         "title": "EstadoReal",
@@ -3060,12 +3122,17 @@
             "type": "string"
           },
           "tipo": {
+            "description": "limite: una orden que no cabía y no salió; desconocido: una orden que no se sabe si salió (el bot se pausa); conciliacion: lo que el bot cree tener no cuadra con el exchange; real: lo del dinero real (activarlo, parar todo)",
             "enum": [
               "arranque",
               "parada",
               "error",
               "hueco",
-              "info"
+              "info",
+              "limite",
+              "desconocido",
+              "conciliacion",
+              "real"
             ],
             "title": "Tipo",
             "type": "string"
@@ -4210,7 +4277,7 @@
                 "type": "string"
               }
             ],
-            "description": "Ninguna orden mayor que esto",
+            "description": "Ninguna compra mayor que esto (vender lo suyo siempre se puede)",
             "title": "Orden Max"
           },
           "perdida_max_pct": {
@@ -4252,7 +4319,7 @@
             "type": "integer"
           },
           "orden_max": {
-            "description": "Ninguna orden mayor que esto",
+            "description": "Ninguna compra mayor que esto (vender lo suyo siempre se puede)",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Orden Max",
             "type": "string"
@@ -5095,7 +5162,11 @@
               "parada",
               "error",
               "hueco",
-              "info"
+              "info",
+              "limite",
+              "desconocido",
+              "conciliacion",
+              "real"
             ],
             "title": "Tipo",
             "type": "string"
@@ -6465,6 +6536,56 @@
           "motivo"
         ],
         "title": "Pausa",
+        "type": "object"
+      },
+      "PausaBot": {
+        "description": "Un bot de exchange que se ha parado solo y necesita que lo mires: reanudarlo la resuelve.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que no cuadra, en llano (conciliación)",
+            "title": "Diferencia"
+          },
+          "motivo": {
+            "description": "'desconocido': una orden que no se sabe si salió (al reanudar se consulta); 'conciliacion': lo que cree tener no cuadra con el saldo del exchange",
+            "enum": [
+              "desconocido",
+              "conciliacion"
+            ],
+            "title": "Motivo",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motivo",
+          "texto",
+          "diferencia",
+          "at"
+        ],
+        "title": "PausaBot",
         "type": "object"
       },
       "PendienteBot": {
@@ -8874,6 +8995,17 @@
             "title": "Operaciones",
             "type": "integer"
           },
+          "pausa": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PausaBot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo bots de exchange; None si no está en pausa"
+          },
           "peor_caida": {
             "anyOf": [
               {
@@ -8960,7 +9092,8 @@
           "estrategia",
           "limites",
           "consumo",
-          "probado_en_ficticio_dias"
+          "probado_en_ficticio_dias",
+          "pausa"
         ],
         "title": "ResumenBot",
         "type": "object"
@@ -9393,6 +9526,74 @@
           "filas"
         ],
         "title": "Tabla",
+        "type": "object"
+      },
+      "TotalModo": {
+        "description": "Los totales de los bots de un modo: el dinero ficticio, el de pruebas y el real no se suman.",
+        "properties": {
+          "bots": {
+            "title": "Bots",
+            "type": "integer"
+          },
+          "capital": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Capital",
+            "type": "string"
+          },
+          "ganancia": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia"
+          },
+          "ganancia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ganancia Pct"
+          },
+          "modo": {
+            "enum": [
+              "ficticio",
+              "pruebas",
+              "real"
+            ],
+            "title": "Modo",
+            "type": "string"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "modo",
+          "bots",
+          "capital",
+          "valor",
+          "ganancia",
+          "ganancia_pct"
+        ],
+        "title": "TotalModo",
         "type": "object"
       },
       "TrabajoDatos": {
@@ -9926,7 +10127,7 @@
         ]
       },
       "post": {
-        "description": "Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los\nparámetros no valen.",
+        "description": "Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los\nparámetros no valen. En pruebas, también si su exchange no está conectado en pruebas, faltan\nsus límites o no hay saldo; en real no se crea (se activa desde su ficha).",
         "operationId": "desplegar_api_bots_post",
         "requestBody": {
           "content": {
@@ -9998,6 +10199,7 @@
     },
     "/api/bots-real": {
       "get": {
+        "description": "El interruptor general, la pérdida de hoy de los bots reales y su límite diario.",
         "operationId": "estado_real_api_bots_real_get",
         "responses": {
           "200": {
@@ -10316,7 +10518,7 @@
     },
     "/api/bots/{bot_id}": {
       "delete": {
-        "description": "Borra el bot y su registro. 404 si no existe.",
+        "description": "Borra el bot y su registro. 404 si no existe. Uno de exchange tiene que estar parado (409);\nlo que tenga se queda en el exchange: borrar no vende nada.",
         "operationId": "borrar_api_bots__bot_id__delete",
         "parameters": [
           {
@@ -10453,7 +10655,7 @@
     },
     "/api/bots/{bot_id}/activar-real": {
       "post": {
-        "description": "Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',\nel exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN\nFICTICIO'. 422 en llano con lo que falte. Solo desde el panel: el conector MCP no puede.",
+        "description": "Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',\nel exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN\nFICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde\nel panel: el conector MCP no puede.",
         "operationId": "activar_real_api_bots__bot_id__activar_real_post",
         "parameters": [
           {
@@ -10692,6 +10894,7 @@
     },
     "/api/bots/{bot_id}/reanudar": {
       "post": {
+        "description": "Vuelve a operar. Uno de exchange en pausa la resuelve antes; 409 en llano si no se puede\n(sigue sin cuadrar, no se pudo consultar el exchange, «Parar todo lo real» puesto).",
         "operationId": "reanudar_api_bots__bot_id__reanudar_post",
         "parameters": [
           {

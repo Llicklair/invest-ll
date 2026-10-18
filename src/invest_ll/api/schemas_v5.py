@@ -16,7 +16,19 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-TipoMovimiento = Literal["compra", "venta", "arranque", "parada", "error", "hueco", "info"]
+TipoMovimiento = Literal[
+    "compra",
+    "venta",
+    "arranque",
+    "parada",
+    "error",
+    "hueco",
+    "info",
+    "limite",
+    "desconocido",
+    "conciliacion",
+    "real",
+]
 TipoPendiente = Literal["compra", "venta", "mirar", "nada"]
 
 

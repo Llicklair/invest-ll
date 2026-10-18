@@ -27,6 +27,7 @@ from invest_ll.nombres import nombre_hyperliquid
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable, Mapping, Sequence
+    from pathlib import Path
 
     from invest_ll.bots.decisiones import Decision, Memoria, Orden, Situacion
 
@@ -84,6 +85,8 @@ class Plantilla:
     """Cómo cambia la memoria al ejecutarse una orden (la rejilla apunta sus escalones)."""
     intervalo_fijo: str | None = None
     """Las velas con que decide, si no las elige el usuario. Sin velas (rejilla, periódica): None."""
+    velas_fijas: int | None = None
+    """Las velas que necesita, si no salen de sus parámetros (las estrategias a medida)."""
 
     @property
     def riesgo_texto(self) -> str:
@@ -98,6 +101,8 @@ class Plantilla:
 
     def velas_necesarias(self, parametros: Mapping[str, str]) -> int:
         """Cuántas velas cerradas necesita para decidir (más una para saber si hubo cruce)."""
+        if self.velas_fijas is not None:
+            return self.velas_fijas
         if self.clave == "btc-freno":
             return int(parametros["dias"]) + 1
         if "media_larga" in parametros:
@@ -338,6 +343,64 @@ def plantilla(clave: str) -> Plantilla:
         ) from None
 
 
+# -- Estrategias a medida (docs/panel-v4-real.md §2) ----------------------------------------------
+
+MEDIDA: Final = "medida"
+
+
+def plantilla_medida(estrategia_id: str, raiz: Path | None = None) -> Plantilla:
+    """Una estrategia a medida de la biblioteca (`medida/`), como plantilla: decide con el
+    intérprete (`estrategias_custom.interprete`), con las velas que pide y sus monedas.
+    `BotInvalidoError` en llano si no está o no vale."""
+    from invest_ll.estrategias_custom.biblioteca import CARPETA as CARPETA_MEDIDA
+    from invest_ll.estrategias_custom.biblioteca import Biblioteca, EstrategiaNoEncontradaError
+    from invest_ll.estrategias_custom.formato import EstrategiaInvalidaError, reglas_en_llano
+    from invest_ll.estrategias_custom.interprete import decidir_estrategia, velas_necesarias
+
+    try:
+        ficha = Biblioteca(raiz or CARPETA_MEDIDA).ficha(estrategia_id)
+        e = ficha.estrategia
+    except EstrategiaNoEncontradaError as error:
+        raise BotInvalidoError(str(error)) from error
+    except EstrategiaInvalidaError as error:
+        raise BotInvalidoError(f"La estrategia «{estrategia_id}» no vale: {error}") from error
+    probada = ficha.estado in ("probada", "ficticio", "real")
+    return Plantilla(
+        clave=MEDIDA,
+        nombre=f"A medida: {e.nombre}",
+        frase=e.explicacion,
+        como_funciona=tuple(reglas_en_llano(e)),
+        avisos=(
+            "Es una estrategia a medida: lo que se sabe de ella es su prueba sobre el pasado.",
+        ),
+        evidencia=Evidencia(
+            "pasado" if probada else "ninguna",
+            "Probada sobre el pasado en su ficha."
+            if probada
+            else "Aún no se ha probado sobre el pasado: es un experimento.",
+        ),
+        riesgo=3,
+        operaciones_esperadas="Según sus reglas",
+        monedas="varias",
+        monedas_sugeridas=tuple(e.monedas),
+        parametros=(),
+        decidir=lambda s: decidir_estrategia(e, s),
+        intervalo_fijo=e.intervalo,
+        velas_fijas=velas_necesarias(e) + 1,
+    )
+
+
+def plantilla_de(clave: str, estrategia: str | None) -> Plantilla:
+    """La plantilla de un bot: una de las cuatro, o su estrategia a medida."""
+    if clave == MEDIDA:
+        if not estrategia:
+            raise BotInvalidoError(
+                "Un bot a medida necesita su estrategia (elige una de tu biblioteca)."
+            )
+        return plantilla_medida(estrategia)
+    return plantilla(clave)
+
+
 # -- Validación ------------------------------------------------------------------------------------
 
 
@@ -456,14 +519,16 @@ def validar(
     capital: Decimal,
     parametros: Mapping[str, str],
     precio: Callable[[str], Decimal | None],
+    estrategia: str | None = None,
 ) -> Validado:
     """Lo que llega al desplegar, comprobado y completo. `precio(coin)` es el precio de ahora
-    (None si no se conoce): una moneda sin precio no se acepta."""
-    p = plantilla(clave)
+    (None si no se conoce): una moneda sin precio no se acepta. Con `clave` 'medida', la estrategia
+    a medida `estrategia`, con sus monedas."""
+    p = plantilla_de(clave, estrategia)
     nombre = nombre.strip()
     if not nombre:
         raise BotInvalidoError("Ponle un nombre al bot.")
-    coins = _monedas(p, monedas, precio)
+    coins = _monedas(p, p.monedas_sugeridas if clave == MEDIDA else monedas, precio)
     if not capital.is_finite() or capital <= 0:
         raise BotInvalidoError("El capital tiene que ser mayor que cero.")
     if capital > CAPITAL_MAXIMO:

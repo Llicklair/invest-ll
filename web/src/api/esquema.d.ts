@@ -62,7 +62,8 @@ export interface paths {
         /**
          * Desplegar
          * @description Crea el bot y lo pone en marcha. 422 en llano si la plantilla, las monedas o los
-         *     parámetros no valen.
+         *     parámetros no valen. En pruebas, también si su exchange no está conectado en pruebas, faltan
+         *     sus límites o no hay saldo; en real no se crea (se activa desde su ficha).
          */
         post: operations["desplegar_api_bots_post"];
         delete?: never;
@@ -78,7 +79,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Estado Real */
+        /**
+         * Estado Real
+         * @description El interruptor general, la pérdida de hoy de los bots reales y su límite diario.
+         */
         get: operations["estado_real_api_bots_real_get"];
         put?: never;
         post?: never;
@@ -182,7 +186,8 @@ export interface paths {
         post?: never;
         /**
          * Borrar
-         * @description Borra el bot y su registro. 404 si no existe.
+         * @description Borra el bot y su registro. 404 si no existe. Uno de exchange tiene que estar parado (409);
+         *     lo que tenga se queda en el exchange: borrar no vende nada.
          */
         delete: operations["borrar_api_bots__bot_id__delete"];
         options?: never;
@@ -203,7 +208,8 @@ export interface paths {
          * Activar Real
          * @description Pasa a real un bot de pruebas o ficticio con exchange y límites. Exige 'ACTIVAR <nombre>',
          *     el exchange activo en real y, si su estrategia no lleva 7 días en ficticio, 'SIN PRUEBA EN
-         *     FICTICIO'. 422 en llano con lo que falte. Solo desde el panel: el conector MCP no puede.
+         *     FICTICIO'. 422 en llano con lo que falte; 409 si «Parar todo lo real» está puesto. Solo desde
+         *     el panel: el conector MCP no puede.
          */
         post: operations["activar_real_api_bots__bot_id__activar_real_post"];
         delete?: never;
@@ -261,7 +267,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reanudar */
+        /**
+         * Reanudar
+         * @description Vuelve a operar. Uno de exchange en pausa la resuelve antes; 409 en llano si no se puede
+         *     (sigue sin cuadrar, no se pudo consultar el exchange, «Parar todo lo real» puesto).
+         */
         post: operations["reanudar_api_bots__bot_id__reanudar_post"];
         delete?: never;
         options?: never;
@@ -2008,6 +2018,13 @@ export interface components {
              */
             confirmacion: string;
             /**
+             * Exchange
+             * @description Dónde opera con dinero real; sin él, el de su modo de pruebas
+             */
+            exchange?: string | null;
+            /** @description Sus límites en real (su capital máximo es su capital); sin ellos, los de pruebas */
+            limites?: components["schemas"]["LimitesBot-Input"] | null;
+            /**
              * Sin Ficticio
              * @description Si su estrategia no lleva 7 días en ficticio: 'SIN PRUEBA EN FICTICIO'
              */
@@ -2175,19 +2192,36 @@ export interface components {
             at: string;
             /** Bots */
             bots: components["schemas"]["ResumenBot"][];
-            /** Capital */
+            /**
+             * Capital
+             * @description De los bots ficticios (los demás, en `por_modo`)
+             */
             capital: string;
-            /** Ganancia */
+            /**
+             * Ganancia
+             * @description De los bots ficticios
+             */
             ganancia: string | null;
-            /** Ganancia Pct */
+            /**
+             * Ganancia Pct
+             * @description De los bots ficticios
+             */
             ganancia_pct: number | null;
             /**
              * Nota
              * @description 'Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.'
              */
             nota: string;
+            /**
+             * Por Modo
+             * @description Uno por cada modo que tenga algún bot
+             */
+            por_modo: components["schemas"]["TotalModo"][];
             real: components["schemas"]["EstadoReal"];
-            /** Valor */
+            /**
+             * Valor
+             * @description De los bots ficticios
+             */
             valor: string | null;
         };
         /** CambioLimites */
@@ -2692,6 +2726,8 @@ export interface components {
             parametros: {
                 [key: string]: string;
             };
+            /** @description Solo bots de exchange; None si no está en pausa */
+            pausa: components["schemas"]["PausaBot"] | null;
             /**
              * Pendientes
              * @description v5: qué hará después, lo más cercano primero
@@ -3023,7 +3059,10 @@ export interface components {
          * @description Lo de dinero real, siempre a la vista: el interruptor general y el límite diario.
          */
         EstadoReal: {
-            /** Aviso */
+            /**
+             * Aviso
+             * @description Por qué se paró todo, o lo que hay que mirar (bots reales en pausa)
+             */
             aviso: string | null;
             /** Bots Reales */
             bots_reales: number;
@@ -3034,6 +3073,8 @@ export interface components {
              * @description Pérdida máxima diaria de todos los reales
              */
             limite_diario: string | null;
+            /** Parado Desde */
+            parado_desde: string | null;
             /**
              * Parado Todo
              * @description True si se pulsó 'Parar todo lo real' y no se reanudó
@@ -3203,9 +3244,10 @@ export interface components {
             texto: string;
             /**
              * Tipo
+             * @description limite: una orden que no cabía y no salió; desconocido: una orden que no se sabe si salió (el bot se pausa); conciliacion: lo que el bot cree tener no cuadra con el exchange; real: lo del dinero real (activarlo, parar todo)
              * @enum {string}
              */
-            tipo: "arranque" | "parada" | "error" | "hueco" | "info";
+            tipo: "arranque" | "parada" | "error" | "hueco" | "info" | "limite" | "desconocido" | "conciliacion" | "real";
         };
         /** Evidencia */
         Evidencia: {
@@ -3659,7 +3701,7 @@ export interface components {
             operaciones_max_dia: number;
             /**
              * Orden Max
-             * @description Ninguna orden mayor que esto
+             * @description Ninguna compra mayor que esto (vender lo suyo siempre se puede)
              */
             orden_max: number | string;
             /**
@@ -3687,7 +3729,7 @@ export interface components {
             operaciones_max_dia: number;
             /**
              * Orden Max
-             * @description Ninguna orden mayor que esto
+             * @description Ninguna compra mayor que esto (vender lo suyo siempre se puede)
              */
             orden_max: string;
             /**
@@ -4046,7 +4088,7 @@ export interface components {
              * Tipo
              * @enum {string}
              */
-            tipo: "compra" | "venta" | "arranque" | "parada" | "error" | "hueco" | "info";
+            tipo: "compra" | "venta" | "arranque" | "parada" | "error" | "hueco" | "info" | "limite" | "desconocido" | "conciliacion" | "real";
         };
         /** MovimientoRegistrado */
         MovimientoRegistrado: {
@@ -4610,6 +4652,27 @@ export interface components {
         Pausa: {
             /** Motivo */
             motivo: string;
+        };
+        /**
+         * PausaBot
+         * @description Un bot de exchange que se ha parado solo y necesita que lo mires: reanudarlo la resuelve.
+         */
+        PausaBot: {
+            /** At */
+            at: string | null;
+            /**
+             * Diferencia
+             * @description Lo que no cuadra, en llano (conciliación)
+             */
+            diferencia: string | null;
+            /**
+             * Motivo
+             * @description 'desconocido': una orden que no se sabe si salió (al reanudar se consulta); 'conciliacion': lo que cree tener no cuadra con el saldo del exchange
+             * @enum {string}
+             */
+            motivo: "desconocido" | "conciliacion";
+            /** Texto */
+            texto: string;
         };
         /** PendienteBot */
         PendienteBot: {
@@ -5585,6 +5648,8 @@ export interface components {
             nombre_plantilla: string;
             /** Operaciones */
             operaciones: number;
+            /** @description Solo bots de exchange; None si no está en pausa */
+            pausa: components["schemas"]["PausaBot"] | null;
             /**
              * Peor Caida
              * @description Fracción negativa desde su máximo
@@ -5764,6 +5829,27 @@ export interface components {
             columnas: string[];
             /** Filas */
             filas: (string | number | boolean | null)[][];
+        };
+        /**
+         * TotalModo
+         * @description Los totales de los bots de un modo: el dinero ficticio, el de pruebas y el real no se suman.
+         */
+        TotalModo: {
+            /** Bots */
+            bots: number;
+            /** Capital */
+            capital: string;
+            /** Ganancia */
+            ganancia: string | null;
+            /** Ganancia Pct */
+            ganancia_pct: number | null;
+            /**
+             * Modo
+             * @enum {string}
+             */
+            modo: "ficticio" | "pruebas" | "real";
+            /** Valor */
+            valor: string | null;
         };
         /** TrabajoDatos */
         TrabajoDatos: {

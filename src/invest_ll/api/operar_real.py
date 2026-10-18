@@ -40,16 +40,13 @@ from invest_ll.api.schemas_v5 import (
 from invest_ll.exchanges import activacion, registro
 from invest_ll.exchanges.anotar import anotar
 from invest_ll.exchanges.conector import EstadoDesconocidoError, ExchangeError
+from invest_ll.exchanges.mercados import mercado_de
 
 if TYPE_CHECKING:  # pragma: no cover
     from invest_ll.exchanges.conector import Conector, Mercado, OrdenExchange, Red
     from invest_ll.exchanges.fichas import Ficha
 
 router = APIRouter()
-
-COTIZADAS = ("USDC", "USDT")
-"""Las monedas con que se paga, por orden de preferencia (Hyperliquid cotiza en USDC)."""
-
 
 # -- Lo que sale a la red (sustituible en los tests) ----------------------------------------------
 
@@ -90,17 +87,6 @@ def leer_tecleado(texto: str) -> Decimal | None:
     except (InvalidOperation, ValueError):
         return None
     return valor if valor.is_finite() else None
-
-
-def mercado_de(conector: Conector, coin: str) -> Mercado | None:
-    """El par de contado de esa moneda: base igual (o con la U de los tokens envueltos de
-    Hyperliquid: UBTC, USOL) y cotizada en USDC antes que en USDT."""
-    nombres = {coin.upper(), f"U{coin.upper()}"}
-    candidatos = [
-        m for m in conector.mercados() if m.base.upper() in nombres and m.cotizada in COTIZADAS
-    ]
-    candidatos.sort(key=lambda m: (COTIZADAS.index(m.cotizada), m.base.upper() != coin.upper()))
-    return candidatos[0] if candidatos else None
 
 
 def _mercado(m: Mercado) -> MercadoReal:
