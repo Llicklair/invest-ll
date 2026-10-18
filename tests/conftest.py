@@ -110,6 +110,10 @@ NO_SE_VIGILA = frozenset(
 )
 
 
+VIVEN_SOLOS = frozenset({"bots"})
+"""Carpetas de la raíz que un servicio en marcha (no la suite) cambia por dentro."""
+
+
 def foto_de_la_raiz(raiz: Path = RAIZ_REPO, *, con_su_contenido: bool = False) -> dict[str, int]:
     """Lo que hay en la raíz del repositorio y cuándo cambió cada cosa (salvo `NO_SE_VIGILA`).
 
@@ -124,7 +128,10 @@ def foto_de_la_raiz(raiz: Path = RAIZ_REPO, *, con_su_contenido: bool = False) -
         if ruta.name in NO_SE_VIGILA:
             continue
         foto[ruta.name] = ruta.stat().st_mtime_ns
-        if con_su_contenido and ruta.is_dir():
+        # Dentro de bots/ escribe sin parar el motor de los bots, que es un servicio aparte
+        # siempre encendido (bots.servicio): su contenido no se mira. Lo de los tests de bots va
+        # a tmp_path; y crear o borrar algo en bots/ sí se ve (cambia la fecha de la carpeta).
+        if con_su_contenido and ruta.is_dir() and ruta.name not in VIVEN_SOLOS:
             for dentro in ruta.iterdir():
                 foto[f"{ruta.name}/{dentro.name}"] = dentro.stat().st_mtime_ns
     return foto

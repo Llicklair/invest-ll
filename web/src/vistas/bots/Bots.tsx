@@ -18,6 +18,7 @@ import { fraccion } from "@/lib/formato";
 import { horaSegundos } from "@/lib/vivo";
 
 import { FeedActividad } from "./Actividad";
+import { TarjetaMotor } from "./Motor";
 import { TablaBots } from "./TablaBots";
 import { ChipEvidenciaBot, CifrasBot, Dato, EstadoChip, MiniCurva, NotaBots, PctColor, diasTexto, usdc } from "./comun";
 import { ChipModo, LimitesConsumo, PanelReal, bordeModo, hayNoFicticio, pausadoSolo } from "./real";
@@ -81,6 +82,8 @@ function ListaBots() {
       </div>
 
       {datos && hayNoFicticio(datos) ? <PanelReal datos={datos} /> : null}
+
+      <TarjetaMotor />
 
       {!datos ? (
         <div className="space-y-4">

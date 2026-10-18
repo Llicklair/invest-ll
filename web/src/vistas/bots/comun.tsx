@@ -8,7 +8,7 @@ import { Chip, clases } from "@/componentes/ui";
 import { formatoImporte } from "@/lib/decimal";
 import { SIN_DATO, fraccion, fraccionCoherente, signoImporteVisible, signoVisible } from "@/lib/formato";
 
-export const NOTA_BOTS = "Dinero ficticio. Los bots solo funcionan mientras el panel está abierto.";
+export const NOTA_BOTS = "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.";
 
 /** "1.234,56 USDC" desde un Decimal en cadena, con el menos tipografico. */
 export function usdc(v: string | null | undefined, opciones: { conSigno?: boolean; decimales?: number } = {}): string {

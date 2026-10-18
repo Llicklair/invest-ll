@@ -310,7 +310,7 @@ class Bots(BaseModel):
     real: EstadoReal
     at: datetime
     nota: str = Field(
-        description="'Dinero ficticio. Los bots solo funcionan con el panel abierto.'"
+        description="'Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.'"
     )
 
 

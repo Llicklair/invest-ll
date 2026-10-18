@@ -25,6 +25,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/actividad/nueva": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Actividad Nueva
+         * @description Para el stream del panel cuando los bots viven en su servicio: lo del feed posterior al
+         *     número `vista` (sin él, lo último), y el número del último.
+         */
+        get: operations["actividad_nueva_api_actividad_nueva_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bots": {
         parameters: {
             query?: never;
@@ -1006,6 +1027,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/motor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado */
+        get: operations["estado_api_motor_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/motor/arrancar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrancar
+         * @description Lo arranca si está parado y espera a que conteste (como mucho 20 s).
+         */
+        post: operations["arrancar_api_motor_arrancar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/motor/opciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Opciones */
+        put: operations["opciones_api_motor_opciones_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/motor/reiniciar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reiniciar
+         * @description Lo para con calma (guarda cada bot) y lo vuelve a arrancar con el código de ahora.
+         */
+        post: operations["reiniciar_api_motor_reiniciar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/operar/{exchange}": {
         parameters: {
             query?: never;
@@ -1938,6 +2033,19 @@ export interface components {
             movimientos: components["schemas"]["MovimientoBot"][];
         };
         /**
+         * ActividadNueva
+         * @description Lo nuevo del feed para el stream del panel, cuando los bots viven en su servicio aparte.
+         */
+        ActividadNueva: {
+            /** @description None si no hay nada nuevo */
+            actividad: components["schemas"]["Actividad"] | null;
+            /**
+             * Numero
+             * @description El número del último movimiento (para pedir desde ahí)
+             */
+            numero: number;
+        };
+        /**
          * Activo
          * @description Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.
          */
@@ -2075,7 +2183,7 @@ export interface components {
             ganancia_pct: number | null;
             /**
              * Nota
-             * @description 'Dinero ficticio. Los bots solo funcionan con el panel abierto.'
+             * @description 'Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.'
              */
             nota: string;
             real: components["schemas"]["EstadoReal"];
@@ -2849,6 +2957,33 @@ export interface components {
             que_falta_real: string[];
             /** Redes */
             redes: components["schemas"]["EstadoRedExchange"][];
+        };
+        /** EstadoMotor */
+        EstadoMotor: {
+            /** Arranca Con Windows */
+            arranca_con_windows: boolean;
+            /** Bots */
+            bots: number;
+            /** Bots En Marcha */
+            bots_en_marcha: number;
+            /**
+             * Codigo Nuevo
+             * @description El código cambió después de arrancar el motor: reiniciarlo trae lo nuevo
+             */
+            codigo_nuevo: boolean;
+            /** Desde */
+            desde: string | null;
+            /** En Marcha */
+            en_marcha: boolean;
+            /** Mantener Despierto */
+            mantener_despierto: boolean;
+            /** Pid */
+            pid: number | null;
+            /**
+             * Texto
+             * @description En llano: qué está pasando
+             */
+            texto: string;
         };
         /** EstadoOperarReal */
         EstadoOperarReal: {
@@ -4145,6 +4280,13 @@ export interface components {
             simbolo: string;
             /** Umbral Pct */
             umbral_pct: number;
+        };
+        /** OpcionesMotor */
+        OpcionesMotor: {
+            /** Arranca Con Windows */
+            arranca_con_windows?: boolean | null;
+            /** Mantener Despierto */
+            mantener_despierto?: boolean | null;
         };
         /** OpcionesSimular */
         OpcionesSimular: {
@@ -5778,6 +5920,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Actividad"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    actividad_nueva_api_actividad_nueva_get: {
+        parameters: {
+            query?: {
+                vista?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActividadNueva"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */
@@ -8961,6 +9161,234 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Serie"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    estado_api_motor_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoMotor"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    arrancar_api_motor_arrancar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoMotor"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    opciones_api_motor_opciones_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpcionesMotor"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoMotor"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reiniciar_api_motor_reiniciar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoMotor"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */

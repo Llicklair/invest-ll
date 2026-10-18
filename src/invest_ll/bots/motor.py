@@ -12,7 +12,8 @@ da una vuelta (`Motor.paso`) cada segundo:
   vuelve a decidir en la vuelta siguiente;
 - un bot que lanza una excepción pasa a "con error" con su motivo; los demás siguen.
 
-**Huecos.** Los bots solo funcionan con el panel abierto. Al volver (o si el equipo se suspendió),
+**Huecos.** Los bots solo funcionan con el motor en marcha (su servicio aparte, `bots.servicio`, que
+sigue aunque se cierre el panel). Al volver (o si el equipo se suspendió),
 cada bot en marcha apunta el tiempo que no pudo operar ("Panel cerrado de 14:02 a 18:30: no pudo
 operar") y lo enseña en su tarjeta durante un día. Igual con un corte de los precios de más de 30 s.
 
@@ -89,7 +90,7 @@ MAX_OPERACIONES: Final = 500
 MAX_EVENTOS: Final = 200
 ZONA: Final = ZoneInfo("Europe/Madrid")
 """Las horas de los textos ("Panel cerrado de 14:02 a 18:30"), como las lee Marcos."""
-NOTA: Final = "Dinero ficticio. Los bots solo funcionan con el panel abierto."
+NOTA: Final = "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido."
 
 
 def ahora_utc() -> datetime:

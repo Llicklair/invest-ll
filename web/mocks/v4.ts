@@ -1193,7 +1193,7 @@ async function disenar(m: MundoV4, o: Objeto): Promise<Response> {
     if (bot) anotarBotEstrategia(e.id, bot, "ficticio");
     respuesta =
       `Desplegada como bot **${nombreBot}** con 1.000 USDC **ficticios**, a precios en vivo. Lo verás en Bots.\n\n` +
-      "- Solo opera mientras el panel está abierto.\n- Si en una semana va bien y quieres usar dinero real, eso lo haces tú desde su ficha: yo no puedo.";
+      "- Opera mientras el motor de los bots esté en marcha (aunque cierres el panel).\n- Si en una semana va bien y quieres usar dinero real, eso lo haces tú desde su ficha: yo no puedo.";
   } else if (e) {
     herramientas = ["validar", "guardar", "probar"];
     estrategia = e.id;

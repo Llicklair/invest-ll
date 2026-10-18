@@ -22,6 +22,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from invest_ll.api.errores import EN_LLANO, explicar_validacion
 from invest_ll.api.rutas import router
+from invest_ll.bots.servicio import ProxyMotor
 from invest_ll.errors import InvestLLError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -73,39 +74,27 @@ class SoloEsteEquipo:
 
 @asynccontextmanager
 async def _en_vivo(_: FastAPI) -> AsyncGenerator[None]:
-    """La conexión con Hyperliquid y el motor de bots viven lo que vive el panel."""
-    from invest_ll.bots import motor
+    """La conexión con Hyperliquid vive lo que vive el panel. Los bots, no: viven en su servicio
+    aparte (`bots.servicio`, 127.0.0.1:8602), que sigue aunque se cierre el panel. Si no está en
+    marcha, se arranca; las rutas de los bots se le pasan tal cual (`ProxyMotor`)."""
+    import asyncio
+
+    from invest_ll.bots import servicio as servicio_bots
     from invest_ll.vivo import servicio
 
+    servicio_bots.usar_remoto(True)
+    await asyncio.to_thread(servicio_bots.arrancar_si_hace_falta)
     await servicio.arrancar()
-    await motor.arrancar()
     try:
         yield
     finally:
-        await motor.parar()
         await servicio.parar()
+        servicio_bots.usar_remoto(False)
 
 
-def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> FastAPI:
-    """La aplicación. `en_vivo=True` (solo el lanzador del panel) abre la conexión con Hyperliquid
-    y arranca los bots; los tests y la generación del contrato no tocan la red."""
-    app = FastAPI(
-        lifespan=_en_vivo if en_vivo else None,
-        title="INVEST LL",
-        description=(
-            "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo "
-            "POST /api/ordenes, que exige la cantidad tecleada como confirmacion. Todos los "
-            'errores tienen la misma forma: {"detail": "texto en llano"}.'
-        ),
-        version="1.0.0",
-    )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=list(ORIGENES_DESARROLLO),
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    app.add_middleware(SoloEsteEquipo, permitidos=HOSTS_PERMITIDOS)
+def instalar_errores(app: FastAPI) -> None:
+    """Todos los errores con la misma forma, `{"detail": "texto en llano"}` (también en el
+    servicio de los bots)."""
 
     @app.exception_handler(InvestLLError)
     async def _dominio(_: Request, error: InvestLLError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
@@ -134,6 +123,32 @@ def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> Fas
             status_code=500, content={"detail": FALLO_INTERNO.format(tipo=type(error).__name__)}
         )
 
+
+def crear_app(frontend: Path | None = FRONTEND, *, en_vivo: bool = False) -> FastAPI:
+    """La aplicación. `en_vivo=True` (solo el lanzador del panel) abre la conexión con Hyperliquid
+    y se asegura de que el servicio de los bots esté en marcha; los tests y la generación del
+    contrato no tocan la red (y sin `en_vivo` las rutas de los bots se sirven aquí mismo)."""
+    app = FastAPI(
+        lifespan=_en_vivo if en_vivo else None,
+        title="INVEST LL",
+        description=(
+            "El panel de INVEST LL. Arranca en simulacion; ninguna ruta envia ordenes salvo "
+            "POST /api/ordenes, que exige la cantidad tecleada como confirmacion. Todos los "
+            'errores tienen la misma forma: {"detail": "texto en llano"}.'
+        ),
+        version="1.0.0",
+    )
+    # Lo primero que se añade es lo más interior: el host se comprueba antes de pasar nada al
+    # servicio de los bots.
+    app.add_middleware(ProxyMotor)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(ORIGENES_DESARROLLO),
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(SoloEsteEquipo, permitidos=HOSTS_PERMITIDOS)
+    instalar_errores(app)
     app.include_router(router)
 
     if frontend is not None and (frontend / "index.html").exists():

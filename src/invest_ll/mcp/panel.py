@@ -74,7 +74,7 @@ class Panel:
         except httpx.ConnectError:
             raise PanelError(
                 f"El panel de INVEST LL no está abierto ({self.base}). Ábrelo (levantar.cmd o "
-                "invest-ll-panel) y vuelve a intentarlo: los bots solo viven con el panel abierto."
+                "invest-ll-panel) y vuelve a intentarlo: el conector habla con los bots a través del panel."
             ) from None
         except httpx.HTTPError as error:
             raise PanelError(f"No se pudo hablar con el panel: {error}") from None

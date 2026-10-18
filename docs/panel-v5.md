@@ -107,7 +107,7 @@ para conectar distintos exchanges o wallets como MetaMask o parecidos».
 - El estilo (colores, tipografía, el castellano llano, «nada notifica ni empuja a operar»).
 - Ninguna IA mueve dinero real por decisión propia; las claves no salen nunca; la API solo atiende
   a `localhost`; los errores en llano.
-- Los bots siguen funcionando solo con el panel abierto.
+- (Cambió el 18/10: los bots viven en su servicio aparte, siempre encendido; ver §8.)
 
 ## 7. Lo que pidió Marcos el 18/10
 
@@ -132,3 +132,17 @@ de verdad, y la práctica, otra pestaña aparte.»
   saldos de solo lectura y la wallet agente de Hyperliquid (`approveAgent` con el formato del SDK
   oficial 0.24.0; la firma se comprueba antes de enviar nada; la clave del agente, al almacén de
   claves como la de cualquier exchange). Dependencia nueva: `eth-account`.
+
+## 8. El motor de los bots, siempre encendido (18/10)
+
+Los bots ya no viven dentro del panel: el motor es su propio proceso oculto (`bots.servicio`,
+127.0.0.1:8602), con su conexión a Hyperliquid. El panel le pasa las rutas de los bots tal cual y
+el stream le pregunta por HTTP. Cerrar, reiniciar o actualizar el panel no para los bots; apagar o
+dormir el ordenador, sí (y al volver se apunta el hueco).
+
+- Lo arranca el panel al abrirse si no está, `invest-ll-motor arrancar`, o Windows al iniciar
+  sesión (opción en Bots: un .vbs en la carpeta Inicio). Nace desligado del panel (un lanzador
+  intermedio), así que levantar.cmd no se lo lleva al reiniciar el panel.
+- Opción «que Windows no se duerma mientras haya bots en marcha» (SetThreadExecutionState).
+- Si el código cambia después de arrancarlo, el panel lo dice y ofrece reiniciarlo.
+- Rastro en `bots/motor.log`; `invest-ll-motor` (estado, arrancar, parar, reiniciar).

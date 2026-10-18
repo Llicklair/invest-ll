@@ -35,6 +35,7 @@ from invest_ll.api import (
     investigacion,
     medida,
     mercado,
+    motor,
     operar_real,
     plan,
     practica,
@@ -68,6 +69,7 @@ PESTANAS = (
     claude,
     operar_real,
     wallets,
+    motor,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""

@@ -309,6 +309,33 @@
         "title": "Actividad",
         "type": "object"
       },
+      "ActividadNueva": {
+        "description": "Lo nuevo del feed para el stream del panel, cuando los bots viven en su servicio aparte.",
+        "properties": {
+          "actividad": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actividad"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si no hay nada nuevo"
+          },
+          "numero": {
+            "description": "El número del último movimiento (para pedir desde ahí)",
+            "title": "Numero",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "numero",
+          "actividad"
+        ],
+        "title": "ActividadNueva",
+        "type": "object"
+      },
       "Activo": {
         "description": "Un histórico descargado. `id` es estable y es lo que se manda en las peticiones.",
         "properties": {
@@ -602,7 +629,7 @@
             "title": "Ganancia Pct"
           },
           "nota": {
-            "description": "'Dinero ficticio. Los bots solo funcionan con el panel abierto.'",
+            "description": "'Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.'",
             "title": "Nota",
             "type": "string"
           },
@@ -2477,6 +2504,76 @@
           "que_falta_real"
         ],
         "title": "EstadoExchange",
+        "type": "object"
+      },
+      "EstadoMotor": {
+        "properties": {
+          "arranca_con_windows": {
+            "title": "Arranca Con Windows",
+            "type": "boolean"
+          },
+          "bots": {
+            "title": "Bots",
+            "type": "integer"
+          },
+          "bots_en_marcha": {
+            "title": "Bots En Marcha",
+            "type": "integer"
+          },
+          "codigo_nuevo": {
+            "description": "El código cambió después de arrancar el motor: reiniciarlo trae lo nuevo",
+            "title": "Codigo Nuevo",
+            "type": "boolean"
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desde"
+          },
+          "en_marcha": {
+            "title": "En Marcha",
+            "type": "boolean"
+          },
+          "mantener_despierto": {
+            "title": "Mantener Despierto",
+            "type": "boolean"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "texto": {
+            "description": "En llano: qué está pasando",
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "en_marcha",
+          "pid",
+          "desde",
+          "bots",
+          "bots_en_marcha",
+          "codigo_nuevo",
+          "arranca_con_windows",
+          "mantener_despierto",
+          "texto"
+        ],
+        "title": "EstadoMotor",
         "type": "object"
       },
       "EstadoOperarReal": {
@@ -5551,6 +5648,34 @@
           "umbral_pct"
         ],
         "title": "NuevoTrigger",
+        "type": "object"
+      },
+      "OpcionesMotor": {
+        "properties": {
+          "arranca_con_windows": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arranca Con Windows"
+          },
+          "mantener_despierto": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mantener Despierto"
+          }
+        },
+        "title": "OpcionesMotor",
         "type": "object"
       },
       "OpcionesSimular": {
@@ -9659,6 +9784,86 @@
         ]
       }
     },
+    "/api/actividad/nueva": {
+      "get": {
+        "description": "Para el stream del panel cuando los bots viven en su servicio: lo del feed posterior al\nnúmero `vista` (sin él, lo último), y el número del último.",
+        "operationId": "actividad_nueva_api_actividad_nueva_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vista",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vista"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActividadNueva"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Actividad Nueva",
+        "tags": [
+          "bots"
+        ]
+      }
+    },
     "/api/bots": {
       "get": {
         "description": "Todos los bots con lo que llevan generado, valorados a precios de ahora.",
@@ -13504,6 +13709,262 @@
         "summary": "Serie",
         "tags": [
           "mercado"
+        ]
+      }
+    },
+    "/api/motor": {
+      "get": {
+        "operationId": "estado_api_motor_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoMotor"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Estado",
+        "tags": [
+          "motor"
+        ]
+      }
+    },
+    "/api/motor/arrancar": {
+      "post": {
+        "description": "Lo arranca si está parado y espera a que conteste (como mucho 20 s).",
+        "operationId": "arrancar_api_motor_arrancar_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoMotor"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Arrancar",
+        "tags": [
+          "motor"
+        ]
+      }
+    },
+    "/api/motor/opciones": {
+      "put": {
+        "operationId": "opciones_api_motor_opciones_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpcionesMotor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoMotor"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Opciones",
+        "tags": [
+          "motor"
+        ]
+      }
+    },
+    "/api/motor/reiniciar": {
+      "post": {
+        "description": "Lo para con calma (guarda cada bot) y lo vuelve a arrancar con el código de ahora.",
+        "operationId": "reiniciar_api_motor_reiniciar_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoMotor"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Reiniciar",
+        "tags": [
+          "motor"
         ]
       }
     },

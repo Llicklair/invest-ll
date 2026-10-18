@@ -51,6 +51,7 @@ invest-ll-triggers = "invest_ll.cli.triggers:main"
 invest-ll-chat = "invest_ll.cli.chat:main"
 invest-ll-quant = "invest_ll.cli.quant:main"
 invest-ll-mcp = "invest_ll.mcp.servidor:main"
+invest-ll-motor = "invest_ll.bots.servicio:main"
 
 [dependency-groups]
 dev = [

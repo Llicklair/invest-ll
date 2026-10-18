@@ -10,6 +10,8 @@ rem    2. Comprueba el entorno (uv, dependencias, modo de operacion).
 rem    3. Compila el frontend (web/) si todavia no esta compilado.
 rem    4. Abre el panel en http://localhost:8601: la API (FastAPI) y el
 rem       frontend en un solo proceso. Ctrl+C para pararlo.
+rem    5. Los bots NO se paran al cerrarlo: viven en su motor aparte, que el
+rem       panel arranca si hace falta (invest-ll-motor estado / parar).
 rem
 rem  Los detalles viven en scripts\start.ps1 (con .\scripts\start.ps1
 rem  -SoloCheck compruebas sin arrancar).

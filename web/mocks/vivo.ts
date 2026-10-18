@@ -1618,8 +1618,8 @@ function bots(m: MundoVivo): S["Bots"] {
     real: estadoReal(m),
     at: at(m),
     nota: hayReales
-      ? "Hay bots con dinero real: operan solos, dentro de sus límites. Todos los bots solo funcionan mientras el panel está abierto."
-      : "Dinero ficticio. Los bots solo funcionan mientras el panel está abierto.",
+      ? "Hay bots con dinero real: operan solos, dentro de sus límites, aunque cierres el panel (mientras el ordenador esté encendido)."
+      : "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.",
   };
 }
 
@@ -1842,7 +1842,7 @@ function esperar(ms: number): Promise<void> {
 
 /** ¿Es una ruta del panel v3? (las enruta `responderVivo`). */
 export function esRutaVivo(ruta: string): boolean {
-  return /^\/api\/(vivo|practica|bots|bots-real|actividad)(\/|$)/.test(ruta);
+  return /^\/api\/(vivo|practica|bots|bots-real|actividad|motor)(\/|$)/.test(ruta);
 }
 
 // -- Dinero real (docs/panel-v4-real.md §3) -------------------------------------------------------
@@ -1969,6 +1969,24 @@ alDesplegarFicticio((e: InfoEstrategia, nombre: string, capital: number): string
   return id;
 });
 
+// -- El motor de los bots, siempre encendido (docs/panel-v5.md §8) --------------------------------
+
+const opcionesMotor = { arranca_con_windows: false, mantener_despierto: false };
+
+function estadoMotor(m: MundoVivo): S["EstadoMotor"] {
+  const enMarcha = m.bots.filter((b) => b.estado === "en_marcha").length;
+  return {
+    en_marcha: true,
+    pid: 4321,
+    desde: iso(m.desde),
+    bots: m.bots.length,
+    bots_en_marcha: enMarcha,
+    codigo_nuevo: false,
+    ...opcionesMotor,
+    texto: `En marcha aparte del panel: ${enMarcha} de ${m.bots.length} bots operan aunque cierres esta ventana, mientras el ordenador esté encendido.`,
+  };
+}
+
 export async function responderVivo(peticion: Request, url: URL): Promise<Response> {
   const m = elMundo();
   avanzar(m);
@@ -2016,6 +2034,16 @@ export async function responderVivo(peticion: Request, url: URL): Promise<Respon
       return json({ plantillas: PLANTILLAS } satisfies S["Plantillas"]);
     case "GET /api/bots":
       return json(bots(m) satisfies S["Bots"]);
+    case "GET /api/motor":
+    case "POST /api/motor/arrancar":
+    case "POST /api/motor/reiniciar":
+      return json(estadoMotor(m) satisfies S["EstadoMotor"]);
+    case "PUT /api/motor/opciones": {
+      const o = await cuerpo(peticion);
+      if (typeof o.arranca_con_windows === "boolean") opcionesMotor.arranca_con_windows = o.arranca_con_windows;
+      if (typeof o.mantener_despierto === "boolean") opcionesMotor.mantener_despierto = o.mantener_despierto;
+      return json(estadoMotor(m) satisfies S["EstadoMotor"]);
+    }
     case "GET /api/actividad": {
       const bot = url.searchParams.get("bot");
       if (bot !== null && !m.bots.some((b) => b.id === bot)) return fallo(404, `No hay ningún bot «${bot}».`);

@@ -80,7 +80,7 @@ class TestSinMotor:
         assert r.status_code == 200
         datos = r.json()
         assert datos["bots"] == []
-        assert datos["nota"] == "Dinero ficticio. Los bots solo funcionan con el panel abierto."
+        assert datos["nota"] == "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido."
         assert datos["ganancia_pct"] is None
 
     def test_sin_precios_no_se_puede_desplegar_y_lo_dice(self, cliente: Api) -> None:

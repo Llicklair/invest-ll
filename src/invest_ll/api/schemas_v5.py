@@ -189,3 +189,32 @@ class ResultadoOrdenReal(BaseModel):
     comision: Decimal | None
     comision_moneda: str | None
     anotada: bool = Field(description="Si quedó en el registro de órdenes (ledger/)")
+
+
+class ActividadNueva(BaseModel):
+    """Lo nuevo del feed para el stream del panel, cuando los bots viven en su servicio aparte."""
+
+    numero: int = Field(description="El número del último movimiento (para pedir desde ahí)")
+    actividad: Actividad | None = Field(description="None si no hay nada nuevo")
+
+
+# -- El servicio de los bots (docs/panel-v5.md: siempre encendido) ----------------------------------
+
+
+class EstadoMotor(BaseModel):
+    en_marcha: bool
+    pid: int | None
+    desde: datetime | None
+    bots: int
+    bots_en_marcha: int
+    codigo_nuevo: bool = Field(
+        description="El código cambió después de arrancar el motor: reiniciarlo trae lo nuevo"
+    )
+    arranca_con_windows: bool
+    mantener_despierto: bool
+    texto: str = Field(description="En llano: qué está pasando")
+
+
+class OpcionesMotor(BaseModel):
+    arranca_con_windows: bool | None = None
+    mantener_despierto: bool | None = None

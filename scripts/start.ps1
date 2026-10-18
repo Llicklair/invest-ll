@@ -186,7 +186,7 @@ if ($SoloCheck) {
 Write-Host ""
 Write-Host ("=" * 60)
 Write-Host "Abriendo el panel en http://localhost:$Puerto" -ForegroundColor Cyan
-Write-Host "Ctrl+C para pararlo."
+Write-Host "Ctrl+C para pararlo. Los bots siguen: viven en su motor aparte (invest-ll-motor)."
 Write-Host ""
 
 uv run invest-ll-panel --puerto $Puerto

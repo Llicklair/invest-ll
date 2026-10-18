@@ -132,7 +132,7 @@ BTC_FRENO: Final = Plantilla(
         "Pasa casi la mitad del tiempo fuera, en USDC: habrá rachas en que lo haga peor que "
         "mantener Bitcoin.",
         "Las velas diarias de Hyperliquid cierran a medianoche UTC (la 1:00 o las 2:00 en España): "
-        "decide entonces, si el panel está abierto.",
+        "decide entonces, si el motor de los bots está en marcha (el ordenador encendido).",
     ),
     evidencia=Evidencia(
         "prueba_real",
@@ -288,7 +288,8 @@ PERIODICA: Final = Plantilla(
     ),
     avisos=(
         "No vende nunca: en una caída grande, cae con la moneda.",
-        "Solo compra con el panel abierto: si está cerrado cuando le toca, se salta esa compra.",
+        "Solo compra con el motor de los bots en marcha: si el ordenador está apagado o dormido "
+        "cuando le toca, se salta esa compra.",
     ),
     evidencia=Evidencia(
         "pasado",

@@ -327,7 +327,7 @@ def test_el_canal_de_bots_lleva_lo_de_su_ruta(
             aviso=None,
         ),
         at=AHORA,
-        nota="Dinero ficticio. Los bots solo funcionan con el panel abierto.",
+        nota="Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido.",
     )
     monkeypatch.setattr("invest_ll.api.bots.lista", lambda: bots)
     monkeypatch.setattr(rutas_vivo, "MAX_EVENTOS", 1)

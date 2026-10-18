@@ -39,6 +39,7 @@ from pydantic import BaseModel
 from invest_ll.api import practica as rutas_practica
 from invest_ll.api.errores import invalido, no_encontrado
 from invest_ll.api.schemas_v3 import (
+    Bots,
     EstadoVivo,
     LibroVivo,
     Monedas,
@@ -302,6 +303,20 @@ def actividad_nueva(vista: int | None) -> tuple[int, BaseModel | None] | None:
     """Lo que el cliente no ha visto del feed de los bots: al conectar (`vista` None), lo último
     que hay (aunque sea nada); luego, solo lo posterior al número `vista`, o nada si no hay nada
     nuevo. None si no hay motor de bots en marcha (el canal calla)."""
+    from invest_ll.api.schemas_v5 import Actividad
+    from invest_ll.bots import servicio as servicio_bots
+
+    if servicio_bots.remoto():
+        d = servicio_bots.actividad_remota(vista)
+        if d is None or not isinstance(d.get("numero"), int):
+            return None
+        crudo = d.get("actividad")
+        return d["numero"], Actividad.model_validate(crudo) if crudo is not None else None
+    return actividad_local(vista)
+
+
+def actividad_local(vista: int | None) -> tuple[int, BaseModel | None] | None:
+    """`actividad_nueva` con el motor de este proceso (la que sirve el servicio de los bots)."""
     from invest_ll.api import bots as rutas_bots
     from invest_ll.api.schemas_v5 import Actividad
     from invest_ll.bots import motor
@@ -318,8 +333,13 @@ def actividad_nueva(vista: int | None) -> tuple[int, BaseModel | None] | None:
 
 
 def _bots() -> BaseModel | None:
-    """`GET /api/bots`, si responde. Lo implementa otra pieza: si aún no está hecha o falla, el
-    canal calla y el resto del stream sigue."""
+    """`GET /api/bots`, si responde (del servicio de los bots, si los bots viven allí). Si falla,
+    el canal calla y el resto del stream sigue."""
+    from invest_ll.bots import servicio as servicio_bots
+
+    if servicio_bots.remoto():
+        datos = servicio_bots.bots_remotos()
+        return Bots.model_validate(datos) if datos is not None else None
     try:
         from invest_ll.api import bots as rutas_bots
 

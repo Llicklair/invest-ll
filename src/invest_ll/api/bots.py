@@ -2,7 +2,8 @@
 
 Las rutas solo traducen: qué es cada plantilla vive en `bots.plantillas`, lo que decide cada una en
 `bots.decisiones` y el bucle que los hace correr, su cuenta y su registro en disco en `bots.motor`.
-Con el panel abierto (`crear_app(en_vivo=True)`) las rutas hablan con el motor en marcha; sin él
+En el servicio de los bots (`bots.servicio`, que el panel arranca y al que le pasa estas rutas) hablan
+con el motor en marcha; sin él
 (los tests, la generación del contrato) leen y escriben `bots/` directamente, sin hacer operar a
 nadie. Nada sale al exterior.
 
@@ -13,7 +14,7 @@ memoria, sin leer el disco.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 from fastapi import APIRouter, Query
 
@@ -34,7 +35,13 @@ from invest_ll.api.schemas_v3 import (
     ResumenBot,
 )
 from invest_ll.api.schemas_v4 import ActivarReal, CambioLimites, LimiteDiario, ParadaGeneral
-from invest_ll.api.schemas_v5 import Actividad, MetricasBot, MovimientoBot, PendienteBot
+from invest_ll.api.schemas_v5 import (
+    Actividad,
+    ActividadNueva,
+    MetricasBot,
+    MovimientoBot,
+    PendienteBot,
+)
 from invest_ll.bots import motor
 from invest_ll.bots.metricas import metricas as calcular_metricas
 from invest_ll.bots.motor import NOTA, ZONA, Motor
@@ -335,6 +342,19 @@ def actividad(bot: str | None = None, limite: int = Query(default=50, ge=1, le=2
         _bot(m, bot)
     _, lista = m.actividad(bot_id=bot, limite=limite)
     return Actividad(movimientos=[movimiento(x) for x in lista], inicial=True, at=m.ahora())
+
+
+@router.get("/actividad/nueva", tags=["bots"])
+def actividad_nueva(vista: int | None = None) -> ActividadNueva:
+    """Para el stream del panel cuando los bots viven en su servicio: lo del feed posterior al
+    número `vista` (sin él, lo último), y el número del último."""
+    from invest_ll.api import vivo as rutas_vivo
+
+    leida = rutas_vivo.actividad_local(vista)
+    if leida is None:
+        return ActividadNueva(numero=vista or 0, actividad=None)
+    numero, nueva = leida
+    return ActividadNueva(numero=numero, actividad=cast("Actividad | None", nueva))
 
 
 @router.post("/bots", tags=["bots"], status_code=201)
