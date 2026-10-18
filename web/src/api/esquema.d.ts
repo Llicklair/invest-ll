@@ -1678,6 +1678,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/wallets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista */
+        get: operations["lista_api_wallets_get"];
+        put?: never;
+        /**
+         * Conectar
+         * @description Guarda la dirección (y el nombre de la wallet). 422 si no es una dirección.
+         */
+        post: operations["conectar_api_wallets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wallets/{direccion}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Desconectar
+         * @description La quita del panel. Si tenía el agente de Hyperliquid, sus claves se borran de este equipo
+         *     (en Hyperliquid se quita desde su página de API).
+         */
+        delete: operations["desconectar_api_wallets__direccion__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wallets/{direccion}/hyperliquid/confirmar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmar Agente
+         * @description Comprueba la firma, la envía a Hyperliquid y, si la acepta, guarda la conexión de
+         *     Hyperliquid en esa red (la dirección de tu wallet y la clave del agente).
+         */
+        post: operations["confirmar_agente_api_wallets__direccion__hyperliquid_confirmar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wallets/{direccion}/hyperliquid/preparar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preparar Agente
+         * @description Crea la wallet agente y los datos que tu wallet tiene que firmar (eth_signTypedData_v4).
+         */
+        post: operations["preparar_agente_api_wallets__direccion__hyperliquid_preparar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wallets/{direccion}/saldos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Saldos
+         * @description Lo que tiene en Ethereum, Arbitrum, Base y Hyperliquid (solo lectura, con su hora).
+         */
+        get: operations["saldos_api_wallets__direccion__saldos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1874,6 +1977,37 @@ export interface components {
             provider: string;
             /** Symbol */
             symbol: string;
+        };
+        /** AgenteConectado */
+        AgenteConectado: {
+            /** Agente */
+            agente: string;
+            /**
+             * Red
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
+            /** Texto */
+            texto: string;
+        };
+        /** AgentePreparado */
+        AgentePreparado: {
+            /**
+             * Agente
+             * @description La dirección pública del agente que se autoriza
+             */
+            agente: string;
+            /**
+             * Datos Tipados
+             * @description Para eth_signTypedData_v4, tal cual
+             */
+            datos_tipados: {
+                [key: string]: unknown;
+            };
+            /** Nonce */
+            nonce: number;
+            /** Texto */
+            texto: string;
         };
         /** Alerta */
         Alerta: {
@@ -2208,6 +2342,21 @@ export interface components {
              * @description Qué puede y qué NO puede hacer Claude con él
              */
             nota: string;
+        };
+        /** ConfirmarAgente */
+        ConfirmarAgente: {
+            /**
+             * Firma
+             * @description Lo que devolvió eth_signTypedData_v4 (0x y 130 hex)
+             */
+            firma: string;
+            /** Nonce */
+            nonce: number;
+            /**
+             * Red
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
         };
         /** Consistencia */
         Consistencia: {
@@ -3882,6 +4031,16 @@ export interface components {
              */
             tipo: "mercado" | "limite";
         };
+        /** NuevaWallet */
+        NuevaWallet: {
+            /** Direccion */
+            direccion: string;
+            /**
+             * Nombre
+             * @default Wallet
+             */
+            nombre: string;
+        };
         /** NuevasClaves */
         NuevasClaves: {
             /** Clave */
@@ -4760,6 +4919,19 @@ export interface components {
              */
             retirada: string;
         };
+        /** PrepararAgente */
+        PrepararAgente: {
+            /**
+             * Chain Id
+             * @description La cadena en que está la wallet (eth_chainId)
+             */
+            chain_id: number;
+            /**
+             * Red
+             * @enum {string}
+             */
+            red: "pruebas" | "real";
+        };
         /** Propuesta */
         Propuesta: {
             /**
@@ -5358,6 +5530,48 @@ export interface components {
             /** Moneda */
             moneda: string;
         };
+        /** SaldoWallet */
+        SaldoWallet: {
+            /** Cantidad */
+            cantidad: string;
+            /** Simbolo */
+            simbolo: string;
+            /**
+             * Valor Usd
+             * @description None si no hay precio
+             */
+            valor_usd: string | null;
+        };
+        /** SaldosCadenaWallet */
+        SaldosCadenaWallet: {
+            /** Cadena */
+            cadena: string;
+            /** Error */
+            error: string | null;
+            /** Nombre */
+            nombre: string;
+            /** Saldos */
+            saldos: components["schemas"]["SaldoWallet"][];
+        };
+        /** SaldosWallet */
+        SaldosWallet: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Cadenas */
+            cadenas: components["schemas"]["SaldosCadenaWallet"][];
+            /** Direccion */
+            direccion: string;
+            /**
+             * Sin Precio
+             * @description Algo no se pudo valorar y el total no lo cuenta
+             */
+            sin_precio: boolean;
+            /** Total Usd */
+            total_usd: string;
+        };
         /** Seguimiento */
         Seguimiento: {
             /** Evaluadas */
@@ -5507,6 +5721,34 @@ export interface components {
             nota: string;
             /** Version */
             version: number;
+        };
+        /** WalletConectada */
+        WalletConectada: {
+            /**
+             * Agente Hyperliquid
+             * @description Las redes de Hyperliquid en que esta wallet tiene autorizado el agente del panel
+             */
+            agente_hyperliquid: ("pruebas" | "real")[];
+            /**
+             * Conectada
+             * Format: date-time
+             */
+            conectada: string;
+            /**
+             * Direccion
+             * @description Pública, con su checksum (EIP-55)
+             */
+            direccion: string;
+            /**
+             * Nombre
+             * @description La wallet con que se conectó: MetaMask, Rabby…
+             */
+            nombre: string;
+        };
+        /** Wallets */
+        Wallets: {
+            /** Wallets */
+            wallets: components["schemas"]["WalletConectada"][];
         };
     };
     responses: never;
@@ -10933,6 +11175,360 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Velas"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    lista_api_wallets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wallets"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    conectar_api_wallets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NuevaWallet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletConectada"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    desconectar_api_wallets__direccion__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direccion: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    confirmar_agente_api_wallets__direccion__hyperliquid_confirmar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direccion: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmarAgente"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgenteConectado"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    preparar_agente_api_wallets__direccion__hyperliquid_preparar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direccion: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrepararAgente"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentePreparado"];
+                };
+            };
+            /** @description No se permite en este modo (enviar una orden en simulación) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No existe (una estrategia, un plan, unas claves...) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    saldos_api_wallets__direccion__saldos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                direccion: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaldosWallet"];
                 };
             };
             /** @description No se permite en este modo (enviar una orden en simulación) */

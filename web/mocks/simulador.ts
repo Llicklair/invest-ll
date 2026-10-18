@@ -19,6 +19,7 @@ import { type Escenario } from "./panel";
 import { DEFINICIONES, monedaDe, nombreDe, serie, type SerieGenerada } from "./series";
 import { esRutaVivo, responderVivo } from "./vivo";
 import { esRutaV4, responderV4 } from "./v4";
+import { esRutaWallets, responderWallets } from "./wallets";
 
 type S = components["schemas"];
 
@@ -862,6 +863,8 @@ export async function responder(peticion: Request): Promise<Response> {
   if (esRutaVivo(ruta)) return responderVivo(peticion, url);
   // Panel v4 (conexiones con exchanges, estrategias a medida y disenar con Claude): mocks/v4.ts.
   if (esRutaV4(ruta)) return responderV4(peticion, url);
+  // Panel v5 (wallets del navegador): mocks/wallets.ts, con su wallet falsa.
+  if (esRutaWallets(ruta)) return responderWallets(peticion, url);
   const metodo = peticion.method.toUpperCase();
   const m = elMundo();
   await esperar(150 + Math.random() * 250);

@@ -12,6 +12,7 @@ import { momento } from "@/lib/formato";
 
 import { AsistenteExchange, ChipEstadoExchange } from "./AsistenteExchange";
 import { TarjetaModoPlan } from "./Conexion";
+import { Wallets } from "@/vistas/wallets/Wallets";
 
 /** Lo que se sabe de cada red, en una linea: "Pruebas: claves guardadas, probadas el 17 oct". */
 function LineaRedes({ estado, disponible }: { estado: EstadoExchange; disponible: ExchangeDisponible }) {
@@ -105,6 +106,7 @@ function ListaExchanges() {
           })}
         </ul>
       </div>
+      <Wallets />
       <ConectarClaude mcp={conexiones.datos.mcp} />
     </div>
   );

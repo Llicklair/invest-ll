@@ -108,3 +108,27 @@ para conectar distintos exchanges o wallets como MetaMask o parecidos».
 - Ninguna IA mueve dinero real por decisión propia; las claves no salen nunca; la API solo atiende
   a `localhost`; los errores en llano.
 - Los bots siguen funcionando solo con el panel abierto.
+
+## 7. Lo que pidió Marcos el 18/10
+
+«Pon un botón para conectar Claude por suscripción para los planes; en Operar, ver los bots en
+tiempo real sobre la gráfica y poder operar de verdad: Hyperliquid es el panel visual para operar
+de verdad, y la práctica, otra pestaña aparte.»
+
+- **Claude con tu suscripción**: `GET /api/claude` (lo que dice `claude auth status`: si hay
+  sesión, con suscripción o con clave de la API, y el plan; nada que identifique la cuenta) y
+  `POST /api/claude/conectar` (abre en este equipo `claude auth login --claudeai`). Tarjeta arriba
+  de Conexiones y, en la barra de Mi plan, «Claude · Max» o el botón para conectarlo.
+- **Operar en dos pestañas**: Hyperliquid (`/operar/`, para operar de verdad) y Práctica
+  (`/operar/practica/`, la cuenta ficticia), más Mercados. En las dos, los bots que operan con la
+  moneda elegida encima de la gráfica: una flecha por compra o venta (las 40 últimas) y líneas
+  discontinuas con sus órdenes preparadas más cercanas al precio.
+- **Operar de verdad** (`/api/operar/{exchange}`): órdenes de contado manuales con la cuenta
+  conectada, a la red activa (pruebas o real). Cada una: la red que se veía tiene que ser la
+  activa; la cantidad, tecleada; los cerrojos de activación, comprobados otra vez; id de cliente
+  (sin duplicados); estado desconocido sin adivinar; y al registro de órdenes (en pruebas, la
+  evidencia para activar real). Sin apalancamiento: los perpetuos no se operan desde aquí.
+- **Wallets** (§5), hechas: EIP-6963 en el navegador, solo la dirección en `config/wallets.json`,
+  saldos de solo lectura y la wallet agente de Hyperliquid (`approveAgent` con el formato del SDK
+  oficial 0.24.0; la firma se comprueba antes de enviar nada; la clave del agente, al almacén de
+  claves como la de cualquier exchange). Dependencia nueva: `eth-account`.

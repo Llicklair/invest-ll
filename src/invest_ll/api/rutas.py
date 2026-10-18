@@ -42,6 +42,7 @@ from invest_ll.api import (
     simular,
     vigilar,
     vivo,
+    wallets,
 )
 from invest_ll.api.errores import RESPUESTAS_DE_ERROR
 
@@ -66,6 +67,7 @@ PESTANAS = (
     medida,
     claude,
     operar_real,
+    wallets,
 )
 """En el orden del panel: mirar -> tener -> ensayar -> vigilar -> comprobar -> investigar ->
 preguntar."""

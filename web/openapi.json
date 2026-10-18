@@ -373,6 +373,64 @@
         "title": "Activo",
         "type": "object"
       },
+      "AgenteConectado": {
+        "properties": {
+          "agente": {
+            "title": "Agente",
+            "type": "string"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "red",
+          "agente",
+          "texto"
+        ],
+        "title": "AgenteConectado",
+        "type": "object"
+      },
+      "AgentePreparado": {
+        "properties": {
+          "agente": {
+            "description": "La dirección pública del agente que se autoriza",
+            "title": "Agente",
+            "type": "string"
+          },
+          "datos_tipados": {
+            "additionalProperties": true,
+            "description": "Para eth_signTypedData_v4, tal cual",
+            "title": "Datos Tipados",
+            "type": "object"
+          },
+          "nonce": {
+            "title": "Nonce",
+            "type": "integer"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datos_tipados",
+          "agente",
+          "nonce",
+          "texto"
+        ],
+        "title": "AgentePreparado",
+        "type": "object"
+      },
       "Alerta": {
         "properties": {
           "mensaje": {
@@ -1238,6 +1296,34 @@
           "nota"
         ],
         "title": "ConfigMcp",
+        "type": "object"
+      },
+      "ConfirmarAgente": {
+        "properties": {
+          "firma": {
+            "description": "Lo que devolvió eth_signTypedData_v4 (0x y 130 hex)",
+            "title": "Firma",
+            "type": "string"
+          },
+          "nonce": {
+            "title": "Nonce",
+            "type": "integer"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          }
+        },
+        "required": [
+          "red",
+          "nonce",
+          "firma"
+        ],
+        "title": "ConfirmarAgente",
         "type": "object"
       },
       "Consistencia": {
@@ -5195,6 +5281,27 @@
         "title": "NuevaOrdenReal",
         "type": "object"
       },
+      "NuevaWallet": {
+        "properties": {
+          "direccion": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Direccion",
+            "type": "string"
+          },
+          "nombre": {
+            "default": "Wallet",
+            "maxLength": 60,
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direccion"
+        ],
+        "title": "NuevaWallet",
+        "type": "object"
+      },
       "NuevasClaves": {
         "properties": {
           "clave": {
@@ -7447,6 +7554,30 @@
         "title": "PosicionRetirada",
         "type": "object"
       },
+      "PrepararAgente": {
+        "properties": {
+          "chain_id": {
+            "description": "La cadena en que está la wallet (eth_chainId)",
+            "exclusiveMinimum": 0.0,
+            "title": "Chain Id",
+            "type": "integer"
+          },
+          "red": {
+            "enum": [
+              "pruebas",
+              "real"
+            ],
+            "title": "Red",
+            "type": "string"
+          }
+        },
+        "required": [
+          "red",
+          "chain_id"
+        ],
+        "title": "PrepararAgente",
+        "type": "object"
+      },
       "Propuesta": {
         "properties": {
           "comandos": {
@@ -8866,6 +8997,116 @@
         "title": "SaldoReal",
         "type": "object"
       },
+      "SaldoWallet": {
+        "properties": {
+          "cantidad": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "type": "string"
+          },
+          "simbolo": {
+            "title": "Simbolo",
+            "type": "string"
+          },
+          "valor_usd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None si no hay precio",
+            "title": "Valor Usd"
+          }
+        },
+        "required": [
+          "simbolo",
+          "cantidad",
+          "valor_usd"
+        ],
+        "title": "SaldoWallet",
+        "type": "object"
+      },
+      "SaldosCadenaWallet": {
+        "properties": {
+          "cadena": {
+            "title": "Cadena",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "saldos": {
+            "items": {
+              "$ref": "#/components/schemas/SaldoWallet"
+            },
+            "title": "Saldos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cadena",
+          "nombre",
+          "saldos",
+          "error"
+        ],
+        "title": "SaldosCadenaWallet",
+        "type": "object"
+      },
+      "SaldosWallet": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "cadenas": {
+            "items": {
+              "$ref": "#/components/schemas/SaldosCadenaWallet"
+            },
+            "title": "Cadenas",
+            "type": "array"
+          },
+          "direccion": {
+            "title": "Direccion",
+            "type": "string"
+          },
+          "sin_precio": {
+            "description": "Algo no se pudo valorar y el total no lo cuenta",
+            "title": "Sin Precio",
+            "type": "boolean"
+          },
+          "total_usd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Usd",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direccion",
+          "cadenas",
+          "total_usd",
+          "sin_precio",
+          "at"
+        ],
+        "title": "SaldosWallet",
+        "type": "object"
+      },
       "Seguimiento": {
         "properties": {
           "evaluadas": {
@@ -9260,6 +9501,61 @@
           "nota"
         ],
         "title": "VersionEstrategia",
+        "type": "object"
+      },
+      "WalletConectada": {
+        "properties": {
+          "agente_hyperliquid": {
+            "description": "Las redes de Hyperliquid en que esta wallet tiene autorizado el agente del panel",
+            "items": {
+              "enum": [
+                "pruebas",
+                "real"
+              ],
+              "type": "string"
+            },
+            "title": "Agente Hyperliquid",
+            "type": "array"
+          },
+          "conectada": {
+            "format": "date-time",
+            "title": "Conectada",
+            "type": "string"
+          },
+          "direccion": {
+            "description": "Pública, con su checksum (EIP-55)",
+            "title": "Direccion",
+            "type": "string"
+          },
+          "nombre": {
+            "description": "La wallet con que se conectó: MetaMask, Rabby…",
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direccion",
+          "nombre",
+          "conectada",
+          "agente_hyperliquid"
+        ],
+        "title": "WalletConectada",
+        "type": "object"
+      },
+      "Wallets": {
+        "properties": {
+          "wallets": {
+            "items": {
+              "$ref": "#/components/schemas/WalletConectada"
+            },
+            "title": "Wallets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "wallets"
+        ],
+        "title": "Wallets",
         "type": "object"
       }
     }
@@ -15887,6 +16183,442 @@
         "summary": "Velas",
         "tags": [
           "vivo"
+        ]
+      }
+    },
+    "/api/wallets": {
+      "get": {
+        "operationId": "lista_api_wallets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wallets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Lista",
+        "tags": [
+          "wallets"
+        ]
+      },
+      "post": {
+        "description": "Guarda la dirección (y el nombre de la wallet). 422 si no es una dirección.",
+        "operationId": "conectar_api_wallets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevaWallet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletConectada"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Conectar",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/wallets/{direccion}": {
+      "delete": {
+        "description": "La quita del panel. Si tenía el agente de Hyperliquid, sus claves se borran de este equipo\n(en Hyperliquid se quita desde su página de API).",
+        "operationId": "desconectar_api_wallets__direccion__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direccion",
+            "required": true,
+            "schema": {
+              "title": "Direccion",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Desconectar",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/wallets/{direccion}/hyperliquid/confirmar": {
+      "post": {
+        "description": "Comprueba la firma, la envía a Hyperliquid y, si la acepta, guarda la conexión de\nHyperliquid en esa red (la dirección de tu wallet y la clave del agente).",
+        "operationId": "confirmar_agente_api_wallets__direccion__hyperliquid_confirmar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direccion",
+            "required": true,
+            "schema": {
+              "title": "Direccion",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarAgente"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgenteConectado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Confirmar Agente",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/wallets/{direccion}/hyperliquid/preparar": {
+      "post": {
+        "description": "Crea la wallet agente y los datos que tu wallet tiene que firmar (eth_signTypedData_v4).",
+        "operationId": "preparar_agente_api_wallets__direccion__hyperliquid_preparar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direccion",
+            "required": true,
+            "schema": {
+              "title": "Direccion",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepararAgente"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentePreparado"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Preparar Agente",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/wallets/{direccion}/saldos": {
+      "get": {
+        "description": "Lo que tiene en Ethereum, Arbitrum, Base y Hyperliquid (solo lectura, con su hora).",
+        "operationId": "saldos_api_wallets__direccion__saldos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "direccion",
+            "required": true,
+            "schema": {
+              "title": "Direccion",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaldosWallet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No se permite en este modo (enviar una orden en simulación)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No existe (una estrategia, un plan, unas claves...)"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Choca con el estado de ahora: el modo lo fija el entorno, la pausa de compras, una actualización de datos ya en marcha"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Datos que no valen o que el dominio rechaza, explicados en llano (también los de validación: qué campo y qué le pasa)"
+          }
+        },
+        "summary": "Saldos",
+        "tags": [
+          "wallets"
         ]
       }
     }

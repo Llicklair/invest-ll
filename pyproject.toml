@@ -31,6 +31,7 @@ dependencies = [
     "httpx>=0.27",
     # El conector MCP (invest-ll-mcp): el SDK oficial, por stdio. Solo lo usa src/invest_ll/mcp/.
     "mcp>=2.3.0",
+    "eth-account>=0.14.0",
 ]
 
 [project.scripts]
