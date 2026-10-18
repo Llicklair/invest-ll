@@ -38,9 +38,7 @@ def nuevo_motor(mercado: Mercado, raiz: Path) -> Motor:
     return Motor(mercado.fuente, raiz / "bots", reloj=mercado.reloj, zona=UTC)
 
 
-def op(
-    lado: Lado, cantidad: str, precio: str, *, coin: str = "BTC", minutos: int = 0
-) -> Operacion:
+def op(lado: Lado, cantidad: str, precio: str, *, coin: str = "BTC", minutos: int = 0) -> Operacion:
     c, p = D(cantidad), D(precio)
     return Operacion(
         at=INICIO + timedelta(minutes=minutos),
@@ -88,9 +86,7 @@ class TestMetricas:
             op("compra", "1", "100", minutos=20),
             op("venta", "1", "95", minutos=30),  # -5,2
         ]
-        m = metricas(
-            ops, desde=INICIO, ahora=INICIO + timedelta(days=2), posiciones={}, precios={}
-        )
+        m = metricas(ops, desde=INICIO, ahora=INICIO + timedelta(days=2), posiciones={}, precios={})
         assert m.operaciones == 4
         assert (m.compras, m.ventas, m.cerradas) == (2, 2, 2)
         assert m.aciertos == pytest.approx(0.5)

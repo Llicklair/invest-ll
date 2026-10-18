@@ -80,7 +80,10 @@ class TestSinMotor:
         assert r.status_code == 200
         datos = r.json()
         assert datos["bots"] == []
-        assert datos["nota"] == "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido."
+        assert (
+            datos["nota"]
+            == "Dinero ficticio. Los bots siguen aunque cierres el panel, mientras el ordenador esté encendido."
+        )
         assert datos["ganancia_pct"] is None
 
     def test_sin_precios_no_se_puede_desplegar_y_lo_dice(self, cliente: Api) -> None:
@@ -261,4 +264,3 @@ class TestEnDirecto:
         assert [p["tipo"] for p in pendientes] == ["compra"] * 4
         assert [p["precio"] for p in pendientes] == ["67500", "65000", "62500", "60000"]
         assert pendientes[0]["distancia"] == pytest.approx(67500 / 71000 - 1)
-

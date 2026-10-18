@@ -469,4 +469,3 @@ def test_el_canal_de_actividad_luego_solo_manda_lo_nuevo(
 def test_sin_motor_el_canal_de_actividad_calla() -> None:
     motor.usar(None)
     assert rutas_vivo.actividad_nueva(None) is None
-
